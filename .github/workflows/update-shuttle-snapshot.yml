@@ -1,0 +1,144 @@
+name: Update FLUXNET Explorer Snapshots
+
+"on":
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-shuttle-snapshot
+  cancel-in-progress: false
+
+jobs:
+  update-shuttle-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.8"
+
+      - name: Install FLUXNET Shuttle from GitHub
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "git+https://github.com/fluxnet/shuttle.git"
+
+      - name: Generate stable FLUXNET snapshot CSV
+        env:
+          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
+          TARGET_SNAPSHOT_JSON: assets/shuttle_snapshot.json
+        run: |
+          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
+          SHUTTLE_SOURCE_STATUS_JSON="$RUNNER_TEMP/shuttle-source-status.json"
+          python scripts/refresh_shuttle_snapshot.py \
+            --output-csv "${TARGET_SNAPSHOT_CSV}" \
+            --existing-json "${TARGET_SNAPSHOT_JSON}" \
+            --source-status-output "${SHUTTLE_SOURCE_STATUS_JSON}" \
+            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
+            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
+
+      - name: Convert snapshot CSV to compact JSON
+        env:
+          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
+          TARGET_SNAPSHOT_JSON: assets/shuttle_snapshot.json
+        run: |
+          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
+          SHUTTLE_SOURCE_STATUS_JSON="$RUNNER_TEMP/shuttle-source-status.json"
+          python .github/scripts/shuttle_snapshot_csv_to_json.py \
+            --input "${TARGET_SNAPSHOT_CSV}" \
+            --output "${TARGET_SNAPSHOT_JSON}" \
+            --source-status-input "${SHUTTLE_SOURCE_STATUS_JSON}" \
+            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
+            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
+
+      - name: Refresh ICOS-direct archive snapshot
+        env:
+          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
+          TARGET_ICOS_DIRECT_CSV: assets/icos_direct_fluxnet.csv
+          TARGET_ICOS_DIRECT_JSON: assets/icos_direct_fluxnet.json
+        run: |
+          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
+          python scripts/refresh_icos_direct_fluxnet.py \
+            --shuttle-csv "${TARGET_SNAPSHOT_CSV}" \
+            --output-csv "${TARGET_ICOS_DIRECT_CSV}" \
+            --output-json "${TARGET_ICOS_DIRECT_JSON}" \
+            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
+            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
+
+      - name: Validate ICOS-direct site coverage
+        env:
+          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
+          TARGET_ICOS_DIRECT_CSV: assets/icos_direct_fluxnet.csv
+        run: |
+          python scripts/validate_icos_direct_fluxnet.py \
+            --shuttle-csv "${TARGET_SNAPSHOT_CSV}" \
+            --icos-csv "${TARGET_ICOS_DIRECT_CSV}"
+
+      - name: Refresh JapanFlux-direct snapshot
+        env:
+          TARGET_JAPANFLUX_CSV: assets/japanflux_direct_snapshot.csv
+          TARGET_JAPANFLUX_JSON: assets/japanflux_direct_snapshot.json
+        run: |
+          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
+          python scripts/refresh_japanflux_direct.py \
+            --output-csv "${TARGET_JAPANFLUX_CSV}" \
+            --output-json "${TARGET_JAPANFLUX_JSON}" \
+            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
+            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
+
+      - name: Refresh curated EFD site inventory
+        env:
+          TARGET_EFD_CSV: assets/efd_curated_sites_snapshot.csv
+          TARGET_EFD_JSON: assets/efd_curated_sites_snapshot.json
+        run: |
+          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
+          python scripts/refresh_efd_sites.py \
+            --output-csv "${TARGET_EFD_CSV}" \
+            --output-json "${TARGET_EFD_JSON}" \
+            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
+            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
+
+      - name: Commit and push snapshot files if changed
+        env:
+          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
+          TARGET_SNAPSHOT_JSON: assets/shuttle_snapshot.json
+          TARGET_ICOS_DIRECT_CSV: assets/icos_direct_fluxnet.csv
+          TARGET_ICOS_DIRECT_JSON: assets/icos_direct_fluxnet.json
+          TARGET_JAPANFLUX_CSV: assets/japanflux_direct_snapshot.csv
+          TARGET_JAPANFLUX_JSON: assets/japanflux_direct_snapshot.json
+          TARGET_EFD_CSV: assets/efd_curated_sites_snapshot.csv
+          TARGET_EFD_JSON: assets/efd_curated_sites_snapshot.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Stage only generated snapshot artifacts to avoid committing anything else.
+          git add -- \
+            "${TARGET_SNAPSHOT_CSV}" \
+            "${TARGET_SNAPSHOT_JSON}" \
+            "${TARGET_ICOS_DIRECT_CSV}" \
+            "${TARGET_ICOS_DIRECT_JSON}" \
+            "${TARGET_JAPANFLUX_CSV}" \
+            "${TARGET_JAPANFLUX_JSON}" \
+            "${TARGET_EFD_CSV}" \
+            "${TARGET_EFD_JSON}"
+
+          if git diff --cached --quiet; then
+            echo "No snapshot file changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore(data): refresh FLUXNET explorer snapshots"
+          git push

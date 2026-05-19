@@ -1,0 +1,79 @@
+/* General mobile browsers CSS Styles*/
+
+.imageStyle {max-width: 100%; height: auto;}
+
+#logo img {height: auto;}
+
+#mainWrapper {width: 94%; margin-left: 3%;}
+#pageTopWrapper {position: relative; top: auto;}
+#contentWrapper, #contentSidebar, #sidebarWrapper, #topSidebarWrapper {width: auto; float: none;}
+#content {overflow: hidden;}
+#content[style] {width: auto !important;}
+
+#breadcrumbWrapper, #extraContainer1, #extraContainer7 {width: 94%;}
+#breadcrumbWrapper, #extraContainer7 {margin-left: 3%;}
+
+#breadcrumbContainer ul {background-image: none; height: auto; padding: 5px;}
+#breadcrumbContainer ul li {background-image: none; padding: 0;}
+#breadcrumbContainer ul li:after {content: "→"; line-height: 20px;}
+#breadcrumbContainer a {height: 20px; line-height: 22px; padding: 0 5px;}
+#breadcrumbContainer ul #bcNav {background-image: none; line-height: 20px; height: 20px; padding-right: 0;}
+#bcNav span {line-height: 20px; margin-right: 5px;}
+
+#footerWrapper {position: relative; bottom: auto;}
+
+/* Override Desktop Drop Down Menu CSS */
+
+#menuWrapper {display: none;}
+#menuWrapper, #menu {float: none;}
+
+#mobileMenuTabWrapper {display: block; margin: 0; padding: 0;}
+#mobileMenuTab {padding: 3px 5px; float: left; position: relative; z-index: 300; -webkit-border-radius: 2px; -moz-border-radius: 2px; border-radius: 2px; -webkit-box-shadow: 0 0 3px black; -moz-box-shadow: 0 0 3px black; box-shadow: 0 0 3px black; font-size: 0.85em; background-image: url(images/breadcrumbBackground.png); background-position: center center; background-repeat: repeat-x;}
+
+.responsive-img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    object-position: center;
+}
+
+@media (max-width: 768px) {
+    .responsive-img {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+/* Main Menu Items */
+#menu ul {position: relative; height: auto; z-index: 100; padding-top: 3px; padding-right: 3px; -webkit-box-shadow: 0 0 3px black; -moz-box-shadow: 0 0 3px black; box-shadow: 0 0 3px black;}
+#menu ul a {display: block; margin: 0; padding: 0 10px;}
+#menu ul li {float: none; width: auto;}
+#menu ul li.has-submenu {position: relative;}
+#menu ul li.has-submenu > a {padding-right: 38px;}
+#menu ul li.has-submenu > .submenu-toggle {display: block; position: absolute; top: 0; right: 0; width: 32px; height: 1.7em; margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer;}
+#menu ul li.has-submenu > .submenu-toggle:before {content: ""; display: block; width: 8px; height: 8px; margin: 5px auto 0 auto; border-right: 2px solid #444; border-bottom: 2px solid #444; transform: rotate(45deg);}
+#menu ul li.nav-open > .submenu-toggle:before {margin-top: 9px; transform: rotate(-135deg);}
+#menu ul li.has-submenu > .submenu-toggle:focus {outline: 2px solid #2f5374; outline-offset: 1px;}
+#menu ul ul {margin: 3px 0 3px 10px; padding: 0; height: auto; position: relative; top: auto; width: auto; display: none;}
+#menu ul li.nav-open > ul {display: block;}
+#menu ul a:hover, #menu ul a:active {text-shadow: none;}
+
+#menu ul li.ddarrow a {}
+#menu ul li.ddarrow span {display: none;}
+
+/* Drop Down Menu Items */
+/* First Level */
+#menu ul li ul li {width: auto; float: none;}
+#menu ul ul a {margin: 0; line-height: 1.4; padding-top: 4px; padding-bottom: 4px;}
+#menu ul ul.data-tools-submenu a {padding-top: 6px; padding-bottom: 6px;}
+#menu ul ul a:hover, #menu ul ul a:active {text-shadow: none;}
+
+#menu ul ul li.ddarrow a {padding-right: 3px;}
+#menu ul ul li.ddarrow span {}
+
+/* Second Level and Beyond */
+#menu ul ul ul {top: auto; margin: 3px 0 3px 10px; padding: 0;}
+#menu ul li ul ul {left: auto;}
+#menu ul li:hover ul ul {display: none;}

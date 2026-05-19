@@ -1,0 +1,2 @@
+/* iPhone and other Webkit-based mobile browsers CSS Styles*/
+@media screen and (max-width: 480px) { .headerImage { display: none; } }

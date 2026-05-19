@@ -1,0 +1,1459 @@
+site_id,site_name
+US-Jo3,Jornada Experimental Range Red Lake Playa
+US-Px3,"Phoenix, Desert botanical garden site"
+US-SCd,Southern California Climate Gradient - Sonoran Desert
+US-ADR,Amargosa Desert Research Site (ADRS)
+US-UTB,UFLUX Bonneville Salt Flats
+US-A03,ARM-AMF3-Oliktok
+US-A10,ARM-NSA-Barrow
+CA-RSB,Resolute Bay Polar Desert
+AR-Bal,Balcarce BA
+AR-CCa,Carlos Casares agriculture
+BR-SM1,Cachoeira do Sul Rice Paddy
+BR-PRS,Paraíso do Sul
+BR-SM3,Santa Maria Grassland
+BR-CMT,Capuaba farm Mato Grosso
+CR-Nmr,Nicoya melon-rice cropland
+CR-Fsc,Filadelfia sugar cane cropland
+US-SuS,Maui Sugarcane Lee/Sheltered
+US-SuM,Maui Sugarcane Middle
+US-SuW,Maui Sugarcane Windy
+US-PVA,PVAMU Research Farm
+US-Tx4,Riesel Farm Traditional Agriculture
+US-Tx3,Riesel Farm Aspirational Agriculture
+US-Dea,California UC ANR Desert Research and Extension Center Alfalfa
+US-HBa,Climate Smart 1: Afforestation
+US-RGW,Desha County Rice Farm
+US-LMA,Mississippi ARS Arant ASP
+US-LMB,Mississippi ARS Arant Bau
+US-HBb,Climate-Smart 2: Afforestation
+US-LMS,LMRB LTAR Schmidt Farm
+US-LMW,Mississippi ARS Watts
+US-A40,ARM-BNF-Double Springs
+US-WT1,"Kress, TX no-till cotton and grain sorghum production"
+US-A30,ARM-BNF-Falkville
+US-AV1,Arva AV1
+US-AV3,Arva AV3
+US-RGA,Arkansas Corn Farm
+US-AV4,Arva AV4
+US-AV2,Arva AV2
+US-AV5,Arva AV5
+US-RGR,Arva Ryan's Field
+US-HRA,Humnoke Farm Rice Field – Field A
+US-HRC,Humnoke Farm Rice Field – Field C
+US-HRS,Humnoke Carr South Rice Field
+US-HRN,Humnoke Carr North Rice Field
+US-A20,ARM-BNF-Courtland
+US-GR8,Greenfield Rice Northeast 18
+US-GR9,Greenfield Rice Northwest 19
+US-CRE,Clark Rice East
+US-CRW,Clark Rice West
+US-Bd5,Burdette Farm Rice Field - Seagraves South
+US-Bd4,Burdette Farm Rice Field - 4N
+US-Bd6,Burdette Farm Rice - Seagraves North
+US-NSb,NASA HAQ - SJV West Irrigated Cotton
+US-Lin,Lindcove Orange Orchard
+US-A39,ARM-SGP-Morrison
+US-SM1,Texas SmartFarm Project
+US-UR6,Napi - UCRB
+US-NSa,NASA HAQ - SJV East Irrigated Vineyard
+US-ARM,ARM Southern Great Plains site- Lamont
+US-Pon,Ponca City
+US-A74,ARM SGP milo field
+US-UR5,La Plata - UCRB
+US-UTJ,UFLUX Bluff
+US-UR8,Yellow Jacket - UCRB
+US-SB2,Sweet Briar Grass
+US-RGF,Stanislaus County Forage Farm
+US-UTE,UFLUX Escalante
+US-Tw2,Twitchell Corn
+US-Bi1,Bouldin Island Alfalfa
+US-UTD,UFLUX Dugout Ranch
+US-Twt,Twitchell Island
+US-Bi2,Bouldin Island corn
+US-Tw3,Twitchell Alfalfa
+US-DS3,Staten Rice 1
+US-DS1,Staten Corn 1
+US-DS2,Staten Corn 2
+US-Si1,Staten Island Fallow
+US-Si2,Staten Island Flooded
+US-UTG,UFLUX Green River
+US-OPE,Optimizing Production Inputs for Economic and Environmental Enhancement (OPE3)
+US-Mo1,LTAR CMRB Field 1 (CMRB ASP)
+US-Mo3,LTAR CMRB Field 3 (CMRB BAU)
+US-AC2,ARM-CRG-Rural
+US-UTW,UFLUX Wellington
+US-RGB,Butte County Rice Farm
+US-RGG,Glenn County Rice Farm
+US-RGo,Glenn County Organic Rice Farm
+US-UTN,UFLUX Nephi
+US-INi,INFLUX - Agricultural Site East of Indianapolis (Site-9a)
+US-INe,INFLUX - Agricultural Site West near Pittsboro
+US-INd,INFLUX - Agricultural Site East near Pittsboro
+US-INj,INFLUX - Agricultural Site East of Indianapolis (Site-9b)
+US-IS2,Illinois SmartFarm - Villa Grove Eddy Covariance Site
+US-IS1,Illinois SmartFarm - Pesotum Eddy Covariance Site
+US-INn,INFLUX - Agricultural Site West of Indianapolis (Site-14a)
+US-INp,INFLUX - Agricultural Site West of Indianapolis (Site-14b)
+US-Bo1,Bondville
+US-Bo2,Bondville (companion site)
+US-IS3,Illinois SmartFarm - Bondville Eddy Covariance Site
+US-UiC,University of Illinois Maize-Soy
+US-UiB,University of Illinois Miscanthus
+US-UiG,University of Illinois Maize-Soy 2
+US-UiE,University of Illinois Sorghum-Soy
+US-UiA,University of Illinois Switchgrass
+US-UiF,University of Illinois Miscanthus 2
+US-UTV,UFLUX Desert View
+US-UTL,UFLUX Pelican Lake
+US-VT2,Vermillion Tributary Paired Cropland – Site 2 (Corn/Soy; Cover Crops)
+US-VT1,Vermillion Tributary Paired Cropland – Site 1 (Corn/Soy; No Cover Crops)
+US-xSL,"NEON North Sterling, CO (STER)"
+US-ZF2,Zumwalt Farm Control
+US-ZF1,Zumwalt Farm Treatment
+US-Ne2,Mead - irrigated maize-soybean rotation site
+US-Ne1,Mead - irrigated continuous maize site
+US-SD2,Shatto Ditch Paired Cropland - Site 2 (Corn/Soy; Cover Crops)
+US-Ne3,Mead - rainfed maize-soybean rotation site
+US-SD1,Shatto Ditch Paired Cropland - Site 1 (Corn/Soy; No Cover Crops)
+US-OK1,ECB: Site A1 - North Field
+US-CRT,Curtice Walter-Berger cropland
+US-OK2,ECB: Site A3 - South Field
+US-IB1,Fermi National Accelerator Laboratory- Batavia (Agricultural site)
+US-Br3,Brooks Field Site 11- Ames
+US-Br1,Brooks Field Site 10- Ames
+US-Br2,Brooks Field Site 1011- Ames
+US-IAC,Iowa State University SE tower
+US-IAM,Iowa State University Miscanthus
+US-IAB,Iowa State University NE tower
+US-IAA,Iowa State University NW tower
+US-UR9,Farson - UCRB
+US-MWA,Jackson Agricultural Field
+US-KM1,KBS Marshall Farms Corn
+US-CLS,Coles Farm South
+US-KL1,KBS Lux Arbor Reserve Corn
+US-CLN,Coles Farm North
+CA-TPA,Ontario Turkey Point Observatory Agricultural Site
+US-KSP,Kegonsa Solar - Pretreatment
+US-KSC,Kegonsa Solar - Control
+US-MFs,Moore Fields
+US-SFP,Sioux Falls Portable
+US-DFC,"US Dairy Forage Research Center, Prairie du Sac"
+US-DFK,Dairy Forage Research Center - Kernza
+CA-ER1,Elora Research Station
+US-CC1,Coloma Corn 1
+US-CS1,Central Sands Irrigated Agricultural Field
+US-CC2,Coloma Corn 2
+US-CS5,Central Sands Irrigated Agricultural Field
+US-CS3,Central Sands Irrigated Agricultural Field
+US-CS4,Central Sands Irrigated Agricultural Field
+US-CS6,Central Sands Irrigated Agricultural Field
+US-CS8,Central Sands Irrigated Agricultural Field
+US-KCM,KCMP Tall Tower
+US-Ro5,Rosemount I18_South
+US-Ro6,Rosemount I18_North
+US-Ro1,Rosemount- G21
+US-Ro3,Rosemount- G19
+US-Ro2,Rosemount- C7
+US-Wwt,Willamette Wheat
+US-Wgr,Willamette Grass
+US-MN3,"Morris: Corn-Soybean, Conventional Tillage"
+US-MN1,"Morris: Corn-Soybean with Cover Crops, Strip Tillage"
+US-MN2,"Morris: Corn-Soybean-Wheat with Cover Crops, Minimal Tillage"
+US-MH1,"Huntley, Montana irrigated barley site 1"
+US-MH2,"Huntley, Montana irrigated barley site 2"
+CA-CQ1,Québec. Carbonique1 - Lac Saint-Pierre Disturbed Marsh
+US-GZ3,"Genesee, ID On-farm site Zone 3"
+US-GZ2,"Genesee, ID On-farm site Zone 2"
+US-GZ1,"Genesee, ID On-farm site Zone 1"
+US-CF4,CAF-LTAR Boyd South
+US-CF3,CAF-LTAR Boyd North
+US-RC4,Moscow Mountain on-farm site
+US-NP2,ASPirational Management (mandani2)
+US-NP1,Business-As-Usual Management (mandanh5)
+US-RC2,Cook Agronomy Farm - Conventional Till
+US-CF1,CAF-LTAR Cook East
+US-RC1,Cook Agronomy Farm - No Till
+US-CF2,CAF-LTAR Cook West
+US-RC3,WSU Lind Dryland Research Station
+US-Mj1,Montana Judith Basin wheat field
+US-Mj2,Montana Judith Basin summer fallow field
+US-RC5,Moses Lake on-farm site
+US-SZ2,"St. John, WA On-farm site Zone 2"
+US-SZ1,"St. John, WA On-farm site Zone 1"
+US-SZ3,"St. John, WA On-farm site Zone 3"
+US-MSR,Montana Sun River winter wheat
+US-MVW,Montana Vaughn Wheat
+US-MVF,Montana Vaughn Fallow
+US-MC2,"Creston, Montana pivot-irrigated spring wheat 2"
+US-MC1,"Creston, Montana pivot-irrigated spring wheat"
+CA-ST1,South Tobacco Creek - Field 1
+CA-ST2,South Tobacco Creek - Field 2
+CA-CRB,Carberry
+CA-KT1,Kenton - Field 1
+CA-KT2,Kenton - Field 2
+CA-MA1,Manitoba Agricultural Site 1
+CA-MA2,Manitoba Agricultural Site 2
+US-Tx7,La Copita Shrubland - Savanna
+US-KS2,Kennedy Space Center (scrub oak)
+MX-CHN,Natural subtropical semi-arid shrubland
+US-EA5,Uvalde Ranch Mesquite Woodland
+US-FR3,Freeman Ranch- Woodland
+MX-EMg,El Mogor
+US-SO2,Sky Oaks- Old Stand
+US-SO3,Sky Oaks- Young Stand
+US-SO4,Sky Oaks- New Stand
+US-Ced,Cedar Bridge
+US-Rms,RCEW Mountain Big Sagebrush
+US-Rwe,RCEW Reynolds Mountain East
+US-Rwf,RCEW Upper Sheep Prescibed Fire
+US-Rls,RCEW Low Sagebrush
+US-TKs,Toolik Shrub Tundra
+BR-Ma3,"ZF3, Colosso farm"
+BR-Moj,"Moju/PA, Commercial oil palm plantation"
+US-xDS,NEON Disney Wilderness Preserve (DSNY)
+US-Tx5,Texas A&M University Farm
+US-AF1,MPG - Apricot Lane Farms
+US-A38,ARM-SGP-Omega
+US-A37,ARM-SGP-Waukomis
+US-A14,ARM-SGP-Lamont
+US-E32,ARM-SGP-Medford
+US-A12,ARM-SGP-Pawhuska
+US-A41,ARM-SGP-Peckham
+US-A33,ARM-SGP-Newkirk
+US-LU1,Missouri-Moreau River Basin USDA Certified Organic Farm
+US-CLF,Cole Farm
+US-UC1,LTAR UCB (Upper Chesapeake Bay) EC1
+US-UC2,LTAR UCB (Upper Chesapeake Bay) EC2
+US-HWB,USDA ARS Pasture Sytems and Watershed Management Research Unit- Hawbecker Site
+US-Mi2,LTAR UCB (Upper Chesapeake Bay) Miscanthus 2
+US-Mi1,LTAR UCB (Upper Chesapeake Bay) Miscanthus 1
+US-Mi3,LTAR UCB (Upper Chesapeake Bay) Miscanthus 3
+BR-CUP,Cupari Tapajos National Forest
+MX-Aog,Alamos Old-Growth tropical dry forest
+MX-Asf,Alamos Mid-Secondary tropical dry forest
+MX-Tes,"Tesopaco, secondary tropical dry forest"
+US-Tx8,Danciger Lowland Hardwood Forest
+US-PeA,5R Pecan Farm Above Canopy
+US-CMW,Charleston Mesquite Woodland
+US-xLE,NEON Lenoir Landing (LENO)
+US-ULM,ULM Flux Tower
+US-Cwt,Coweeta
+US-xGR,"NEON Great Smoky Mountains National Park, Twin Creeks (GRSM)"
+US-ChR,Chestnut Ridge
+US-WBW,Walker Branch Watershed
+US-xRN,NEON Oak Ridge National Lab (ORNL)
+US-Dk2,Duke Forest-hardwoods
+US-ASH,USSL San Joaquin Valley Almond High Salinity
+US-ASM,USSL San Joaquin Valley Almond Medium Salinity
+US-PSH,USSL San Joaquin Valley Pistachio High
+US-PSL,USSL San Joaquin Valley Pistachio Low
+US-ASL,USSL San Joaquin Valley Almond Low Salinity
+US-xML,NEON Mountain Lake Biological Station (MLBS)
+US-MOz,Missouri Ozark Site
+US-xSE,NEON Smithsonian Environmental Research Center (SERC)
+US-xSC,NEON Smithsonian Conservation Biology Institute (SCBI)
+US-xUK,NEON The University of Kansas Field Station (UKFS)
+US-xBL,NEON Blandy Experimental Farm (BLAN)
+US-MMS,Morgan Monroe State Forest
+US-Slt,Silas Little- New Jersey
+US-SSH,Susquehanna Shale Hills Critical Zone Observatory
+US-Oho,Oak Openings
+US-xHA,NEON Harvard Forest (HARV)
+US-Ha1,Harvard Forest EMS Tower (HFR1)
+US-LPH,Little Prospect Hill
+CA-TPD,Ontario - Turkey Point Mature Deciduous
+US-HBK,Hubbard Brook Experimental Forest
+US-xBR,NEON Bartlett Experimental Forest (BART)
+US-Bar,Bartlett Experimental Forest
+US-Wpp,Willamette Poplar
+CA-Cbo,"Ontario - Mixed Deciduous, Borden Forest Site"
+US-xTR,NEON Treehaven (TREE)
+US-xST,NEON Steigerwaldt Land Services (STEI)
+US-UMB,Univ. of Mich. Biological Station
+US-UMd,UMBS Disturbance
+US-WCr,Willow Creek
+US-PFk,SW1 Aspen-2 CHEESEHEAD 2019
+US-PFm,SW3 Hardwood-2 CHEESEHEAD 2019
+US-PFq,SE3 Aspen-4 CHEESEHEAD 2019
+US-PFp,SE2 Hardwood-4 CHEESEHEAD 2019
+US-PFs,SE5 Aspen-5 CHEESEHEAD 2019
+US-PFn,SW4 Hardwood-3 CHEESEHEAD 2019
+US-PFL,SW2 Aspen-3 CHEESEHEAD 2019
+US-PFj,NE4 Maple-1 CHEESEHEAD 2019
+US-PFc,NW2 Aspen-1 CHEESEHEAD 2019
+US-PFi,NE3 Hardwood-1 CHEESEHEAD 2019
+US-Wi3,Mature hardwood (MHW)
+US-Wi8,Young hardwood clearcut (YHW)
+US-Wi1,Intermediate hardwood (IHW)
+CA-Oas,"Saskatchewan - Western Boreal, Mature Aspen"
+US-Bn2,"Bonanza Creek, 1987 Burn site near Delta Junction"
+US-Rpf,Poker Flat Research Range: Succession from fire scar to deciduous forest
+BR-CST,Caatinga Serra Talhada
+CL-SDF,Senda Darwin Forest
+BR-ITA,MataFLUX: Multi-species tree restoration planting
+PE-AMG,Los Amigos
+BR-Ji3,Ji-Paraná/RO - Reserva Biológica do Jaru (RBJ)
+PE-PAN,Panguana
+PE-BRE,El Breo
+BR-Sa3,Santarem-Km83-Logged Forest
+BR-Sa1,Santarem-Km67-Primary Forest
+BR-BNT,BIONTE
+BR-Ma2,Manaus - ZF2 K34
+BR-Cax,"CAX, FLONA Caxiuan? micromet tower"
+BR-SGC,"S?o Gabriel da Cachoeira (Balaio Indigenous Reserve, Pico da Neblina National Park)"
+PA-Bar,Barro Colorado Island
+CR-SoC,Soltis Center
+CR-Lse,La Selva
+CR-Dos,La Selva T2
+PR-xGU,NEON Guanica Forest (GUAN)
+US-xPU,NEON Pu'u Maka'ala Natural Area Reserve (PUUM)
+US-Skr,Shark River Slough (Tower SRS-6)  Everglades
+CL-ACF,Alerce Costero Forest
+US-DPP,Disney Wilderness Preserve Pine Flatwoods
+US-KS1,Kennedy Space Center (slash pine)
+US-xSB,NEON Ordway-Swisher Biological Station (OSBS)
+US-SP1,Slashpine-Austin Cary- 65yrs nat regen
+US-SP3,Slashpine-Donaldson-mid-rot- 12yrs
+US-SP2,"Slashpine-Mize-clearcut-3yr,regen"
+US-SP4,Slashpine-Rayonier-mid-rot- 12yrs
+US-xJE,NEON Jones Ecological Research Center (JERC)
+US-CRK,Davy Crockett National Forest
+US-MtB,Mt Bigelow
+US-xTA,NEON Talladega National Forest (TALL)
+US-Cst,Crossett Experimental Forest
+US-HB5,Francis Marion National Forest Longleaf Pine Restoration
+US-Sx2,Santee Experimental Forest Longleaf Pine Thinned
+US-HB2,Hobcaw Barony Mature Longleaf Pine
+US-HB3,Hobcaw Barony Longleaf Pine Restoration
+US-HB6,Loblolly rotation - well drained soils
+US-Fuf,Flagstaff - Unmanaged Forest
+US-Fmf,Flagstaff - Managed Forest
+US-NC3,NC_Clearcut#3
+US-NC2,NC_Loblolly Plantation
+US-NC1,NC_Clearcut
+US-Vcp,Valles Caldera Ponderosa Pine
+US-Vcm,Valles Caldera Mixed Conifer
+US-Vcs,Valles Caldera Sulphur Springs Mixed Conifer
+US-Dk3,Duke Forest - loblolly pine
+US-NC5,NC Butner Farm
+US-xTE,NEON Lower Teakettle (TEAK)
+US-CZ2,"Sierra Critical Zone, Sierra Transect, Ponderosa Pine Forest, Soaproot Saddle"
+US-xSP,NEON Soaproot Saddle (SOAP)
+US-CZ3,"Sierra Critical Zone, Sierra Transect, Sierran Mixed Conifer, P301"
+US-CZ4,"Sierra Critical Zone, Sierra Transect, Subalpine Forest, Shorthair"
+US-SB1,Sweet Briar Land-Atmosphere Research Station
+US-SB3,Sweet Briar Clearcut
+US-Blo,Blodgett Forest
+US-MEF,Manitou Experimental Forest
+US-JFP,"South Parlin: Jackson Demonstration State Forest, Young Second-Growth Redwood"
+US-JFM,"Mitchell Creek: Jackson Demonstration State Forest, Intermediate Second-Growth Redwood"
+US-SHC,Sagehen Creek Field Station
+US-NR2,Niwot Ridge Forest (USGS site)
+US-NR1,Niwot Ridge Forest (LTER NWT1)
+US-xNW,NEON Niwot Ridge Mountain Research Station (NIWO)
+US-xRM,"NEON Rocky Mountain National Park, CASTNET (RMNP)"
+US-CPF,Cameron Peak
+US-CPk,Chimney Park
+US-GBT,GLEES Brooklyn Tower
+US-GLE,GLEES
+US-Ha2,Harvard Forest Hemlock Site
+CA-TP1,Ontario - Turkey Point 2002 Plantation White Pine
+CA-TP3,Ontario - Turkey Point 1974 Plantation White Pine
+CA-TP4,Ontario - Turkey Point 1939 Plantation White Pine
+CA-TP2,Ontario - Turkey Point 1989 Plantation White Pine
+US-CS2,Tri county school Pine Forest
+US-Blk,Black Hills
+US-Me3,Metolius-second young aged pine
+US-Me6,Metolius Young Pine Burn
+US-Me5,Metolius-first young aged pine
+US-CS7,Central Sands Forest
+US-Me2,Metolius mature ponderosa pine
+US-Me7,Metolius Low Burn Severity Subcanopy
+US-Me4,Metolius-old aged ponderosa pine
+US-Me1,Metolius - Eyerly burn
+US-MRf,Mary's River (Fir) site
+US-xYE,NEON Yellowstone Northern Range (Frog Rock) (YELL)
+US-Ho1,Howland Forest (main tower)
+US-Ho3,Howland Forest (harvest site)
+US-Ho2,Howland Forest (west tower)
+US-xAB,NEON Abby Road (ABBY)
+US-xWR,NEON Wind River Experimental Forest (WREF)
+US-Wrc,Wind River Crane Site
+US-PFt,SE6 Pine-4 CHEESEHEAD 2019
+US-PFh,NE2 Pine-3 CHEESEHEAD 2019
+US-PFb,NW1 Pine-1 CHEESEHEAD 2019
+US-PFg,NE1 Pine-2 CHEESEHEAD 2019
+CA-Na1,New Brunswick - 1967 Balsam Fir - Nashwaak Lake Site 01 (Mature balsam fir forest)
+US-Wi0,Young red pine (YRP)
+US-NMj,Northern Michigan Jack Pine Stand
+US-Wi5,Mixed young jack pine (MYJP)
+US-Wi2,Intermediate red pine (IRP)
+US-Wi9,Young Jack pine (YJP)
+US-Wi4,Mature red pine (MRP)
+US-TEF,Tenderfoot Creek Experimental Forest
+CA-Qcu,"Quebec - Eastern Boreal, Black Spruce/Jack Pine Cutover"
+CA-Ca3,British Columbia - Pole sapling Douglas-fir stand
+CA-Qfo,"Quebec - Eastern Boreal, Mature Black Spruce"
+CA-Ca1,British Columbia - 1949 Douglas-fir stand
+CA-Ca2,British Columbia - Clearcut Douglas-fir stand (harvested winter 1999/2000)
+CA-BSM,Black Spruce Moss Forest
+CA-SJ3,"Saskatchewan - Western Boreal, Jack Pine forest harvested in 1975 (BOREAS Young Jack Pine)"
+CA-SJ1,"Saskatchewan - Western Boreal, Jack Pine forest harvested in 1994"
+CA-Ojp,"Saskatchewan - Western Boreal, Mature Jack Pine"
+CA-SJ2,"Saskatchewan - Western Boreal, Jack Pine forest harvested in 2002"
+CA-Obs,"Saskatchewan - Western Boreal, Mature Black Spruce"
+CA-SF2,"Saskatchewan - Western Boreal, forest burned in 1989"
+CA-SF1,"Saskatchewan - Western Boreal, forest burned in 1977"
+CA-LP1,British Columbia - Mountain pine beetle-attacked lodgepole pine stand
+CA-NS5,UCI-1981 burn site
+CA-NS1,UCI-1850 burn site
+CA-Man,Manitoba - Northern Old Black Spruce (former BOREAS Northern Study Area)
+CA-NS8,UCI-2003 burn site
+CA-NS2,UCI-1930 burn site
+CA-NS3,UCI-1964 burn site
+CA-NS4,UCI-1964 burn site wet
+CA-SCC,Scotty Creek Landscape
+CA-SMC,Smith Creek
+US-xDJ,NEON Delta Junction (DEJU)
+US-Bn1,"Bonanza Creek, 1920 Burn site near Delta Junction"
+US-BZS,Bonanza Creek Black Spruce
+US-Uaf,"University of Alaska, Fairbanks"
+US-Prr,Poker Flat Research Range Black Spruce Forest
+US-xBN,NEON Caribou Creek - Poker Flats Watershed (BONA)
+CA-HPC,Havikpak Creek
+AR-CCg,Carlos Casares grassland
+BR-SM2,Pedras Altas Grassland
+BR-Xpw,XomanoFlux
+BR-Ji1,Fazenda Nossa Senhora (FNS)
+PR-xLA,NEON Lajas Experimental Station (LAJA)
+MX-VQS,Vaquerías
+US-ABa,Archbold grazed seminative pasture
+US-ABb,Archbold ungrazed seminative pasture
+US-ABc,Archbold grazed improved pasture
+US-ABd,Archbold ungrazed improved pasture
+US-IL1,Paspalum notatum long rotational grazing
+US-ONA,Florida pine flatwoods
+US-PAS,"Florida, Paspalum notatum pasture"
+US-Tx6,La Copita Grassland - Savanna
+US-FR1,Freeman Ranch- Grassland
+US-Tx1,Stiles Farm Prairie
+US-Tx2,Riesel Farm Native Prairie
+US-LS1,San Pedro River Lewis Springs Sacaton Grassland
+US-Aud,Audubon Research Ranch
+US-Wkg,Walnut Gulch Kendall Grasslands
+US-SRG,Santa Rita Grassland
+US-AaG,Arkansas Grassland
+US-xCL,NEON LBJ National Grassland (CLBJ)
+US-Px2,"Phoenix, Encanto Golf Course"
+US-SCg,Southern California Climate Gradient - Grassland
+US-LGr,Lockney Grassland
+US-Goo,Goodwin Creek
+US-Seg,Sevilleta grassland
+US-LWW,Little Washita Watershed
+US-CwG,Coweeta Grassland
+US-xAE,NEON Klemme Range Research Station (OAES)
+US-Fwf,Flagstaff - Wildfire
+US-ARc,ARM Southern Great Plains control site- Lamont
+US-ARb,ARM Southern Great Plains burn site- Lamont
+US-Dk1,Duke Forest-open field
+US-WT3,Stratford LICOR
+US-WT2,Stratford CSI
+US-AR1,ARM USDA UNL OSU Woodward Switchgrass 1
+US-AR2,ARM USDA UNL OSU Woodward Switchgrass 2
+US-A32,ARM-SGP Medford hay pasture
+US-Shd,Shidler- Oklahoma
+US-A31,ARM-SGP-Anthony
+US-NSW,Newman Seasonal Wetlands
+US-Wlr,Walnut River Watershed (Smileyburg)
+US-Dia,Diablo
+US-CGG,Concord Grazed Grassland
+US-Snd,Sherman Island
+US-Sne,Sherman Island Restored Wetland
+US-Snf,Sherman Barn
+US-Cop,Corral Pocket
+US-Var,Vaira Ranch- Ione
+US-UR4,Gunnison - UCRB
+US-UR7,Olathe - UCRB
+US-CN1,Coleman Cattle Farm
+US-CN2,Parrot Farm
+US-KLS,Kansas Land Institute
+US-Mo2,LTAR CMRB Tucker Prairie (CMRB TP)
+US-KFS,Kansas Field Station
+US-CaV,Canaan Valley
+US-KFB,Konza Prairie LTER (4B)
+US-Kon,Konza Prairie LTER (KNZ)
+US-xKZ,NEON Konza Prairie Biological Station (KONZ)
+US-xKA,NEON Konza Prairie Biological Station - Relocatable (KONA)
+US-BWb,INFLUX - Montgomery County pasture site
+US-BRG,Bayles Road Grassland Tower
+US-BWe,Clifton Park Turfgrass
+US-JRn,WV Jacks Run
+US-RFW,RockyFlats - West site
+US-RFE,RockyFlats - East site
+US-NR4,Niwot Ridge Alpine (T-Van East)
+US-NR3,Niwot Ridge Alpine (T-Van West)
+US-UiD,University of Illinois Restored Native Prairie
+US-xCP,NEON Central Plains Experimental Range (CPER)
+US-CX1,"Central Plains Experimental Range 1, Nunn, Colorado"
+US-CX2,"Central Plains Experimental Range 2, Nunn, Colorado"
+US-MKH,Maggie Creek Hay Meadow
+US-UR0,Baggs - UCRB
+US-UR3,Ft. Bridger - UCRB
+US-AMS,Argonne Testbed for Multiscale Observational Science (ATMOS)
+US-IB2,Fermi National Accelerator Laboratory- Batavia (Prairie site)
+US-SdH,Nebraska SandHills Dry Valley
+US-KM4,KBS Marshall Farms Smooth Brome Grass (Ref)
+US-KM2,KBS Marshall Farms Prairie
+US-KM3,KBS Marshall Farms Switchgrass
+US-KL3,KBS Lux Arbor Reserve Prairie
+US-KL2,KBS Lux Arbor Reserve Switchgrass
+US-UR1,Boulder - UCRB
+US-KSA,Kegonsa Solar Array
+US-UR2,Cora - UCRB
+US-KGF,Kingman Farm
+US-Ctn,Cottonwood
+US-Bkg,Brookings
+US-Ro4,Rosemount Prairie
+US-KUT,KUOM Turfgrass Field
+US-Tur,Turner Ranch
+US-BMM,Bangtail Mountain Meadow
+US-PFf,NW5 Grass-1 CHEESEHEAD 2019
+US-Hn2,Hanford 100H grassland
+US-MG1,MPG Ranch Rangeland Restoration
+US-xNG,NEON Northern Great Plains Research Laboratory (NOGP)
+US-xWD,NEON Woodworth (WOOD)
+US-xDC,NEON Dakota Coteau Field School (DCFS)
+US-FPe,Fort Peck
+CA-Let,Alberta - Mixed Grass Prairie
+CA-MA3,Manitoba Agricultural Site 3
+CA-MR3,Mattheis Ranch - E3 South
+CA-MR5,Mattheis Ranch - E5 North
+CA-IQT,Iqaluit Tundra
+US-CAK,Council Alaska Tundra
+US-NGC,NGEE Arctic Council
+US-YNS,North Star Yedoma
+US-RTS,Toolik Retrogressive Thaw Slump
+CA-Mtk,Mittimatalik (Pond Inlet) Tundra
+PE-TNR,Tambopata
+US-EA4,EAA Field Research Park Woodland
+US-xDL,NEON Dead Lake (DELA)
+US-Sx3,Santee Experimental Forest Unmanaged HW-Pine
+US-Akn,Savannah River Site
+US-SCf,Southern California Climate Gradient - Oak/Pine Forest
+US-TLR,Timberlake Observatory for Wetland Restoration (TOWeR)
+US-Dix,Fort Dix
+US-GMF,Great Mountain Forest
+US-MWF,Kellogg Experimental Forest
+US-TFF,Thompson Farm Forest
+US-AoL,Low Density Apple Orchard
+CA-Cha,New Brunswick - Charlie Lake site 01 (immature balsam fir forest to be thinned in year 3)
+US-PFa,Park Falls/WLEF
+CA-AF1,Acadia Research Forest
+US-xUN,NEON University of Notre Dame Environmental Research Center (UNDE)
+US-Syv,Sylvania Wilderness Area
+CA-Gro,"Ontario - Groundhog River, Boreal Mixedwood Forest"
+CA-Qc2,Quebec - 1975 Harvested Black Spruce (HBS75)
+CL-FJS,Fray Jorge Shrubland
+MX-BRN,Bernal
+MX-Lpa,La Paz
+MX-ISD,San Isidro
+US-Whs,Walnut Gulch Lucky Hills Shrub
+US-SRC,Santa Rita Creosote
+US-xSR,NEON Santa Rita Experimental Range (SRER)
+US-Jo1,Jornada Experimental Range Bajada Site
+US-Jxg,Jornada Experimental Range Historic Grassland
+US-Jo2,Jornada Experimental Range Mixed Shrubland
+US-xJR,NEON Jornada LTER (JORN)
+US-Jxn,Jornada Experimental Range Novel Grassy Shrubland
+US-Jxs,Jornada Experimental Range Shrubland
+US-SCw,Southern California Climate Gradient - Pinyon/Juniper Woodland
+US-SCc,Southern California Climate Gradient - Desert Chaparral
+US-SCs,Southern California Climate Gradient - Coastal Sage
+US-BFS,Robert J. Bernard Biological Field Station
+US-Ses,Sevilleta shrubland
+US-xMB,NEON Moab (MOAB)
+US-UG1,East River Riparian
+US-xNQ,NEON Onaqui-Ault (ONAQ)
+US-Wdn,Walden
+US-MKN,Maggie Creek Non-grazed
+US-MKG,Maggie Creek Fall Grazed
+US-Sta,Saratoga
+US-CU4,Argonne Testbed for Multiscale Observational Science (ATMOS)
+US-Rws,Reynolds Creek Wyoming big sagebrush
+US-Bsg,Burns Sagebrush
+US-Hn1,Hanford 300 Area
+US-Wi6,Pine barrens #1 (PB1)
+US-Wi7,Red pine clearcut (RPCC)
+US-Hn3,Hanford 100H sagebrush
+CA-RPn,Robinsons_Natural_Bog_NL
+CA-RPp,Robinsons_Peatland_Pasture_NL
+CA-SF3,"Saskatchewan - Western Boreal, forest burned in 1998"
+CA-NS6,UCI-1989 burn site
+CA-NS7,UCI-1998 burn site
+CA-LU2,Lutose
+CA-LU1,Steen River
+US-xHE,NEON Healy (HEAL)
+US-EML,"Eight Mile Lake Permafrost thaw gradient, Healy Alaska."
+US-Bn3,"Bonanza Creek, 1999 Burn site near Delta Junction"
+CA-DL1,Daring Lake - Mixed Tundra
+US-Fcr,Cascaden Ridge Fire Scar
+US-ICt,Imnavait Creek Watershed Tussock Tundra
+US-ICh,Imnavait Creek Watershed Heath Tundra
+CA-TVC,Trail Valley Creek
+US-An3,Anaktuvuk River Unburned
+US-An2,Anaktuvuk River Moderate Burn
+US-An1,Anaktuvuk River Severe Burn
+MX-CHB,Churi-Buffelgrass savanna
+US-EPM,Edwards Plateau Martin
+US-LL2,Longleaf Pine - Dubignion (Intermediate site)
+US-LL3,Longleaf Pine - Red Dirt (Xeric site)
+US-LL1,Longleaf Pine - Baker (Mesic site)
+US-LS2,San Pedro River Lewis Springs Savanna
+US-Sx1,Santee Experimental Forest Longleaf Pine Clearcut
+US-Wjs,Willard Juniper Savannah
+US-xSJ,NEON San Joaquin Experimental Range (SJER)
+US-CZ1,"Sierra Critical Zone, Sierra Transect, Oak/Pine Woodland, San Joaquin Experimental Range"
+US-NGB,NGEE Arctic Barrow
+US-Ylw,Yellow Cab urban
+MX-Iit,Instituto de Ingenieria y Tecnologia - UACJ
+US-Deu,California UC ANR Desert Research and Extension Center Urban Farm Tower
+US-Px5,ASU Polytech Center for Bio-mediated and Bio-inspired Geotechnics (CBBG) Field Lab
+US-Px4,"Phoenix, Encanto Vehicle Lot"
+US-Px1,"Phoenix, Maryvale Neighborhood Site"
+US-DBk,Berkeley Way West
+US-BWa,INFLUX - NIST Turfgrass Site
+US-AC5,ARM-CRG-UrbanNW
+US-AC6,ARM-CRG-UrbanSE
+US-SDU,South Denver Urban Tower
+US-INg,INFLUX - Wayne Twp Comm (Site-7)
+US-INc,INFLUX - Downtown Indianapolis (Site-3)
+US-INf,INFLUX - East 21st St (Site 2)
+US-INa,INFLUX - Cemetery Turfgrass Tower
+US-INb,INFLUX - Golf Course
+US-DUF,Denver Urban Field Station
+US-CU2,CSU Williams Science Center
+US-CU1,UIC Plant Research Laboratory Chicago
+US-CU3,Bernard Brommel Hall
+US-MWU,Battle Creek Area Mathematics and Science Center
+US-MWS,Michigan State University Campus Site - Spartans
+US-WEP,West Edge Parking Lot
+US-KUO,KUOM tower
+US-FBE,Bob Allen Key LTER East
+MX-CLS,"Coastal Lagoon, Gulf of California"
+US-AC3,ARM-CRG-Bay
+US-Act,Acton Lake Flux Tower Site
+US-UUC,University of Utah Compass Minerals Flux
+CA-GL3,Long Point
+US-Men,"Lake Mendota, Center for Limnology Site"
+US-Pnp,"Lake Mendota, Picnic Point Site"
+US-UM3,Douglas Lake
+US-PFo,SE1 Lake-2 CHEESEHEAD 2019
+US-PFe,NW4 Lake-1 CHEESEHEAD 2019
+US-TrS,Trout Lake Area South Sparkling Bog
+US-TrB,Trout Bog
+US-GL2,Granite Island
+US-GL1,Stannard Rock
+AR-TF1,Rio Moat bog
+CL-OPP,Omora Park Peatland
+AR-TF2,Rio Pipo bog
+CL-SDP,Senda Darwin Peatland
+AR-Cel,CELPA Mar Chiquita BA
+AR-Rom,Romano Mar Chiquita BA
+PE-QFR,Quistococha Forest Reserve
+BR-Cui,Micrometeorological studies project in Amazonian mangroves
+CO-GV1,Guatavita Station 1
+CO-GV2,Guatavita Station 2
+MX-PMm,Puerto Morelos mangrove
+US-TaS,Taylor Slough/Panhandle
+US-EvM,Everglades Saltwater intrusion marsh
+US-Esm,Everglades (short hydroperiod marsh)
+US-Elm,Everglades (long hydroperiod marsh)
+US-DCS,Dwarf Cypress Swamp
+US-TCS,Tall Cypress Swamp
+US-PiU,Pine Upland
+US-MAC,MacArthur Agro-Ecology
+US-ABe,Archbold Ungrazed Wetland
+US-BCM,Blue Cypress Marsh
+US-DPW,Disney Wilderness Preserve Wetland
+US-KS4,Kennedy Space Center (Spartina marsh)
+US-KS3,Kennedy Space Center (salt marsh)
+US-Tx9,Sargent Unit Salt Marsh
+MX-Sgt,Sonoran short arid Mangrove
+US-LA3,Barataria Bay Saline Marsh
+US-LA1,Pointe-aux-Chenes Brackish Marsh
+US-Tsm,"Port Arthur, TX Salt Marsh"
+US-LA2,Salvador WMA Freshwater Marsh
+US-GCE,Georgia Coastal Ecosystems LTER Flux Tower
+US-HB4,Minim Creek Brackish Impoundment
+US-StS,Strawberry Swamp
+US-HB1,North Inlet Crab Haul Creek
+US-HB7,Hobcaw Barony Ghost Forest
+US-SJ2,San Joaquin (Freshwater Marsh Tower 2)
+US-SJ1,San Joaquin (Freshwater Marsh Tower 1)
+US-NC4,NC_AlligatorRiver
+US-Mur,Murphy's Pond
+US-MCP,"Moro Cojo Slough, PG&E Treatment Wetland"
+US-EKH,Elkhorn Slough Hester Marsh
+US-EKY,Elkhorn Slough Yampah Marsh
+US-EKN,Elkhorn Slough North Marsh
+US-EKP,Elkhorn Slough Porter Marsh
+US-RRC,Rice Rivers Center Marsh
+US-VFP,Virginia Coast Reserve Fowling Point
+US-EDN,Eden Landing Ecological Reserve
+US-Dmg,Dutch Slough Marsh Gilbert Tract
+US-Myb,Mayberry Wetland
+US-Tw4,Twitchell East End Wetland
+US-Tw5,East Pond Wetland
+US-Tw1,Twitchell Wetland West Pond
+US-Srr,Suisun marsh - Rush Ranch
+US-Hsm,Hill Slough Marsh
+US-UTM,UFLUX Matheson
+US-JLR,Jackson Lane - restored
+US-JLN,Jackson Lane - natural
+US-StJ,St Jones Reserve
+US-ORv,Olentangy River Wetland Research Park
+US-HPY,Hawk Property
+US-SHS,Secaucus High School Site
+US-MRM,Marsh Resource Meadowlands Mitigation Bank
+US-UTP,UFLUX Great Salt Lake Phragmites
+US-OWC,Old Woman Creek
+US-WPT,Winous Point North Marsh
+US-BSM,Barnstable Great Marsh
+US-HRP,Herring River Phragmites
+US-HRo,Herring River Old County
+CA-BCW,Big Creek Watershed
+US-MWW,Allegan Wetland
+US-PLM,Plum Island Low Marsh
+US-PHM,Plum Island High Marsh
+US-PLo,Plum Island Oligohaline Marsh
+US-MZA,"Hidden Marsh, Montezuma NWR"
+CA-LuM,Luther Marsh Wildlife Management Area
+CA-Mer,"Ontario - Eastern Peatland, Mer Bleue"
+US-PFr,SE4 Tussock-2 CHEESEHEAD 2019
+US-PFd,NW3 Tussock-1 CHEESEHEAD 2019
+US-ALQ,Allequash Creek Site
+US-Los,Lost Creek
+US-Nrf,Nisqually reference
+US-Nrs,Nisqually restoring
+US-MBP,Marcell Bog Lake Peatland
+CA-WRF,White River Fen
+CA-DSM,Delta Salt Marsh
+CA-DB2,Delta Burns Bog 2
+CA-DBB,Delta Burns Bog
+CA-RBM,Richmond Brackish Marsh
+CA-EM3,Oak Hammock Marsh Manitoba
+CA-EM1,Newdale Manitoba
+CA-EM2,Shoal Lake Manitoba
+CA-BOU,Bouleau Peatland
+CA-KLP,Kinoje Lake Peatland
+CA-ARB,Attawapiskat River Bog
+CA-ARF,Attawapiskat River Fen
+CA-WP3,Alberta - Western Peatland - Rich Fen  (Carex)
+CA-PB2,Polar Bear 2 - Fen
+CA-PB1,Polar Bear 1 - Peat Plateau
+CA-WP1,"Alberta - Western Peatland - LaBiche River,Black Spruce/Larch Fen"
+CA-WP2,Alberta - Western Peatland - Poor Fen (Sphagnum moss)
+CA-CF1,Churchill Fen Site 1
+CA-CF2,Churchill Fen Site 2
+CA-CF3,Churchill Fen Site 3
+US-KPL,Lily Lake Fen
+US-YK2,"Yukon-Kuskokwim Delta, Izaviknek-Kingaglia uplands, Unburned"
+US-YK1,"Yukon-Kuskokwim Delta, Izaviknek-Kingaglia uplands, Burned 2015"
+CA-SCB,Scotty Creek Bog
+US-BZo,Bonanza Creek Old Thermokarst Bog
+US-BZB,Bonanza Creek Thermokarst Bog
+US-BZF,Bonanza Creek Rich Fen
+CA-DL2,Daring Lake - Fen
+US-BZL,Goldstream Valley Thermokarst Lake
+US-Ivo,Ivotuk
+US-ICs,Imnavait Creek Watershed Wet Sedge Tundra
+US-xTL,NEON Toolik (TOOL)
+US-HVa,Happy Valley
+US-HVs,Happy Valley Wet Sedge Tundra
+US-Sag,Sag River
+US-Upa,Upad
+US-Atq,Atqasuk
+US-Bes,Barrow-Bes (Biocomplexity Experiment South tower)
+US-Beo,Barrow Environmental Observatory (BEO) tower
+US-xBA,NEON Barrow Environmental Observatory (BARR)
+US-Cms,Central Marsh
+US-Brw,Barrow
+BR-IAB,Instituto Arruda Botelho - Wooded Cerrado and Mixed Agriculture
+BR-SP1,Southern Pantanal Wetland
+BR-Npw,Northern Pantanal Wetland
+US-EA6,Camp Wood Shield Ranch Oak Savannah
+MX-Ray,"Rayon, monsoon subtropical shrubland"
+US-FR2,Freeman Ranch- Mesquite Juniper
+MX-Oak,"Encino, North American monsoon oak savanna"
+US-SRS,Santa Rita Savanna
+US-SRM,Santa Rita Mesquite
+US-SVC,Savannah River Control
+US-SVP,Savannah River Prescribe Fire
+US-Mpj,Mountainair Pinyon-Juniper Woodland
+US-CdM,Cedar Mesa
+US-Ton,Tonzi Ranch
+US-BgC,Big Chico Creek
+TGK,Tibet Grassland Site
+D01,Duolun steppe
+DSX,Desert Steppe _ Xilingol Temperate Grassland Ecosystem Research Station
+DTK,Dasan Station site
+JOP,Jambi Oil Palm plantation
+KND,Kandistasari Research Site
+SBW,Sibu Station
+VIC,"VietCarbo Site-Rice paddle field in Mekong Delta, Vietnam"
+IRI,IRRI Flux Research Site
+DTT,"Diverse land-cover site at Tak, Thailand"
+IFS,IARI Flux Site
+JRS,Jurong Ecological Experimental Station
+JND,Jiangdu Flux Site
+HPK,Haenam Paddy-field
+HCH,Hachihama Experimental Farm
+HFK,Haenam Farmland
+GRK,Gimje Rice Paddy
+GBK,Gimje Soybean Field
+NFT,National Institute of Fruit Tree Science
+MSE,Mase paddy flux site
+UOK,Ujseong Apple Orchard
+YCS,Yuchen Site
+NSS,"National Institute of Livestock and Grassland Science,Nasu Research Station"
+CFK,Cheongmicheon Farmland Site
+HRK,Hari Rural Rice Paddy
+KR-CRK,Cheorwon Rice paddy
+FFA,Fujisaki Farm Apple Orchard
+JAS,Jinzhou Agricultural Ecosystem Research Station
+D02,Duolun cropland
+NKS,"Nakashibetu Station, NLBC"
+KBY,Kobayashi
+SJP,Simotsuma Japanese pear orchard
+PRW,Paddy rice flux plot _ Panjin Wetland Ecosystem Research Station
+SHD,"National Livestock Breeding Center, Niikappu Station"
+SZN,Hokkaido University Shizunai Livestock Farm
+MMP,Mae Moh plantation
+BFS,Barkot Flux Research Site
+YMS,Yamashiro forest meteorology research site
+KWG,Kawagoe forest meteorology research site
+TKY,Takayama deciduous broadleaf forest site
+NBB,Naeba Beech Forest Research Site
+GDK,Gwangreung Deciduous forest
+SRK,Shirakami Beech Forest Site
+TOE,Tomakomai Experimental Forest
+SAP,Sapporo forest meteorology research site
+MBF,Moshiri Birch Forest Site
+CBF,Boreal Forest _ Chinese Boreal Forest Ecosystem Research Station
+FHK,Fuji Hokuroku Flux Observation Site
+FJY,Fujiyoshida forest meteorology research site
+TKC,Takayama evergreen coniferous forest site
+GCK,Gwangreung Coniferous forest
+API,Appi forest meteorology research site
+TMK,Tomakomai Flux Research Site
+TSE,CC-LaG Teshio Experimental Forest
+LSH,Laoshan
+SKT,Southern Khentei Taiga
+YLF,Yakutsk Spasskaya Pad larch
+TUR,Tura
+PDF,Palangkaraya drained forest
+BKS,Bukit Soeharto
+CMC,"Cermat Ceria, Betong"
+PSO,Pasoh Forest Reserve
+DFR,Dry Dipterocarp Forest Flux Ratchaburi
+RFC,Rubber Flux Chachoengsao
+SKR,Sakaerat
+RFB,Rubber Flux Bueng Kan
+KMW,Kog-Ma Wateshed
+BNS,Xishuangbanna Site
+LHC,The Lien-Hua-Chih Hydrometeorological Study Site
+TWH,Taiwan Huisun Forest Station
+QYZ,Qianyanzhou Site
+YNF,Yona-Field Tower Site
+AKO,Akou green belt
+MLM,Maludam
+CLM,Chi-Lan Mountain Research Site
+MYM,Mymensingh Flux Study Site
+KHW,Kahoku Experiment watershed
+KEW,Kiryu Experiment Watershed
+NKM,Nishikoma Site
+TCK,Taehwa Conifer forest
+K04,Kubuqi forest plantation
+NRW,Natural reed flux plot _ Panjin Wetland Ecosystem Research Station
+HEF,Hitsujigaoka Experimental Forest
+YPF,Yakutsk Pine
+AUY,Australia Yanco site
+GDP,Guandu Nature Park Flux Station
+ZRS,Zoige Flux Research Station
+OM2,Farm field in Osaka Metropolitan University
+TGF,"Terrestrial Environment Research Center, University of Tsukuba"
+HBG,Haibei Potentilla fruticisa bosk Site
+QHB,Qinghai Flux Research Site
+X06,Xilinhot Fenced steppe
+X03,Xilinhot degraded steppe
+TSX,Typical Steppe _ Xilingol Temperate Grassland Ecosystem
+KBU,Kherlenbayan Ulaan
+ITP,Intact Tropical Peatland
+DTP,Degraded Tropical Peatland
+LHP,Lambir Hills National Park
+NCT,Nam Cat Tien Forest
+MKL,Mae Klong
+BFT,Betul Flux Research Site
+HFS,Haldwani Forest Plantation
+SMF,Seto Mixed Forest Site
+KZW,Karuizawa
+TBK,Taehwa Broadleaf forest
+SMK,KoFlux Seolmacheon site
+CBS,Changbaishan Site
+MMF,Moshiri Mixd Forest Site
+K05,Kubuqi shrubland
+DW7,Dongwu steppe
+STK,King Sejong Station site
+OM1,B11 building in Osaka Metropolitan University
+IZM,Oizumi Urban Park
+SAC,Sakai City Office
+MKH,Muka Head Station
+SWL,Suwa Lake Site
+CM3,"Dongtan Monitoring Station of Global Carbon Flux, Chongming, Shanghai No.3"
+CM2,"Dongtan Monitoring Station of Global Carbon Flux, Chongming, Shanghai No.2"
+CM1,"Dongtan Monitoring Station of Global Carbon Flux, Chongming, Shanghai No.1"
+KST,Kushiro Mire Akanuma Tower
+JP-BBY,Bibai bog
+CN-Cha,Changsha(Paddy Rice)
+CN-Tao,Taoyuan
+CN-Wux,Wuxi
+CN-Jnz,Jiaozhouwan(Paddy Rice)
+CN-Yuc,Yucheng
+CN-Lua,Luancheng
+CN-Dam,Daman (Paddy Rice)
+CN-Ygk,Yingke Oasis Station
+CN-Lin,Linze(Paddy Rice)
+CN-Dax,Daxinganling
+CN-Xsh,Xishuangbanna
+CN-Din,Dinghushan
+CN-Bao,Baotianman
+CN-Ail,Ailaoshan
+CN-Htg,Huitong
+CN-Dan,Dangxiong
+CN-Naq,Naqu
+CN-San,Sanjiangyuan
+CN-Aan,Ansai
+CN-Hai3,Haibei marsh grass
+CN-Hai2,Haibei Meadow
+CN-Hai1,Haibei Shrubland
+CN-Tha,A'rou Freeze Thaw Observation Station
+CN-Siz,Siziwang Fenced (SZWF)
+CN-Du2,Duolun_grassland (D01)
+CN-Xfs,Xilinhot Inner Mongolia fenced typical steppe (TSX)
+CN-Xi3,Inner Mongolia (NMG)
+CN-Hug,Hulunber Grassland
+CN-Son,Songnen(meadow steppe)
+CN-Qia,Qianyanzhou
+CN-Huz,Huzhong Boreal Forest
+CN-BeO,Beijing Olympic Forest Park
+CN-Lak5,Xiaoleishan at Lake Tai
+CN-Lak1,Bifenggang at Lake Tai
+CN-Lak4,pingtaishan at Lake Tai
+CN-Lak2,Dapugang at Lake Tai
+CN-Lak3,Meiliangwan at Lake Tai
+CN-Zha,Zhanjiang gaoqiao
+CN-Lak,Lake Dongting
+CN-Do1,Dongtan 1 (CM1)
+CN-Do3,Dongtan 3 (CM3)
+CN-Do2,Dongtan 2 (CM2)
+CN-Hai4,Haibei Wetland
+CN-Pa2,Panjin Wetland (Paddy Rice)
+CN-Pa1,Panjin Wetland (Natural Reed)
+SJ-Blv,Bayelva Spitsbergen
+KE-Mkt,Maktau
+KE-Aq1,Ausquest 1
+KE-Aq2,Ausquest 2
+BJ-Nhu,Nalohou
+GH-Kyr,Kayoro
+PH-RIf,Philippines Rice Institute flooded
+SN-Rga,Ragola
+SN-Nkr,Niakhar
+ES-FcO,Finca Oran
+ES-LTs,Las Tiesas Experimental Farm
+ES-Tz2,Tarazona de la Mancha 2
+ES-TzM,Tarazona de la Mancha
+ES-ES2,El Saler-Sueca (Valencia)
+IT-BCi,Borgo Cioffi
+ES-ReV,Riet Vell
+IT-Rut,Rutigliano
+BG-Crp,Chirpan
+IT-Ro4,Roccarespampani 4
+IT-Ro3,Roccarespampani 3
+IT-CA2,Castel d'Asso2
+IT-Mrs,Marsciano
+FR-Lam,Lamasquere
+FR-Aur,Aurade
+IT-Cas,Castellaro
+CH-For,Forel
+HU-He1,Hegyhatsal
+CH-Oe2,Oensingen crop
+CH-Tnk,Tanikon
+FR-Gri,Grignon
+FR-Trs,Terrasolis
+CZ-KrP,Kresin u Pacova
+FR-EM1,Estrées-Mons A27
+FR-EM2,Estrees-Mons A28
+BE-Lon,Lonzee
+DE-RuS,Selhausen Juelich
+DE-Kli,Klingenberg
+DE-RuM,Merzenhausen
+DE-Geb,Gebesee
+DE-Rns,Reinshof
+NL-Vre,Vredepeel
+UK-EHd,East Hendred Control
+NL-Mol,Molenweg
+PL-Ans,Annoslaw
+UK-WdC,Waddesdon Control
+NL-Lan,Langerak
+NL-Dij,Dijkgraaf
+UK-HpF,Hope Farm
+DE-Brs,Braunschweig
+PL-Brd,Brody
+UK-Swt,Sawtry
+UK-Rdm,Redmere 2
+IE-CaC,Carlow Conventional Tillage
+IE-Ca1,Carlow crop
+IE-CaN,Carlow No Tillage
+UK-Rsh,Riseholme
+NL-Lut,Lutjewad
+UK-Pob,Pollybell
+UK-BBC,Bishop's Burton Cropland
+UK-BBB,Bishop's Burton Bioenergy
+DE-Hdn,Heydenhof
+DK-Vng,Voulundgaard
+SE-Lnn,Lanna
+FI-Qvd,Qvidja
+FI-Jok,Jokioinen
+FI-Pap,Pappilansuo
+FI-Sar,Särkisuo
+FI-Ant,Anttila
+FI-Ruk,Ruukki
+ES-MtN,MonteNegro
+ES-Crg,Caroig
+IT-Noe,Arca di Noe - Le Prigionette
+BE-Maa,Maasmechelen
+RU-Vrk,Seida/Vorkuta
+FI-Nsv,Naarasneva
+PA-SPn,Sardinilla Plantation
+BJ-Bfg,Bellefoungou
+IT-Cp3,Castelporziano3
+IT-CA3,Castel d'Asso3
+IT-CA1,Castel d'Asso1
+IT-Ro2,Roccarespampani 2
+IT-Ro1,Roccarespampani 1
+IT-BsB,Bussoleno Bosco
+IT-BFt,Bosco Fontana
+IT-PT1,Parco Ticino forest
+IT-Vig,Vigevano
+HR-Jst,Jastrebarsko oak forest
+IT-Isp,Ispra ABC-IS
+HU-Spr,Sopron
+DE-Exb,Exelberg
+DE-Etn,Ettenheim
+FR-Fon,Fontainebleau-Barbeau
+FR-MsS,Montiers sur Saulx
+CZ-Stn,Stitna
+DE-Hzd,Hetzdorf
+DE-Hai,Hainich
+BE-Lcr,Lochristi
+UK-Ham,Hampshire
+DE-Lnf,Leinefelde
+IE-Dgm,Donoughmore
+DE-HoH,Hohes Holz
+UK-BtW,Brattleby Willow SRC
+DK-RCW,Risø Campus Willow
+IT-TrF,Torgnon-LD
+EE-Ag1,Agali-1
+EE-Ag2,Agali-2
+EE-Snk,Siniküla
+RU-SkP,Yakutsk Spasskaya Pad larch
+CD-Ygb,Yangambi
+GH-Ank,Ankasa
+GF-Guy,Guyaflux (French Guiana)
+CR-AqC,Aquiares Coffee-Flux
+IL-RmH,Ramat Hanadiv
+ES-Gdn,Guadiana
+PT-LdT,Leziria do Tejo
+PT-Cor,Coruche
+ES-Mcd,Moncada
+ES-Mzn,Manzanera
+ES-Srn,Sarrion
+IT-PCm,Parco Urbano di Capodimonte
+IT-Cp2,Castelporziano2
+IT-Cpz,Castelporziano
+IT-Tol,Tolfa
+FR-Pue,Puechabon
+IL-Yat,Yatir
+ES-Mr1,Mairena1
+ES-Mr2,Mairena2
+ES-Yst,Yeste
+ES-HeB,Hellin Burnt
+ES-Hen,Hellin
+ES-ES1,El Saler (Valencia)
+ES-AP2,Almodóvar del Pinar 2
+ES-AP1,Almodóvar del Pinar 1
+ES-CMu,Cuenca Las Majadas unburned
+ES-CMb,Cuenca Las Majadas burned
+BG-Rzn,Rozhen
+IT-SRo,San Rossore
+IT-SR2,San Rossore 2
+FR-Bil,Bilos
+FR-LBr,Le Bray
+IT-La2,Lavarone2
+IT-Lav,Lavarone
+CH-Dav,Davos
+AT-Mmg,Mieming
+DE-Msr,Mooseurach
+DE-Har,Hartheim
+DE-Lkb,Lackenberg
+CZ-RAJ,Rajec
+CZ-BK1,Bily Kriz forest
+DE-RuW,Wustebach
+DE-Obe,Oberbärenburg
+DE-Tha,Tharandt
+DE-Lue,Luenten
+NL-Loo,Loobos
+DE-Kie,Kienhorst
+DK-Gds,Gludsted Plantage
+SE-Htm,Hyltemossa
+RU-Fy3,Fyodorovskoye Clear-cut
+RU-Fy2,Fyodorovskoye dry spruce stand
+RU-Fyo,Fyodorovskoye
+SE-Sgr,Skogaryd
+FI-Let,Lettosuo
+FI-Kns,Kalevansuo
+FI-Rk2,Ranskalankorpi
+FI-Alk,Alkkia
+SE-Ros,Rosinedal-3
+SE-TrC,Trollberget Clearcut
+SE-Svb,Svartberget
+FI-Var,Varrio
+ZA-Jks,Jonkershoek
+ZA-Spk,Spioenkop
+ZA-Uby,Umhlabuyalingana
+BW-Nxr,Nxaraga
+KE-Kpt,Kapiti
+BJ-Db1,Dangbo
+PA-SPs,Sardinilla-Pasture
+ES-Pzb,Pozoblanco
+GR-Vcs,Vocals
+IT-Amp,Amplero
+ES-LBr,La Bertolina
+ES-VDA,Vall d' Alinyà (Lleida)
+ES-Cst,Castellar
+FR-Mau,Mauzac
+FR-Tou,Toulouse
+IT-SPC,San Pietro Capofiume
+FR-CLt,Col du Lautaret
+IT-Bsn,Bussoleno
+IT-Niv,Nivolet
+IT-NiG,Nivolet grassland
+FR-Lq2,Laqueuille extensive
+FR-Lq1,Laqueuille intensive
+IT-Tor,Torgnon
+IT-MBo,Monte Bondone
+FR-Lus,Lusignan
+CH-Frk,Furka
+CH-Aws,Alp Weissenstein
+IT-MtP,Muntatschinig Pasture
+IT-MtM,Muntatschinig Meadow
+CH-Psx,Posieux
+HU-He2,Hegyhatsal tower 2
+CH-Crs,Cressier
+CH-Fru,Früebüel
+AT-Neu,Neustift
+CH-Cha,Chamau
+CH-Rh1,Ruethi peatland reference
+CH-Rh2,Ruethi peatland covered
+CH-Oe3,Oensingen extensive grassland
+CH-Oe1,Oensingen grassland
+CH-Rtb,Rietholzbach
+AT-Rtz,Rotholz
+CH-Wdg,Waldegg
+DE-RbW,Rottenbuch West
+DE-Fen,Fendt
+FR-Nzn,Naizin
+FR-Mej,Mejusseaume
+AT-Mac,Marchegg
+CZ-LnG,Lanzhot Grassland
+FR-Srt,Sirta
+CZ-BK2,Bily Kriz grassland
+BE-Dor,Dorinne
+DE-RuR,Rollesbroich
+DE-Gri,Grillenburg
+NL-Hrw,Haarweg
+NL-Vkp,Veenkampen
+NL-Haa,Haastrecht
+DE-GsB,Grosses Bruch
+NL-Hor,Horstermeer
+UK-CCr,Cors Caron
+UK-Cvn,Coveney
+UK-Wot,Woodwalton
+UK-GtF,Great Fen
+UK-HgF,High Fen
+DE-Hkb,Hakenberg
+DE-Dms,Dameswalde
+DE-Bmb,Blumberg
+UK-Ags,Anglesey
+DE-Okd,Oberklenkendorf
+UK-Po1,Pollybell GGR1
+UK-Myg,Myerscough
+RU-Ha3,Hakasia 10 yr
+RU-Ha1,Hakasia steppe
+RU-Ha2,Hakasia 5yr
+UK-GaB,Garry Bog
+DK-Lva,Rimi
+UK-WMs,West Moss-side
+GL-NuH,Nuuk Heath
+RU-Tks,Tiksi
+RU-Sam,Samoylov
+GL-ZaH,Zackenberg Heath
+FR-FBn,Font-Blanche
+CH-Lae,Laegern
+AT-Zoe,Zoebelboden
+CZ-Lnz,Lanzhot
+BE-Vie,Vielsalm
+EE-Jvs,Järvselja
+ZA-BfS,Benfontien Savanna
+ZA-BfK,Benfontien Karoo
+IT-Lpd,Lampedusa
+ES-Amo,Amoladeras
+ES-LJu,Llano de los Juanes
+ES-Agu,Aguamarga
+ES-Ln2,Lanjaron-Salvage logging
+ES-Ln1,Lanjaron-Non intervention
+ES-LgS,Laguna Seca
+ES-CPa,Cortes de Pallas
+IT-Cp5,Castelporziano5
+IT-Arz,Arzelle
+IT-Lsn,Lison
+FR-Ruy,Rully
+DE-RuC,Wustebach Clearcut
+NO-Fns,Finse
+FI-Rk1,Ranskalankorpi clearcut
+RU-Cok,Chokurdakh
+BW-Kvb,Kavimba
+KE-Chk,Choke
+BJ-Bir,Bira
+BF-Nzg,Nazinga
+SN-Dhr,Dahra
+ES-SCf,Santa Clotilde forest
+ES-SCg,Santa Clotilde grassland
+ES-HdD,Hinojosa del Duque
+ES-Abr,Albuera
+ES-LM2,Majadas del Tietar South
+ES-LMa,Las Majadas de Tietar (Caceres)
+ES-LM1,Majadas del Tietar North
+GL-Dsk,Disko
+SG-TKr,Telok Kurau
+BJ-Db2,Dangbo 2
+GR-HeM,Heraklion Mastabas
+GR-HeK,Heraklion Kornarou
+IT-Sas,Sassari
+IT-SMc,San Marcellino
+IT-OXm,Osservatorio Ximeniano
+IT-Prt,Palazzo Pretorio Prato
+IT-OVr,Osservatorio Valerio
+AT-Inn,Innsbruck
+CH-BaA,Basel Aeschenplatz
+CH-BaK,Basel Klingelbergstrasse
+AT-VnA,Vienna Arsenal
+FR-Sac,Saclay
+PL-Krk,Krakow
+UK-LBT,London_BT
+PL-Lz1,Lodz1
+PL-Lz2,Lodz2
+PL-Lz3,Lodz3
+DE-Hbs,Heisenbergstrasse
+NL-Amd,Amsterdam
+DE-BeR,Berlin-Rothenburgstrasse
+DE-BeC,Berlin TU Campus Charlottenburg
+FI-Kmp,Kumpula
+DE-Dgw,Dagowsee
+SE-Oes,Oestergarnsholm
+SE-Ers,Erssjön
+FI-Tvm,Tvärminne
+FI-Kvr,Kuivajarvi
+RU-Krg,Kurungnakh
+BW-Gum,Guma
+KE-Mdw,Maduwa
+AE-ADb,Abu Dhabi Eastern Mangroves
+ES-Pdu,Padul
+PT-PGx,Paul de Gouxa
+IT-Vte,Viote
+FR-LGt,La Guette
+AT-PsM,Puergschachen Moor
+AT-Nsd,Neusiedl
+DE-SfS,Schechenfilz Sued
+DE-SfN,Schechenfilz Nord
+FR-Rpn,Rampillon
+CZ-wet,Trebon (CZECHWET)
+DE-SbM,Sonnenberger Moor
+DE-Spw,Spreewald
+DE-Amv,Amtsvenn
+DE-UtM,Uchter Moor
+DE-Bou,Bourtanger Moor
+PL-wet,Rzecin (PolWet)
+IE-Cra,Clara Raised Bog
+PL-Kpt,Kopytkowo
+DE-Hmm,Himmelmoor
+DE-Akm,Anklam
+DE-Zrk,Zarnekow
+DE-Hte,Huetelmoor
+UK-MrH,Moor House
+UK-BnB,Ballynahone Bog
+UK-Gwr,Glenwherry
+UK-Gnn,Glenullin
+UK-AMo,Auchencorth Moss
+DK-Skj,Skjern
+SE-Faj,Fäjemyr
+RU-Fy4,Fyodorovskoye bog
+UK-Bam,Balmoral
+EE-Rng,Ruhingu
+EE-Vnd,Vanda
+SE-Myc,Mycklemossen
+SE-Fos,Följesjön
+EE-Pts,Pitsalu
+EE-Kru,Kauru
+FI-Sii,Siikaneva
+FI-Si2,Siikaneva-2 Bog
+GL-NuF,Nuuk Fen
+SE-HfM,Halsingfors mire
+SE-Hmr,Halmyran
+SE-Srj,Storjarn
+SE-Trb,Trollberget
+SE-Deg,Degero
+FI-Skj,Siikajoki
+FI-Lom,Lompolojankka
+SE-St1,Stordalen grassland
+SE-Sto,Abisko-Stordalen Palsa Bog
+RU-Che,Cherski
+RU-Ch2,Cherski reference
+NO-Ikr,Iskoras
+GL-ZaF,Zackenberg Fen
+SJ-Adv,Adventdalen
+ES-Dnn,Doñana
+ES-Cnd,Conde
+JP-Mse,Mase rice paddy field
+DE-Seh,Selhausen
+DK-Fou,Foulum
+AU-Lox,Loxton
+ZM-Mon,Mongu
+IT-Col,Collelongo
+DK-Sor,Soroe
+MY-MLM,Maludam National Park
+MY-PSO,Pasoh Forest Reserve (PSO)
+HK-MPM,Mai Po Mangrove
+AR-Vir,Virasoro
+IT-Ren,Renon
+FI-Hyy,Hyytiala
+FI-Sod,Sodankyla
+AU-Emr,Emerald
+CN-Hgu,Hongyuan
+CN-HaM,Haibei Alpine Tibet site
+CN-Sw2,Siziwang Grazed (SZWG)
+CN-Du3,Duolun Degraded Meadow
+CN-Cng,Changling
+DK-Eng,Enghave
+AR-SLu,San Luis
+BE-Bra,Brasschaat
+ZA-Kru,Skukuza
+CG-Tch,Tchizalamou
+SD-Dem,Demokeya
+JP-SwL,Suwa Lake
+AU-RDF,"Red Dirt Melon Farm, Northern Territory"
+CN-In1,Inner Mongolia dune
+TH-Kms,Kamphaeng Saen Rice Paddy
+JP-Hc1,Hachihama Experimental Farm: the International Rice Experiment
+JP-Hc3,Hachihama Experimental Farm: Double Crop
+JP-Hrt,Hiratsuka Rice Paddy
+JP-Yrp,Yawara Rice paddy
+JP-Nsb,NIAES Soybean
+JP-KaP,Kasumigaura lotus paddy
+CN-In3,Inner Mongolia soybean
+CN-In4,Inner Mongolia maize
+JP-Tdf,Toyota Deciduous Forest
+JP-Nuf,Nagoya University Forest
+JP-Toc,Tomakomai Crane site
+MN-Udg,Udleg practice forest
+RU-Ege,Elgeeii forest station
+RU-NeF,Neleger larch forest
+ID-Pag,Palangkaraya Undrained Forest
+KH-Kmp,Kampong Thom Lowland Dry Evergreen Forest
+TH-Kog,Kog-Ma Watershed
+JP-Tkb,Tsukuba Experimental Watershed
+CN-In7,Inner Mongolia light grazing
+CN-In2,Inner Mongolia grassland
+CN-In8,Inner Mongolia medium grazing
+CN-In6,Inner Mongolia heavy grazing
+CN-In5,Inner Mongolia no grazing
+MN-Hst,Hustai grassland
+MN-Nkh,Nalaikh grassland
+RU-USK,Ulakhan Sykkhan Alas
+RU-NeB,Neleger Burnt Forest
+JP-Fmt,Field Museum Tama Hills
+JP-Shn,Shinshu University Experimental Forest Site
+ID-PaB,Palangkaraya Drained Burnt forest
+RU-NeC,Neleger Cutover
+JP-Kgu,Kugahara urban residential area
+JP-Nap,Nunoike Agricultural Pond
+JP-KaL,Koshin Lake Kasumigaura
+JP-Km2,Kushiro Mire: Akanuma Bog
+JP-Km1,Kushiro Mire: Onnenai Fen
+JP-Sb2,Sarobetsu Mire Sasa
+JP-Sb1,Sarobetsu Mire Moss
+KR-Nj1,Naju Rice Paddy 1
+KR-PcD,Pyeongchang Deciduous forest
+KR-WdE,Wando Evergreen broadleaf forest
+KR-ScC,Samcheok Coniferous forest
+KR-AdC,Anmyeondo Coniferous forest
+KR-JjM,Jeju Mixed forest
+KR-HcM,Hongcheon Mixed forest
+NZ-ADw,Ashley Dene wet
+NZ-ADd,Ashley Dene dry
+AU-Cm2,Coleambally (rice)
+AU-Cm1,Coleambally Irrigation Area (maize and wheat rotation)
+AU-Rgf,Ridgefield
+AU-Wrr,Warra
+AU-Wac,Wallaby Creek
+AU-Wom,Wombat
+NZ-Kop,Kopuatai
+AU-Whr,Whroo
+AU-Tum,Tumbarumba
+AU-Cum,Cumberland Plain
+AU-Rob,Robson Creek
+AU-Cow,Cow Bay
+AU-Drg,Dargo
+AU-Nim,Nimmo
+NZ-BFm,Beacon Farm
+NZ-Oxf,Oxford
+AU-APL,Alpine Peatland
+AU-Rig,Riggs Creek
+AU-Ync,Yanco
+AU-Boy,Boyagin
+AU-TTE,Ti Tree East
+Au-Fle,Fletcherview Tropical Rangeland
+AU-Vir,Virginia Park
+AU-Stp,Sturt Plains
+AU-DaP,Daly River Pasture
+AU-Lit,Litchfield
+AU-Cpr,Calperum
+AU-GWW,Great Western Woodlands
+AU-Sam,Samford
+AU-ASM,Alice Springs Mulga
+AU-Dry,Dry River
+AU-DaS,Daly River Savanna
+AU-Otw,Otway
+NZ-Sco,Scott Farm
+AU-Ctr,Cape Tribulation
+AU-Fog,Fogg Dam
+AU-Sil,Silver Plains
+AU-Col,Collie
+AU-Gin,Gingin
+AU-Ade,Adelaide River
+AU-How,Howard Springs
+CH-TAN,T?nikon
+CH-HON,Hoenggerberg
+CH-DAS,Davos sub-canopy
+CH-LAS,Lägeren sub-canopy

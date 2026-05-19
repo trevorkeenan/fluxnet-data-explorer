@@ -1,0 +1,6 @@
+/* iPad CSS Styles*/
+@media only screen and (device-width: 768px) { 
+	#mainWrapper, #breadcrumbWrapper, #extraContainer1, #extraContainer7 {width: 92%;margin-left: 4%;}
+	.imageStyle, video, object, embed {max-width: 100%;height: auto;}
+	.headerImage { background-size: cover; }
+}

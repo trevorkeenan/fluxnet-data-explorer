@@ -1,0 +1,5 @@
+#contentWrapper {float: none;width: auto !important;}
+#sidebarWrapper {float: none;display: none;}
+.lowerHeader {margin-bottom: 20px;}
+#extraContainer4 {margin-bottom: 20px;}
+#extraContainer5, #extraContainer6, #extraContainer7 {margin-top: 20px;margin-bottom: 10px;}
