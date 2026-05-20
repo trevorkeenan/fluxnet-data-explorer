@@ -2,14 +2,19 @@ cff-version: 1.2.0
 message: "If you use the FLUXNET Data Explorer, please cite the versioned software release."
 title: "FLUXNET Data Explorer"
 type: software
+version: "v1.0.0"
 authors:
   - family-names: "Keenan"
     given-names: "Trevor F."
     affiliation: "University of California, Berkeley"
 repository-code: "https://github.com/trevorkeenan/fluxnet-data-explorer"
-url: "https://trevorkeenan.github.io/fluxnet-explorer.html"
+url: "https://www.keenangroup.info/fluxnet-data-explorer/"
 license: "Apache-2.0"
 abstract: "The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources, including FLUXNET Shuttle records and supplemental metadata snapshots from regional or source-specific portals."
+identifiers:
+  - type: doi
+    value: "TODO_ZENODO_DOI"
+    description: "Placeholder for the Zenodo DOI; replace after Zenodo reserves or creates the DOI."
 keywords:
   - "FLUXNET"
   - "eddy covariance"

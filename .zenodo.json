@@ -2,13 +2,14 @@
   "title": "FLUXNET Data Explorer",
   "upload_type": "software",
   "license": "Apache-2.0",
+  "version": "v1.0.0",
   "creators": [
     {
       "name": "Keenan, Trevor F.",
       "affiliation": "University of California, Berkeley"
     }
   ],
-  "description": "The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources. It combines the FLUXNET Shuttle catalog with supplemental metadata snapshots from regional or source-specific portals, including AmeriFlux, ICOS, JapanFlux, and EFD.",
+  "description": "The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources. It combines the FLUXNET Shuttle catalog with supplemental metadata snapshots from regional or source-specific portals, including AmeriFlux, ICOS, JapanFlux, and EFD. The preferred live application is https://www.keenangroup.info/fluxnet-data-explorer/.",
   "keywords": [
     "FLUXNET",
     "eddy covariance",
@@ -20,7 +21,7 @@
   ],
   "related_identifiers": [
     {
-      "identifier": "https://trevorkeenan.github.io/fluxnet-explorer.html",
+      "identifier": "https://www.keenangroup.info/fluxnet-data-explorer/",
       "relation": "isSupplementedBy",
       "resource_type": "other"
     },

@@ -3,7 +3,12 @@
 	<head>
 		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-		<meta name="description" content="Search and download the Keenan Group's FLUXNET Data Explorer, including hub-hosted and supplemental FLUXNET records." />
+		<meta name="description" content="Interactive tool for discovering and accessing FLUXNET and related ecosystem flux data across FLUXNET Shuttle, AmeriFlux, ICOS, JapanFlux, EFD, and other sources." />
+		<link rel="canonical" href="https://www.keenangroup.info/fluxnet-data-explorer/" />
+		<meta property="og:title" content="FLUXNET Data Explorer" />
+		<meta property="og:description" content="Interactive tool for discovering and accessing FLUXNET and related ecosystem flux data across FLUXNET Shuttle, AmeriFlux, ICOS, JapanFlux, EFD, and other sources." />
+		<meta property="og:url" content="https://www.keenangroup.info/fluxnet-data-explorer/" />
+		<meta property="og:type" content="website" />
 		<!-- User defined head content such as meta tags and encoding options -->
 	 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -16,7 +21,7 @@
 		<link rel="stylesheet" type="text/css" media="handheld" href="stylesheets/mobile.css" />
 		<link rel="stylesheet" type="text/css" media="all" href="stylesheets/colourtag-page0tk.css" />
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script> <!-- Load jQuery 1.7 here, for theme options that may need it. -->
-		<script charset="utf-8">RwSet = { pathto: "stylesheets/javascript.js", baseurl: "https://trevorkeenan.github.io/fluxnet-data-explorer/" };</script>
+		<script charset="utf-8">RwSet = { pathto: "stylesheets/javascript.js", baseurl: "https://www.keenangroup.info/fluxnet-data-explorer/" };</script>
 		<script type="text/javascript" src="stylesheets/nimblehost.js"></script>
 		<script type="text/javascript" src="stylesheets/javascript.js"></script> <!-- RapidWeaver javascript functions -->
 		<!-- Style variations - these are set up in the Theme.plist -->
@@ -52,10 +57,12 @@
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-DXJ7N8LZEX');
+  gtag('config', 'G-DXJ7N8LZEX', {
+    page_path: '/fluxnet-data-explorer/'
+  });
 </script>
 
-<title>FLUXNET Data Explorer, Keenan Group</title>
+<title>FLUXNET Data Explorer</title>
 <link rel="icon" type="image/png" href="images/me.png">
 <link rel="apple-touch-icon" type="image/png" href="images/me.png">
 
@@ -75,7 +82,7 @@
 			<div id="topWrapper">	
 				<div id="logoTitle"><!-- Start logo and title container -->
 					<div id="logo">
-						<a href="https://trevorkeenan.github.io"></a>
+						<a href="https://www.keenangroup.info/"></a>
 					</div>
 					<div id="titleSlogan">
 						<div id="title"><h1>The Quantitative Ecosystem Dynamics Lab</h1></div>
@@ -99,38 +106,38 @@
 			<div id="menuWrapper">
 				<div id="menu">
 				<ul>
-					<li><a href="https://trevorkeenan.github.io/" rel="">home</a></li>
-					<li><a href="https://trevorkeenan.github.io/research.html" rel="">research</a>
+					<li><a href="https://www.keenangroup.info/" rel="">home</a></li>
+					<li><a href="https://www.keenangroup.info/research.html" rel="">research</a>
 							<ul>
-							<li><a href="https://trevorkeenan.github.io/research.html#VegDynamics">- Vegetation Dynamics </a>
+							<li><a href="https://www.keenangroup.info/research.html#VegDynamics">- Vegetation Dynamics </a>
 							</li>
-							<li><a href="https://trevorkeenan.github.io/research.html#CarbonClimate">- Carbon and Climate </a>
+							<li><a href="https://www.keenangroup.info/research.html#CarbonClimate">- Carbon and Climate </a>
 							</li>
-							<li><a href="https://trevorkeenan.github.io/research.html#EcosystemFunction">- Ecosystem Function </a>
+							<li><a href="https://www.keenangroup.info/research.html#EcosystemFunction">- Ecosystem Function </a>
 							</li>
-							<li><a href="https://trevorkeenan.github.io/research.html#EcoTraits">- Ecological Traits </a>
+							<li><a href="https://www.keenangroup.info/research.html#EcoTraits">- Ecological Traits </a>
 							</li>
 							</ul>
 						</li>				
-					<li><a href="https://trevorkeenan.github.io/currentProjects.html" rel="">current projects</a></li>
-    				<li><a href="https://trevorkeenan.github.io/members.html" rel="">members</a></li>
-    				<li class="nav-data-tools"><a href="https://trevorkeenan.github.io/data.html" rel="" class="currentAncestor">data/tools</a>
+					<li><a href="https://www.keenangroup.info/currentProjects.html" rel="">current projects</a></li>
+						<li><a href="https://www.keenangroup.info/members.html" rel="">members</a></li>
+						<li class="nav-data-tools"><a href="https://www.keenangroup.info/data.html" rel="" class="currentAncestor">data/tools</a>
 						<ul class="data-tools-submenu">
 						<li><a href="index.html" rel="" id="current" aria-current="page">FLUXNET Data Explorer</a></li>
-						<li><a href="https://trevorkeenan.github.io/global-data-products.html" rel="">Global Data Products</a></li>
-						<li><a href="https://trevorkeenan.github.io/data-processing-tools.html" rel="">Data Processing Tools</a></li>
+						<li><a href="https://www.keenangroup.info/global-data-products.html" rel="">Global Data Products</a></li>
+						<li><a href="https://www.keenangroup.info/data-processing-tools.html" rel="">Data Processing Tools</a></li>
 						</ul>
 					</li>
-					<li><a href="https://trevorkeenan.github.io/publications.html" rel="">publications</a>
+					<li><a href="https://www.keenangroup.info/publications.html" rel="">publications</a>
 						<ul>
-        				<li><a href="https://trevorkeenan.github.io/publications.html#recent">- New results! </a></li>
-    	    			<li><a href="https://trevorkeenan.github.io/publications.html#sel_pubs">- Highlights </a></li>
-        				<li><a href="https://trevorkeenan.github.io/publications.html#full_list">- Full list </a></li>
+							<li><a href="https://www.keenangroup.info/publications.html#recent">- New results! </a></li>
+							<li><a href="https://www.keenangroup.info/publications.html#sel_pubs">- Highlights </a></li>
+							<li><a href="https://www.keenangroup.info/publications.html#full_list">- Full list </a></li>
 						</ul>
 					
 					</li>
-					<li><a href="https://trevorkeenan.github.io/journalClub.html" rel="">journal club</a></li>
-					<li><a href="https://trevorkeenan.github.io/join_us.html" rel="">join us</a></li>
+					<li><a href="https://www.keenangroup.info/journalClub.html" rel="">journal club</a></li>
+					<li><a href="https://www.keenangroup.info/join_us.html" rel="">join us</a></li>
 				</ul></div>
 				<div class="clearer"></div>
 			</div>
@@ -155,6 +162,12 @@
 							<div id="shuttle-explorer" class="shuttle-explorer--hide-header" data-shuttle-explorer data-json-src="assets/shuttle_snapshot.json" data-csv-src="assets/shuttle_snapshot.csv" data-icos-direct-json-src="assets/icos_direct_fluxnet.json" data-icos-direct-csv-src="assets/icos_direct_fluxnet.csv" data-japanflux-direct-json-src="assets/japanflux_direct_snapshot.json" data-japanflux-direct-csv-src="assets/japanflux_direct_snapshot.csv" data-efd-curated-json-src="assets/efd_curated_sites_snapshot.json" data-efd-curated-csv-src="assets/efd_curated_sites_snapshot.csv" data-all-known-sites-map-json-src="assets/all_known_flux_sites_map.json" data-page-size="10"></div>
 							<div class="fluxpulse-title-block">
 								<p id="shuttle-attribution-note">The data presented here were discovered using a metadata snapshot generated by the Q.E.D. Lab FLUXNET Data Explorer. Contact TF Keenan (<a href="mailto:trevorkeenan@berkeley.edu">trevorkeenan@berkeley.edu</a>) with any questions or suggestions. We appreciate acknowledgement of the QED FLUXNET Data Explorer when convenient. Explorer refreshed: unavailable. New data last added: unavailable.</p>
+							</div>
+							<div class="fluxpulse-title-block" id="fluxnet-explorer-citation">
+								<h3>Citation and source</h3>
+								<p><strong>Citation:</strong> Keenan, T. F., and contributors. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. <a href="https://doi.org/TODO_ZENODO_DOI" target="_blank" rel="noopener">https://doi.org/TODO_ZENODO_DOI</a></p>
+								<p><strong>Version:</strong> v1.0.0. <strong>License:</strong> Apache-2.0. <strong>Source code:</strong> <a href="https://github.com/trevorkeenan/fluxnet-data-explorer" target="_blank" rel="noopener">github.com/trevorkeenan/fluxnet-data-explorer</a>. <strong>Live app:</strong> <a href="https://www.keenangroup.info/fluxnet-data-explorer/" target="_blank" rel="noopener">www.keenangroup.info/fluxnet-data-explorer/</a>.</p>
+								<p class="shuttle-explorer__tiny">Apache-2.0 applies to the Explorer software code and original documentation, not to third-party datasets, metadata, APIs, download URLs, logos, trademarks, or data products surfaced here. Those remain governed by the original providers' terms and data-use policies. Use of this Explorer does not imply endorsement by UC Berkeley, the Keenan Lab, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or any data provider.</p>
 							</div>
 						</section>
 						<div class="clearer"></div>

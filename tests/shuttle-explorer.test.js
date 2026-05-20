@@ -4303,6 +4303,20 @@ test('Browser-facing explorer markup does not include hardcoded AmeriFlux identi
   assert.equal(explorerJs.includes('value="trevorkeenan@berkeley.edu"'), false);
 });
 
+test('Explorer GA4 tag is single-use and preserves custom event hooks', () => {
+  const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
+  const explorerHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+  assert.equal((explorerHtml.match(/googletagmanager\.com\/gtag\/js\?id=G-DXJ7N8LZEX/g) || []).length, 1);
+  assert.equal((explorerHtml.match(/gtag\('config', 'G-DXJ7N8LZEX'/g) || []).length, 1);
+  assert.equal(explorerHtml.includes("page_path: '/fluxnet-data-explorer/'"), true);
+  assert.equal(explorerJs.includes('window.gtag("event", name, params || {})'), true);
+  assert.equal(explorerJs.includes('"fx_row_download_click"'), true);
+  assert.equal(explorerJs.includes('"fx_request_page_click"'), true);
+  assert.equal(explorerJs.includes('"fx_landing_page_click"'), true);
+  assert.equal(explorerJs.includes('gaEvent("fx_explorer_loaded"'), true);
+});
+
 test('Data Notes box appears between the map and attribution sections with shared box styling', () => {
   const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
   const explorerCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.css'), 'utf8');

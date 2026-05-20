@@ -2,17 +2,25 @@
 
 The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources. It combines the FLUXNET Shuttle catalog with selected supplemental metadata snapshots from regional or source-specific portals, including AmeriFlux, ICOS, JapanFlux, and EFD.
 
-Current live Explorer: https://trevorkeenan.github.io/fluxnet-explorer.html
+Preferred live application: https://www.keenangroup.info/fluxnet-data-explorer/
 
-Future standalone GitHub Pages URL: https://trevorkeenan.github.io/fluxnet-data-explorer/
+Legacy compatibility URL: https://www.keenangroup.info/fluxnet-explorer.html
+
+## Repository And Deployment Model
+
+This repository is the canonical source, release, Zenodo DOI, and GitHub Pages hosting repository for the FLUXNET Data Explorer. It contains the Explorer source code, tests, generated manifests and snapshots, refresh scripts, refresh workflows, release metadata, Apache-2.0 license, and citation metadata.
+
+The live public Explorer is served from this repository at https://www.keenangroup.info/fluxnet-data-explorer/. The old URL, https://www.keenangroup.info/fluxnet-explorer.html, is retained only as a legacy compatibility pointer from the main lab website. Future Explorer updates should be made in this repository, not in `trevorkeenan/trevorkeenan.github.io`.
 
 ## Data Snapshots
 
-The Explorer serves committed CSV and JSON metadata snapshots from `assets/`. These snapshots are refreshed from upstream sources by the update workflow when available. Live source availability can change between repository releases, so a Zenodo DOI should identify a specific versioned release of the Explorer software and bundled metadata snapshots, while the public live site may continue to update.
+The Explorer serves committed CSV and JSON metadata snapshots from `assets/`. These snapshots are refreshed from upstream sources by the scheduled update workflow in this repository when available. The live GitHub Pages app at https://www.keenangroup.info/fluxnet-data-explorer/ reads those generated files from this repository.
+
+Live source availability can change between repository releases. Zenodo releases are for versioned Explorer software releases and bundled metadata snapshots, not every daily manifest refresh.
 
 ## Repository Structure
 
-- `index.html`: GitHub Pages entry point for the standalone Explorer.
+- `index.html`: GitHub Pages entry point for the Explorer.
 - `assets/`: Explorer JavaScript, CSS, and committed metadata snapshots.
 - `scripts/`: Snapshot refresh, validation, and catalog-building scripts.
 - `.github/workflows/`: GitHub Actions workflow for refreshing Explorer snapshots.
@@ -31,22 +39,42 @@ Then open http://localhost:8000/ in a browser.
 
 ## Update Workflow
 
-The GitHub Actions workflow in `.github/workflows/update-shuttle-snapshot.yml` can be run manually or on its schedule. It refreshes the Shuttle, ICOS-direct, JapanFlux-direct, and curated EFD snapshot files, validates ICOS coverage, and commits only the generated snapshot artifacts when they change.
+The GitHub Actions workflow in `.github/workflows/update-shuttle-snapshot.yml` can be run manually or on its schedule. It refreshes the Shuttle, ICOS-direct, JapanFlux-direct, and curated EFD snapshot files, validates ICOS coverage, and commits only the generated snapshot artifacts back to this repository when they materially change.
 
 The broader known-sites map assets are committed in `assets/all_known_flux_sites*`. They can be regenerated with `scripts/build_all_known_flux_sites.py`; optional supplemental source lists should be placed in `external_site_lists/` when needed.
+
+## Maintainer Workflow
+
+Make Explorer changes in this repository, run the JavaScript and Python tests here, update manifests and snapshots here, and create tagged releases here for Zenodo archival.
+
+Do not edit Explorer code, manifests, snapshots, tests, release metadata, or citation metadata in `trevorkeenan/trevorkeenan.github.io`. That repository should keep only a lightweight legacy pointer from `fluxnet-explorer.html` to the hosted app in this repository.
+
+## Analytics Verification
+
+The Explorer uses the Keenan Group GA4 measurement ID `G-DXJ7N8LZEX`. The Google tag is included once in `index.html` and sends the canonical page path `/fluxnet-data-explorer/`. Custom Explorer events are emitted from `assets/shuttle-explorer.js` through `gtag("event", ...)`, including search/filter interactions and outbound or download actions such as `fx_row_download_click`, `fx_request_page_click`, `fx_landing_page_click`, and bulk-download helper events.
+
+To verify tracking after deployment:
+
+1. Open Google Tag Assistant at https://tagassistant.google.com/ and connect to `https://www.keenangroup.info/fluxnet-data-explorer/`.
+2. Confirm exactly one Google tag is detected for `G-DXJ7N8LZEX`, then confirm the initial `page_view` reports `/fluxnet-data-explorer/`.
+3. Trigger a few Explorer interactions, such as search, filter changes, row download links, and generated script or manifest downloads. Confirm the corresponding `fx_*` events appear in the Tag Assistant event stream.
+4. In GA4, open Reports > Realtime for the same property. Confirm an active user appears for the Explorer and that the event count includes `page_view` plus the tested `fx_*` events.
+5. To measure residual old-link traffic, repeat the Tag Assistant or Realtime check for `https://www.keenangroup.info/fluxnet-explorer.html`; that legacy page should also report to `G-DXJ7N8LZEX`, but it should not load the full Explorer app.
 
 ## License
 
 The Explorer software code and original documentation in this repository are licensed under the Apache License, Version 2.0. See `LICENSE`.
 
-Third-party datasets, metadata, download URLs, APIs, logos, trademarks, and data products surfaced by the Explorer remain governed by the original providers' terms, licenses, citation requirements, and data-use policies. This repository does not grant rights to those third-party materials or imply endorsement by UC Berkeley, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or any other data provider.
+Third-party datasets, metadata, download URLs, APIs, logos, trademarks, and data products surfaced by the Explorer remain governed by the original providers' terms, licenses, citation requirements, and data-use policies, including those of FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, and other contributing networks or repositories.
+
+Use of the FLUXNET Data Explorer does not imply endorsement by UC Berkeley, the Keenan Lab, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or any data provider.
 
 ## Citation
 
-Citation metadata are provided in `CITATION.cff`. A DOI should be added after the first Zenodo-backed GitHub release.
+Citation metadata are provided in `CITATION.cff`. Replace `TODO_ZENODO_DOI` after Zenodo reserves or creates a DOI.
 
 Placeholder citation:
 
-> Keenan, Trevor F. FLUXNET Data Explorer. Version v1.0.0. DOI to be assigned after Zenodo release.
+> Keenan, T. F., and contributors. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/TODO_ZENODO_DOI
 
-The DOI should identify the versioned release of the Explorer software and bundled metadata snapshots. The live website may continue to receive updated snapshots after that release.
+Zenodo may provide both an all-versions/concept DOI for citing the Explorer project generally and a version-specific DOI for citing an exact release. Use the version-specific DOI when you need to cite the exact software and bundled metadata snapshots used. The live GitHub Pages app may continue to receive updated snapshots after a release.

@@ -1,5 +1,13 @@
 # Migration Notes
 
+## Current Repository Model
+
+`trevorkeenan/fluxnet-data-explorer` is now the canonical source, GitHub Pages hosting, release, and Zenodo DOI repository for FLUXNET Data Explorer code, tests, generated manifests and snapshots, refresh scripts, refresh workflows, license metadata, and citation metadata.
+
+The live public application is served from this repository at `https://www.keenangroup.info/fluxnet-data-explorer/`. The old `https://www.keenangroup.info/fluxnet-explorer.html` page in `trevorkeenan/trevorkeenan.github.io` should remain only as a lightweight legacy compatibility pointer.
+
+Future Explorer changes should be made, validated, released, and archived here. Do not maintain a second full Explorer copy in the lab website repository.
+
 ## Copied Files
 
 Copied the Explorer page from the lab website repository to `index.html` so GitHub Pages can serve the standalone site from the repository root.
@@ -24,8 +32,8 @@ Copied only the theme files and image/font assets referenced by the current Expl
 
 - Renamed `fluxnet-explorer.html` to `index.html`.
 - Updated favicon and touch-icon paths to use local `images/me.png`.
-- Updated the RapidWeaver `RwSet.baseurl` value for the future standalone GitHub Pages URL.
-- Updated the Explorer menu so links to the broader lab website use absolute `https://trevorkeenan.github.io/...` URLs.
+- Updated the RapidWeaver `RwSet.baseurl` value for the hosted Explorer URL at `https://www.keenangroup.info/fluxnet-data-explorer/`.
+- Updated the Explorer menu so links to the broader lab website use absolute `https://www.keenangroup.info/...` URLs.
 - Updated the current Explorer menu link to `index.html`.
 - Updated copied tests that referenced `fluxnet-explorer.html` so they read `index.html`.
 - Normalized copied theme CSS image paths that pointed to missing root-level theme images.
@@ -37,12 +45,12 @@ Copied only the theme files and image/font assets referenced by the current Expl
 - Broader lab website HTML pages were not copied; the standalone Explorer links back to the live lab website instead.
 - General website images and people/project assets were not copied unless directly referenced by the Explorer page or copied theme files.
 - Python bytecode caches and `.DS_Store` files were not copied.
-- No repository-level license file was present in the source website repository, so `LICENSE-TODO.md` was created instead of inventing a license.
+- No release/citation/Zenodo metadata files should be maintained in the lab website deployment repository; those belong in this canonical repository.
 
 ## TODOs And Assumptions
 
-- Select and add an explicit license before the first Zenodo DOI release.
-- After Zenodo assigns a DOI, update `README.md`, `CITATION.cff`, and optionally `index.html` with the DOI and citation badge.
+- Apache-2.0 has been selected for the Explorer software code and original documentation. Third-party datasets, metadata, APIs, download URLs, logos, trademarks, and data products remain governed by the original providers' terms and data-use policies.
+- After Zenodo reserves or assigns a DOI, replace `TODO_ZENODO_DOI` in `README.md`, `CITATION.cff`, `.zenodo.json` if needed, `index.html`, and the legacy website pointer if it includes the DOI placeholder.
 - The current workflow refreshes the primary Explorer snapshots, matching the original website workflow. The all-known-sites map assets remain committed and can be regenerated separately with `scripts/build_all_known_flux_sites.py`.
 - Optional external site lists for `scripts/build_all_known_flux_sites.py` should be placed in `external_site_lists/` if they are intended to be public and released.
 
@@ -54,4 +62,5 @@ Copied only the theme files and image/font assets referenced by the current Expl
 4. Enable GitHub Pages from `main` and `/`.
 5. Create a version tag and release.
 6. Connect the GitHub repository to Zenodo and archive the first release.
-7. Later, update the old lab website `fluxnet-explorer.html` to redirect to the standalone Explorer, or keep the old URL as a wrapper or landing page.
+7. Enable GitHub Pages for this repository from `main` and `/`.
+8. Keep the old lab website `fluxnet-explorer.html` page as a legacy pointer to `https://www.keenangroup.info/fluxnet-data-explorer/`.
