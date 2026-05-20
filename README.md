@@ -35,6 +35,12 @@ The GitHub Actions workflow in `.github/workflows/update-shuttle-snapshot.yml` c
 
 The broader known-sites map assets are committed in `assets/all_known_flux_sites*`. They can be regenerated with `scripts/build_all_known_flux_sites.py`; optional supplemental source lists should be placed in `external_site_lists/` when needed.
 
+## License
+
+The Explorer software code and original documentation in this repository are licensed under the Apache License, Version 2.0. See `LICENSE`.
+
+Third-party datasets, metadata, download URLs, APIs, logos, trademarks, and data products surfaced by the Explorer remain governed by the original providers' terms, licenses, citation requirements, and data-use policies. This repository does not grant rights to those third-party materials or imply endorsement by UC Berkeley, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or any other data provider.
+
 ## Citation
 
 Citation metadata are provided in `CITATION.cff`. A DOI should be added after the first Zenodo-backed GitHub release.

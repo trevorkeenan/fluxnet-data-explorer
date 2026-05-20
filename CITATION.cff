@@ -8,6 +8,7 @@ authors:
     affiliation: "University of California, Berkeley"
 repository-code: "https://github.com/trevorkeenan/fluxnet-data-explorer"
 url: "https://trevorkeenan.github.io/fluxnet-explorer.html"
+license: "Apache-2.0"
 abstract: "The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources, including FLUXNET Shuttle records and supplemental metadata snapshots from regional or source-specific portals."
 keywords:
   - "FLUXNET"

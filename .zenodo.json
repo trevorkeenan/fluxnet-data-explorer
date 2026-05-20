@@ -1,6 +1,7 @@
 {
   "title": "FLUXNET Data Explorer",
   "upload_type": "software",
+  "license": "Apache-2.0",
   "creators": [
     {
       "name": "Keenan, Trevor F.",
