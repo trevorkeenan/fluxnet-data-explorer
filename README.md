@@ -69,10 +69,10 @@ Use of the FLUXNET Data Explorer does not imply endorsement by UC Berkeley, the 
 
 ## Citation
 
-Citation metadata are provided in `CITATION.cff`. Replace `TODO_ZENODO_DOI` after Zenodo reserves or creates a DOI.
+Citation metadata are provided in `CITATION.cff`.
 
-Placeholder citation:
+Suggested citation:
 
-> Keenan TF. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/TODO_ZENODO_DOI
+> Keenan TF. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.20331228
 
 Zenodo may provide both an all-versions/concept DOI for citing the Explorer project generally and a version-specific DOI for citing an exact release. Use the version-specific DOI when you need to cite the exact software and bundled metadata snapshots used. The live GitHub Pages app may continue to receive updated snapshots after a release.

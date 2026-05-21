@@ -6052,7 +6052,7 @@
       "<aside class=\"shuttle-explorer__attribution\" data-role=\"citation-source\">",
       "  <h3>Citation and source</h3>",
       "  <p class=\"shuttle-explorer__tiny\">We appreciate acknowledgement of the QED FLUXNET Data Explorer when convenient.</p>",
-      "  <p class=\"shuttle-explorer__tiny\"><strong>Citation:</strong> Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. <a href=\"https://doi.org/TODO_ZENODO_DOI\" target=\"_blank\" rel=\"noopener noreferrer\">https://doi.org/TODO_ZENODO_DOI</a> <strong>Version:</strong> v1.0.0. <strong>License:</strong> Apache-2.0. <strong>Source code:</strong> <a href=\"https://github.com/trevorkeenan/fluxnet-data-explorer\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/trevorkeenan/fluxnet-data-explorer</a>.</p>",
+      "  <p class=\"shuttle-explorer__tiny\"><strong>Citation:</strong> Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. <a href=\"https://doi.org/10.5281/zenodo.20331228\" target=\"_blank\" rel=\"noopener noreferrer\">https://doi.org/10.5281/zenodo.20331228</a> <strong>Version:</strong> v1.0.0. <strong>License:</strong> Apache-2.0. <strong>Source code:</strong> <a href=\"https://github.com/trevorkeenan/fluxnet-data-explorer\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/trevorkeenan/fluxnet-data-explorer</a>.</p>",
       "  <p class=\"shuttle-explorer__tiny\">Apache-2.0 applies to the Explorer software code and original documentation, not to third-party datasets, metadata, APIs, download URLs, logos, trademarks, or data products surfaced here.</p>",
       "</aside>"
     ].join("");

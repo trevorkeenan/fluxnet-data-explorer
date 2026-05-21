@@ -50,7 +50,7 @@ Copied only the theme files and image/font assets referenced by the current Expl
 ## TODOs And Assumptions
 
 - Apache-2.0 has been selected for the Explorer software code and original documentation. Third-party datasets, metadata, APIs, download URLs, logos, trademarks, and data products remain governed by the original providers' terms and data-use policies.
-- After Zenodo reserves or assigns a DOI, replace `TODO_ZENODO_DOI` in `README.md`, `CITATION.cff`, `.zenodo.json` if needed, `index.html`, and the legacy website pointer if it includes the DOI placeholder.
+- Zenodo DOI `10.5281/zenodo.20331228` is now recorded in the release citation metadata and app citation text.
 - The current workflow refreshes the primary Explorer snapshots, matching the original website workflow. The all-known-sites map assets remain committed and can be regenerated separately with `scripts/build_all_known_flux_sites.py`.
 - Optional external site lists for `scripts/build_all_known_flux_sites.py` should be placed in `external_site_lists/` if they are intended to be public and released.
 

@@ -13,8 +13,8 @@ license: "Apache-2.0"
 abstract: "The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources, including FLUXNET Shuttle records and supplemental metadata snapshots from regional or source-specific portals."
 identifiers:
   - type: doi
-    value: "TODO_ZENODO_DOI"
-    description: "Placeholder for the Zenodo DOI; replace after Zenodo reserves or creates the DOI."
+    value: "10.5281/zenodo.20331228"
+    description: "Zenodo DOI for the v1.0.0 FLUXNET Data Explorer release."
 keywords:
   - "FLUXNET"
   - "eddy covariance"
