@@ -8,7 +8,7 @@ Preferred live application: https://www.keenangroup.info/fluxnet-data-explorer/
 
 This repository is the canonical source, release, Zenodo DOI, and GitHub Pages hosting repository for the FLUXNET Data Explorer. It contains the Explorer source code, tests, generated manifests and snapshots, refresh scripts, refresh workflows, release metadata, Apache-2.0 license, and citation metadata.
 
-The live public Explorer is served from this repository at https://www.keenangroup.info/fluxnet-data-explorer/. The old URL, https://www.keenangroup.info/fluxnet-explorer.html, is retained only as a legacy compatibility pointer from the main lab website. Future Explorer updates should be made in this repository, not in `trevorkeenan/trevorkeenan.github.io`.
+The live public Explorer is served from this repository at https://www.keenangroup.info/fluxnet-data-explorer/.
 
 ## Data Snapshots
 
@@ -73,6 +73,6 @@ Citation metadata are provided in `CITATION.cff`. Replace `TODO_ZENODO_DOI` afte
 
 Placeholder citation:
 
-> Keenan, T. F., and contributors. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/TODO_ZENODO_DOI
+> Keenan TF. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/TODO_ZENODO_DOI
 
 Zenodo may provide both an all-versions/concept DOI for citing the Explorer project generally and a version-specific DOI for citing an exact release. Use the version-specific DOI when you need to cite the exact software and bundled metadata snapshots used. The live GitHub Pages app may continue to receive updated snapshots after a release.
