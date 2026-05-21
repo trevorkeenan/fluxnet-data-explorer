@@ -5454,11 +5454,11 @@
   }
 
   function buildAttributionText(snapshotUpdatedDate, snapshotRefreshedDate) {
-    return "We appreciate acknowledgement of the QED FLUXNET Data Explorer when convenient. Contact TF Keenan (trevorkeenan@berkeley.edu) with any questions or suggestions. Funding for the FLUXNET Data Explorer was generously provided by the NSF AccelNet program. Explorer refreshed: " + snapshotUpdatedDateDisplayText(snapshotRefreshedDate) + ". New data last added: " + snapshotUpdatedDateDisplayText(snapshotUpdatedDate) + ".";
+    return "Contact TF Keenan (trevorkeenan@berkeley.edu) with any questions or suggestions. Funding for the FLUXNET Data Explorer was generously provided by the NSF AccelNet program. Explorer refreshed: " + snapshotUpdatedDateDisplayText(snapshotRefreshedDate) + ". New data last added: " + snapshotUpdatedDateDisplayText(snapshotUpdatedDate) + ".";
   }
 
   function buildAttributionHtml(snapshotUpdatedDate, snapshotRefreshedDate) {
-    return "We appreciate acknowledgement of the QED FLUXNET Data Explorer when convenient. Contact TF Keenan (<a href=\"mailto:trevorkeenan@berkeley.edu\">trevorkeenan@berkeley.edu</a>) with any questions or suggestions. Funding for the FLUXNET Data Explorer was generously provided by the NSF AccelNet program. Explorer refreshed: " + escapeHtml(snapshotUpdatedDateDisplayText(snapshotRefreshedDate)) + ". New data last added: " + escapeHtml(snapshotUpdatedDateDisplayText(snapshotUpdatedDate)) + ".";
+    return "Contact TF Keenan (<a href=\"mailto:trevorkeenan@berkeley.edu\">trevorkeenan@berkeley.edu</a>) with any questions or suggestions. Funding for the FLUXNET Data Explorer was generously provided by the NSF AccelNet program. Explorer refreshed: " + escapeHtml(snapshotUpdatedDateDisplayText(snapshotRefreshedDate)) + ". New data last added: " + escapeHtml(snapshotUpdatedDateDisplayText(snapshotUpdatedDate)) + ".";
   }
 
   function buildKnownSitesLegendHtml() {
@@ -6048,6 +6048,12 @@
       "<aside class=\"shuttle-explorer__attribution\" data-role=\"attribution\">",
       "  <h3>Data Use and Attribution</h3>",
       "  <p class=\"shuttle-explorer__tiny\">Data users must follow dataset- and network-specific access, attribution, and citation guidance included with each downloaded archive or request workflow. All directly downloadable data are provided under <a href=\"https://creativecommons.org/licenses/by/4.0/\" target=\"_blank\" rel=\"noopener noreferrer\">CC-BY 4.0</a></p>",
+      "</aside>",
+      "<aside class=\"shuttle-explorer__attribution\" data-role=\"citation-source\">",
+      "  <h3>Citation and source</h3>",
+      "  <p class=\"shuttle-explorer__tiny\">We appreciate acknowledgement of the QED FLUXNET Data Explorer when convenient.</p>",
+      "  <p class=\"shuttle-explorer__tiny\"><strong>Citation:</strong> Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. <a href=\"https://doi.org/TODO_ZENODO_DOI\" target=\"_blank\" rel=\"noopener noreferrer\">https://doi.org/TODO_ZENODO_DOI</a> <strong>Version:</strong> v1.0.0. <strong>License:</strong> Apache-2.0. <strong>Source code:</strong> <a href=\"https://github.com/trevorkeenan/fluxnet-data-explorer\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/trevorkeenan/fluxnet-data-explorer</a>.</p>",
+      "  <p class=\"shuttle-explorer__tiny\">Apache-2.0 applies to the Explorer software code and original documentation, not to third-party datasets, metadata, APIs, download URLs, logos, trademarks, or data products surfaced here.</p>",
       "</aside>"
     ].join("");
   }

@@ -2092,7 +2092,7 @@ test('Snapshot source-status helper surfaces carried-forward Shuttle sources as 
   assert.equal(hooks.buildSnapshotSourceStatusWarning({}), '');
 });
 
-test('Attribution text includes the contact sentence and uses the shared snapshot date source', () => {
+test('Attribution text includes the metadata sentence and uses the shared snapshot date source', () => {
   const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
 
   assert.equal(explorerJs.includes('href=\\"mailto:trevorkeenan@berkeley.edu\\"'), true);
@@ -2102,12 +2102,18 @@ test('Attribution text includes the contact sentence and uses the shared snapsho
   );
   assert.match(
     hooks.buildAttributionText('2026-03-11', '2026-03-12'),
+    /Funding for the FLUXNET Data Explorer was generously provided by the NSF AccelNet program\./
+  );
+  assert.match(
+    hooks.buildAttributionText('2026-03-11', '2026-03-12'),
     /Explorer refreshed: 2026-03-12\. New data last added: 2026-03-11\./
   );
   assert.match(
     hooks.buildAttributionText('', ''),
     /Explorer refreshed: unavailable\. New data last added: unavailable\./
   );
+  assert.equal(hooks.buildAttributionText('2026-03-11', '2026-03-12').includes('Citation and source'), false);
+  assert.equal(hooks.buildAttributionText('2026-03-11', '2026-03-12').includes('We appreciate acknowledgement'), false);
 });
 
 test('Bulk partition routes overlap rows to Shuttle and AmeriFlux API rows to the AmeriFlux bulk set', () => {
@@ -4325,17 +4331,22 @@ test('Data Notes box appears between the map and attribution sections with share
   const tableIndex = explorerJs.indexOf('data-role=\\"table-wrap\\"');
   const notesIndex = explorerJs.indexOf('<h3>Data Notes</h3>');
   const attributionIndex = explorerJs.indexOf('<h3>Data Use and Attribution</h3>');
+  const citationIndex = explorerJs.indexOf('<h3>Citation and source</h3>');
 
   assert.equal(mapIndex < selectionActionsIndex, true);
   assert.equal(selectionActionsIndex < tableIndex, true);
   assert.equal(notesIndex > mapIndex, true);
   assert.equal(attributionIndex > notesIndex, true);
+  assert.equal(citationIndex > attributionIndex, true);
   assert.equal(explorerJs.includes('These notes highlight how the explorer labels datasets and how the bulk tools behave.'), true);
   assert.equal(explorerJs.includes('Use the Availability filter options [FLUXNET processed], [Other processed], and [Sites with both FLUXNET and additional processed years]'), true);
   assert.equal(explorerJs.includes('Choose the Source filter option [FLUXNET-Shuttle]'), true);
   assert.equal(explorerJs.includes('EFD rows indicate known data records from the public EFD site and policy pages.'), true);
   assert.equal(explorerJs.includes('The explorer includes both gap-filled and partitioned data [FLUXNET] and non-gap-filled, non-partitioned observations [e.g., AmeriFlux-BASE].'), true);
   assert.equal(explorerJs.includes('The bulk-download scripts may require users to install a jq package if neither jq nor python3 are already installed.'), true);
+  assert.equal(explorerJs.includes('data-role=\\"citation-source\\"'), true);
+  assert.equal(explorerJs.includes('Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo.'), true);
+  assert.equal(explorerJs.includes('Live ' + 'app:'), false);
   assert.equal(explorerCss.includes('.shuttle-explorer__attribution ul {'), true);
   assert.equal(explorerCss.includes('.shuttle-explorer__attribution li + li {'), true);
 });
