@@ -4,8 +4,6 @@ The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux
 
 Preferred live application: https://www.keenangroup.info/fluxnet-data-explorer/
 
-Legacy compatibility URL: https://www.keenangroup.info/fluxnet-explorer.html
-
 ## Repository And Deployment Model
 
 This repository is the canonical source, release, Zenodo DOI, and GitHub Pages hosting repository for the FLUXNET Data Explorer. It contains the Explorer source code, tests, generated manifests and snapshots, refresh scripts, refresh workflows, release metadata, Apache-2.0 license, and citation metadata.
