@@ -2,6 +2,8 @@
 
 The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources. It combines the FLUXNET Shuttle catalog with selected supplemental metadata snapshots from regional or source-specific portals, including AmeriFlux, ICOS, JapanFlux, and EFD.
 
+AmeriFlux BASE-BADM availability includes records shared under CC-BY-4.0 and records shared under the AmeriFlux Legacy Data Policy. Legacy-policy products are labeled explicitly in the Explorer and in generated bulk-download helpers. AmeriFlux FLUXNET/ONEFlux products remain CC-BY-4.0 only.
+
 Preferred live application: https://www.keenangroup.info/fluxnet-data-explorer/
 
 ## Repository And Deployment Model
@@ -64,6 +66,8 @@ To verify tracking after deployment:
 The Explorer software code and original documentation in this repository are licensed under the Apache License, Version 2.0. See `LICENSE`.
 
 Third-party datasets, metadata, download URLs, APIs, logos, trademarks, and data products surfaced by the Explorer remain governed by the original providers' terms, licenses, citation requirements, and data-use policies, including those of FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, and other contributing networks or repositories.
+
+The Explorer software license does not apply to third-party datasets. In particular, AmeriFlux Legacy data remain governed by the [AmeriFlux Legacy Data Policy](https://ameriflux.lbl.gov/data/data-policy/). If CC-BY-4.0 and Legacy AmeriFlux data are combined in one project, AmeriFlux requires users to follow the Legacy Data Policy for all AmeriFlux data used.
 
 Use of the FLUXNET Data Explorer does not imply endorsement by UC Berkeley, the Keenan Lab, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or any data provider.
 

@@ -24,8 +24,8 @@
   var MAX_PAGE_BUTTONS = 7;
   var SEARCH_DEBOUNCE_MS = 180;
   var STYLE_ID = "shuttle-explorer-inline-styles";
-  var SNAPSHOT_CACHE_SCHEMA_VERSION = 9;
-  var SNAPSHOT_CACHE_STORAGE_PREFIX = "shuttle-explorer:snapshot-cache:v9";
+  var SNAPSHOT_CACHE_SCHEMA_VERSION = 10;
+  var SNAPSHOT_CACHE_STORAGE_PREFIX = "shuttle-explorer:snapshot-cache:v10";
   var MAP_CATEGORY_COLORS = {
     filteredAccessible: {
       color: "#9b6a08",
@@ -40,14 +40,17 @@
       fillColor: "#d8e6f4"
     }
   };
+  var AMERIFLUX_CCBY_POLICY = "CCBY4.0";
+  var AMERIFLUX_LEGACY_POLICY = "LEGACY";
   var AMERIFLUX_FLUXNET_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/FLUXNET/CCBY4.0";
-  var AMERIFLUX_BASE_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/BASE-BADM/CCBY4.0";
+  var AMERIFLUX_BASE_CCBY_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/BASE-BADM/CCBY4.0";
+  var AMERIFLUX_BASE_LEGACY_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/BASE-BADM/LEGACY";
   var FLUXNET2015_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/FLUXNET/FLUXNET2015/CCBY4.0";
   var AMERIFLUX_V2_DOWNLOAD_URL = "https://amfcdn.lbl.gov/api/v2/data_download";
   var AMERIFLUX_V1_DOWNLOAD_URL = "https://amfcdn.lbl.gov/api/v1/data_download";
   var AMERIFLUX_DOWNLOAD_LOGGER_URL = "https://amfcdn.lbl.gov/api/v2/log_shuttle_data_request";
   var AMERIFLUX_DEFAULT_VARIANT = "FULLSET";
-  var AMERIFLUX_DEFAULT_POLICY = "CCBY4.0";
+  var AMERIFLUX_DEFAULT_POLICY = AMERIFLUX_CCBY_POLICY;
   var AMERIFLUX_V2_INTENDED_USE = "other_research";
   var AMERIFLUX_V1_INTENDED_USE = "QED Lab FLUXNET Data Explorer";
   var AMERIFLUX_DEFAULT_USER_ID = "FluxnetDataExplorer";
@@ -64,6 +67,7 @@
   var ICOS_DIRECT_SOURCE_ONLY = "ICOS";
   var AMERIFLUX_SOURCE_ONLY = "AmeriFlux";
   var BASE_SOURCE_ONLY = "BASE";
+  var AMERIFLUX_BASE_LEGACY_SOURCE_LABEL = "AmeriFlux BASE (Legacy)";
   var FLUXNET2015_SOURCE_ONLY = "FLUXNET2015";
   var AMERIFLUX_SHUTTLE = "AmeriFlux-Shuttle";
   var SHUTTLE_SOURCE = "Shuttle";
@@ -135,7 +139,8 @@
   var LANDING_PAGE_DOWNLOAD_MODE = "landing_page";
   var REQUEST_PAGE_DOWNLOAD_MODE = "request_page";
   var AMERIFLUX_FLUXNET_AVAILABILITY_CACHE_KEY = "shuttle-explorer:ameriflux-fluxnet-availability:v1";
-  var AMERIFLUX_BASE_AVAILABILITY_CACHE_KEY = "shuttle-explorer:ameriflux-base-availability:v1";
+  var AMERIFLUX_BASE_CCBY_AVAILABILITY_CACHE_KEY = "shuttle-explorer:ameriflux-base-ccby-availability:v1";
+  var AMERIFLUX_BASE_LEGACY_AVAILABILITY_CACHE_KEY = "shuttle-explorer:ameriflux-base-legacy-availability:v1";
   var FLUXNET2015_AVAILABILITY_CACHE_KEY = "shuttle-explorer:fluxnet2015-availability:v1";
   var AMERIFLUX_AVAILABILITY_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
   var PRODUCT_FAMILY_FLUXNET = "FLUXNET";
@@ -164,6 +169,7 @@
   var AVAILABILITY_REQUEST_TIMEOUT_MS = 4000;
   var AMERIFLUX_LIVE_UNAVAILABLE_WARNING = "AmeriFlux live availability is temporarily unavailable; showing committed snapshot data. Some live download actions may be temporarily unavailable.";
   var AMERIFLUX_LIVE_CACHED_WARNING = "AmeriFlux live availability could not be refreshed; showing cached availability with committed snapshot data. Some live download actions may be temporarily unavailable.";
+  var AMERIFLUX_LEGACY_SELECTION_WARNING = "This selection includes AmeriFlux data shared under the AmeriFlux Legacy Data Policy. If CC-BY-4.0 and Legacy AmeriFlux data are combined in one project, AmeriFlux requires users to follow the Legacy Data Policy for all AmeriFlux data used.";
   var COPY_TABLE_BUTTON_LABEL = "Copy table to clipboard";
   var COPY_TABLE_SUCCESS_LABEL = "Copied!";
   var COPY_TABLE_FAILURE_LABEL = "Copy failed";
@@ -737,6 +743,9 @@
       amerifluxSitesWithYears: entry.amerifluxSitesWithYears || 0,
       amerifluxOverlapSites: entry.amerifluxOverlapSites || 0,
       amerifluxOnlySites: entry.amerifluxOnlySites || 0,
+      amerifluxBaseCcbySitesWithYears: entry.amerifluxBaseCcbySitesWithYears || 0,
+      amerifluxBaseLegacySitesWithYears: entry.amerifluxBaseLegacySitesWithYears || 0,
+      amerifluxLegacyOnlySites: entry.amerifluxLegacyOnlySites || 0,
       fluxnet2015TotalSites: entry.fluxnet2015TotalSites || 0,
       fluxnet2015SitesWithYears: entry.fluxnet2015SitesWithYears || 0,
       fluxnet2015OnlySites: entry.fluxnet2015OnlySites || 0,
@@ -1295,6 +1304,7 @@
       String(row && row.source_filter || "") + " " +
       sourceTags + " " +
       availabilityLabels + " " +
+      String(row && row.data_policy || "") + " " +
       fluxList + " " +
       accessLabel + " " +
       dataUseLabel + " " +
@@ -1749,6 +1759,7 @@
       sourceLabel === AMERIFLUX_SOURCE_ONLY ||
       sourceLabel === AMERIFLUX_SHUTTLE ||
       sourceLabel === BASE_SOURCE_ONLY ||
+      sourceLabel === AMERIFLUX_BASE_LEGACY_SOURCE_LABEL ||
       dataProduct === AMERIFLUX_BASE_PRODUCT ||
       rowHasNetworkToken(row, AMERIFLUX_SOURCE_ONLY)
     ) {
@@ -2483,10 +2494,18 @@
     return AMERIFLUX_FLUXNET_PRODUCT;
   }
 
-  function apiProductDisplayName(dataProduct) {
+  function isAmeriFluxLegacyPolicy(dataPolicy) {
+    return String(dataPolicy || "").trim().toUpperCase() === AMERIFLUX_LEGACY_POLICY;
+  }
+
+  function withAmeriFluxPolicyLabel(label, dataPolicy) {
+    return isAmeriFluxLegacyPolicy(dataPolicy) ? (label + " (Policy: Legacy)") : label;
+  }
+
+  function apiProductDisplayName(dataProduct, dataPolicy) {
     var normalized = normalizeDownloadProduct(dataProduct);
     if (normalized === AMERIFLUX_BASE_PRODUCT) {
-      return BASE_SOURCE_ONLY;
+      return isAmeriFluxLegacyPolicy(dataPolicy) ? "BASE Legacy" : BASE_SOURCE_ONLY;
     }
     if (normalized === FLUXNET2015_PRODUCT) {
       return FLUXNET2015_SOURCE_ONLY;
@@ -2505,7 +2524,7 @@
     return useLongLabel ? "FLUXNET (ONEFlux-derived)" : PRODUCT_FAMILY_FLUXNET;
   }
 
-  function surfacedProductDisplayName(product, useLongLabel) {
+  function surfacedProductBaseDisplayName(product, useLongLabel) {
     if (String(product && product.sourceLabel || "").trim() === SOURCE_FILTER_TAG_JAPANFLUX ||
       String(product && product.source_label || "").trim() === SOURCE_FILTER_TAG_JAPANFLUX ||
       String(product && product.sourceOrigin || product && product.source_origin || "").trim() === JAPANFLUX_DIRECT_SOURCE_ORIGIN) {
@@ -2514,16 +2533,23 @@
     return productFamilyDisplayName(product && product.productFamily, useLongLabel);
   }
 
-  function getApiActionCopyLabel(dataProduct) {
-    return "Copy " + apiProductDisplayName(dataProduct) + " curl command";
+  function surfacedProductDisplayName(product, useLongLabel) {
+    return withAmeriFluxPolicyLabel(
+      surfacedProductBaseDisplayName(product, useLongLabel),
+      product && (product.dataPolicy || product.data_policy)
+    );
   }
 
-  function getApiActionRequestLabel(dataProduct) {
-    return "Request " + apiProductDisplayName(dataProduct) + " URL";
+  function getApiActionCopyLabel(dataProduct, dataPolicy) {
+    return "Copy " + apiProductDisplayName(dataProduct, dataPolicy) + " curl command";
   }
 
-  function getApiActionPreparingLabel(dataProduct, canDirectDownload) {
-    var productName = apiProductDisplayName(dataProduct);
+  function getApiActionRequestLabel(dataProduct, dataPolicy) {
+    return "Request " + apiProductDisplayName(dataProduct, dataPolicy) + " URL";
+  }
+
+  function getApiActionPreparingLabel(dataProduct, canDirectDownload, dataPolicy) {
+    var productName = apiProductDisplayName(dataProduct, dataPolicy);
     return canDirectDownload
       ? ("Requesting " + productName + " URL…")
       : ("Preparing " + productName + " command…");
@@ -2694,15 +2720,18 @@
     (Array.isArray(entries) ? entries : []).forEach(function (entry) {
       var siteId;
       var dataProduct;
+      var dataPolicy;
       var sourceLabel;
       var dedupeKey;
       if (typeof entry === "string") {
         siteId = String(entry || "").trim();
         dataProduct = AMERIFLUX_FLUXNET_PRODUCT;
+        dataPolicy = AMERIFLUX_DEFAULT_POLICY;
         sourceLabel = AMERIFLUX_SOURCE_ONLY;
       } else {
         siteId = String(entry && (entry.site_id || entry.siteId) || "").trim();
         dataProduct = String(entry && (entry.data_product || entry.dataProduct || entry.api_data_product || entry.apiDataProduct) || AMERIFLUX_FLUXNET_PRODUCT).trim().toUpperCase();
+        dataPolicy = String(entry && (entry.data_policy || entry.dataPolicy) || AMERIFLUX_DEFAULT_POLICY).trim().toUpperCase();
         sourceLabel = String(entry && (entry.source_label || entry.sourceLabel) || "").trim();
       }
       if (!siteId) {
@@ -2716,7 +2745,10 @@
           ? FLUXNET2015_SOURCE_ONLY
           : (dataProduct === AMERIFLUX_BASE_PRODUCT ? BASE_SOURCE_ONLY : AMERIFLUX_SOURCE_ONLY);
       }
-      dedupeKey = siteId + "|" + dataProduct;
+      if (!dataPolicy) {
+        dataPolicy = AMERIFLUX_DEFAULT_POLICY;
+      }
+      dedupeKey = siteId + "|" + dataProduct + "|" + dataPolicy;
       if (seen[dedupeKey]) {
         return;
       }
@@ -2724,6 +2756,7 @@
       out.push({
         site_id: siteId,
         data_product: dataProduct,
+        data_policy: dataPolicy,
         source_label: sourceLabel
       });
     });
@@ -2732,14 +2765,15 @@
 
   function buildAmeriFluxSelectedSitesText(entries) {
     var normalized = normalizeAmeriFluxBulkEntries(entries);
-    var lines = ["# site_id\tdata_product\tsource_label"];
+    var lines = ["# site_id\tdata_product\tdata_policy\tsource_label"];
     if (!normalized.length) {
-      lines.push("# AR-Bal\tFLUXNET\tAmeriFlux");
+      lines.push("# AR-Bal\tFLUXNET\tCCBY4.0\tAmeriFlux");
     } else {
       normalized.forEach(function (entry) {
         lines.push([
           String(entry.site_id || ""),
           String(entry.data_product || AMERIFLUX_FLUXNET_PRODUCT),
+          String(entry.data_policy || AMERIFLUX_DEFAULT_POLICY),
           String(entry.source_label || "")
         ].join("\t"));
       });
@@ -2765,6 +2799,8 @@
       source_reason: String(row.source_reason || "").trim(),
       siteId: String(row.site_id || "").trim(),
       site_id: String(row.site_id || "").trim(),
+      dataPolicy: String(row.data_policy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY,
+      data_policy: String(row.data_policy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY,
       coverageLabel: String(row.years || "").trim(),
       years: String(row.years || "").trim()
     };
@@ -2832,6 +2868,9 @@
     var manualLandingPageCount = uniqueSiteIdsFromRows(partition.manualLandingPageRows).length;
     var requestOnlyCount = uniqueSiteIdsFromRows(partition.requestOnlyRows).length;
     var ameriFluxCount = uniqueSiteIdsFromRows(partition.ameriFluxRows).length;
+    var ameriFluxLegacyCount = normalizeAmeriFluxBulkEntries(partition.ameriFluxRows).filter(function (entry) {
+      return isAmeriFluxLegacyPolicy(entry && entry.data_policy);
+    }).length;
     return {
       shuttleRows: partition.shuttleRows,
       shuttleDownloadRows: partition.shuttleDownloadRows,
@@ -2843,6 +2882,8 @@
       manualLandingPageCount: manualLandingPageCount,
       requestOnlyCount: requestOnlyCount,
       ameriFluxCount: ameriFluxCount,
+      ameriFluxLegacyCount: ameriFluxLegacyCount,
+      hasAmeriFluxLegacy: ameriFluxLegacyCount > 0,
       showAllSelectedActions: shuttleDownloadCount > 0 || ameriFluxCount > 0,
       showShuttleSection: shuttleCount > 0,
       showAmeriFluxSection: ameriFluxCount > 0
@@ -2852,6 +2893,9 @@
   function buildAmeriFluxBulkScriptText(siteEntries, options) {
     var opts = options || {};
     var entries = normalizeAmeriFluxBulkEntries(siteEntries);
+    var includesLegacy = entries.some(function (entry) {
+      return isAmeriFluxLegacyPolicy(entry && entry.data_policy);
+    });
     var embeddedSites = buildAmeriFluxSelectedSitesText(entries).replace(/\n$/, "");
     var defaultUserId = shellDoubleQuote(String(opts.defaultUserId || AMERIFLUX_BULK_FALLBACK_USER_ID));
     var defaultUserEmail = shellDoubleQuote(String(opts.defaultUserEmail || AMERIFLUX_BULK_FALLBACK_USER_EMAIL));
@@ -2865,6 +2909,7 @@
     return [
       "#!/usr/bin/env bash",
       "set -euo pipefail",
+      includesLegacy ? ("# WARNING: " + AMERIFLUX_LEGACY_SELECTION_WARNING) : "",
       "",
       "OUTDIR=\"${1:-ameriflux_downloads}\"",
       "SITES_FILE=\"${2:-ameriflux_selected_sites.txt}\"",
@@ -2873,6 +2918,9 @@
       "USER_EMAIL=\"${AMERIFLUX_USER_EMAIL:-" + defaultUserEmail + "}\"",
       "V2_DOWNLOAD_URL=\"${AMERIFLUX_V2_DOWNLOAD_URL:-" + v2DownloadUrl + "}\"",
       "FLUXNET2015_REQUEST_URL_B64=\"${AMERIFLUX_FLUXNET2015_REQUEST_URL_B64:-" + fluxnet2015RequestUrlB64 + "}\"",
+      "DEFAULT_DATA_POLICY=\"" + policy + "\"",
+      "LEGACY_SELECTION_WARNING=\"" + shellDoubleQuote(AMERIFLUX_LEGACY_SELECTION_WARNING) + "\"",
+      "LEGACY_WARNING_EMITTED=\"\"",
       ""
     ].concat(buildAmeriFluxLoggerShellFunctionLines({ logToFile: true }), [
       "",
@@ -2973,9 +3021,10 @@
       "  exit 0",
       "fi",
       "",
-      "while IFS=$'\\t' read -r SITE_ID DATA_PRODUCT SOURCE_LABEL; do",
+      "while IFS=$'\\t' read -r SITE_ID DATA_PRODUCT DATA_POLICY SOURCE_LABEL; do",
       "  SITE_ID=\"${SITE_ID%$'\\r'}\"",
       "  DATA_PRODUCT=\"${DATA_PRODUCT%$'\\r'}\"",
+      "  DATA_POLICY=\"${DATA_POLICY%$'\\r'}\"",
       "  SOURCE_LABEL=\"${SOURCE_LABEL%$'\\r'}\"",
       "  [ -n \"$SITE_ID\" ] || continue",
       "  case \"$SITE_ID\" in",
@@ -2984,10 +3033,24 @@
       "  if [ -z \"$DATA_PRODUCT\" ]; then",
       "    DATA_PRODUCT=\"" + AMERIFLUX_FLUXNET_PRODUCT + "\"",
       "  fi",
+      "  case \"$DATA_POLICY\" in",
+      "    \"" + AMERIFLUX_CCBY_POLICY + "\"|\"" + AMERIFLUX_LEGACY_POLICY + "\") ;;",
+      "    \"\") DATA_POLICY=\"$DEFAULT_DATA_POLICY\" ;;",
+      "    *)",
+      "      if [ -z \"$SOURCE_LABEL\" ]; then",
+      "        SOURCE_LABEL=\"$DATA_POLICY\"",
+      "      fi",
+      "      DATA_POLICY=\"$DEFAULT_DATA_POLICY\"",
+      "      ;;",
+      "  esac",
       "  if [ -z \"$SOURCE_LABEL\" ]; then",
       "    SOURCE_LABEL=\"" + AMERIFLUX_SOURCE_ONLY + "\"",
       "  fi",
-      "  echo \"Requesting ${DATA_PRODUCT} URLs for ${SITE_ID} (${SOURCE_LABEL})...\" | tee -a \"$LOGFILE\"",
+      "  if [ \"$DATA_POLICY\" = \"" + AMERIFLUX_LEGACY_POLICY + "\" ] && [ -z \"$LEGACY_WARNING_EMITTED\" ]; then",
+      "    echo \"$LEGACY_SELECTION_WARNING\" | tee -a \"$LOGFILE\"",
+      "    LEGACY_WARNING_EMITTED=\"1\"",
+      "  fi",
+      "  echo \"Requesting ${DATA_PRODUCT} URLs for ${SITE_ID} (${SOURCE_LABEL}; policy=${DATA_POLICY})...\" | tee -a \"$LOGFILE\"",
       "  REQUEST_URL=\"$(resolve_request_url \"$DATA_PRODUCT\")\" || {",
       "      echo \"Failed to resolve request URL for ${SITE_ID}; skipping.\" | tee -a \"$LOGFILE\"",
       "      continue",
@@ -2995,7 +3058,7 @@
       "  REQUEST_BODY=\"{",
       "      \\\"user_id\\\": \\\"${USER_ID}\\\",",
       "      \\\"user_email\\\": \\\"${USER_EMAIL}\\\",",
-      "      \\\"data_policy\\\": \\\"" + policy + "\\\",",
+      "      \\\"data_policy\\\": \\\"${DATA_POLICY}\\\",",
       "      \\\"data_product\\\": \\\"${DATA_PRODUCT}\\\",",
       "      \\\"data_variant\\\": \\\"" + variant + "\\\",",
       "      \\\"site_ids\\\": [\\\"${SITE_ID}\\\"],",
@@ -3008,7 +3071,7 @@
       "      \\\"user_email\\\": \\\"${USER_EMAIL}\\\",",
       "      \\\"data_product\\\": \\\"${DATA_PRODUCT}\\\",",
       "      \\\"data_variant\\\": \\\"" + variant + "\\\",",
-      "      \\\"data_policy\\\": \\\"" + policy + "\\\",",
+      "      \\\"data_policy\\\": \\\"${DATA_POLICY}\\\",",
       "      \\\"site_ids\\\": [\\\"${SITE_ID}\\\"],",
       "      \\\"intended_use\\\": \\\"" + v1IntendedUse + "\\\",",
       "      \\\"description\\\": \\\"Download ${DATA_PRODUCT} for ${SITE_ID}\\\",",
@@ -3427,12 +3490,15 @@
     return lookup;
   }
 
-  function parseAmeriFluxAvailabilityPayload(payload, freshnessNamespace) {
-    var values = payload && Array.isArray(payload.values) ? payload.values : [];
+  function parseAmeriFluxAvailabilityPayload(payload, freshnessNamespace, dataPolicy) {
+    var values = Array.isArray(payload)
+      ? payload
+      : (payload && Array.isArray(payload.values) ? payload.values : []);
     var sites = [];
+    var policy = String(dataPolicy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
 
     values.forEach(function (entry) {
-      var siteId = String(entry && entry.site_id || "").trim();
+      var siteId = String(entry && (entry.site_id || entry.SITE_ID) || "").trim();
       if (!siteId) {
         return;
       }
@@ -3446,7 +3512,8 @@
         first_year: publishYears[0],
         last_year: publishYears[publishYears.length - 1],
         years: exactYearCoverageLabel(publishYears, publishYears[0], publishYears[publishYears.length - 1]),
-        country: deriveCountry(siteId, "")
+        country: deriveCountry(siteId, ""),
+        data_policy: policy
       });
     });
 
@@ -3521,6 +3588,7 @@
     var latitude = parseCoordinate(site && site.latitude, -90, 90);
     var longitude = parseCoordinate(site && site.longitude, -180, 180);
     var dataProduct = String(opts.dataProduct || AMERIFLUX_FLUXNET_PRODUCT).trim().toUpperCase();
+    var dataPolicy = String(opts.dataPolicy || site && site.data_policy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
     var networkLabel;
     if (dataProduct !== FLUXNET2015_PRODUCT && dataProduct !== AMERIFLUX_BASE_PRODUCT) {
       dataProduct = AMERIFLUX_FLUXNET_PRODUCT;
@@ -3539,7 +3607,7 @@
       : PROCESSING_LINEAGE_ONEFLUX;
     var row = {
       _index: index,
-      _selection_key: "ameriflux_api|" + dataProduct + "|" + siteId + "|" + keySuffix,
+      _selection_key: "ameriflux_api|" + dataProduct + "|" + dataPolicy + "|" + siteId + "|" + keySuffix,
       site_id: siteId,
       site_name: siteName,
       country: country,
@@ -3562,6 +3630,7 @@
       source_reason: sourceReason,
       source_origin: AMERIFLUX_API_SOURCE_ORIGIN,
       api_data_product: dataProduct,
+      data_policy: dataPolicy,
       publish_years: publishYears
     };
     return finalizeRowComputedState(row);
@@ -3592,6 +3661,7 @@
     var sourceLabel = String(fields && (fields.sourceLabel || fields.source_label) || "").trim();
     var downloadMode = String(fields && (fields.downloadMode || fields.download_mode) || "").trim() || "direct";
     var apiDataProduct = normalizeDownloadProduct(fields && (fields.apiDataProduct || fields.api_data_product));
+    var dataPolicy = String(fields && (fields.dataPolicy || fields.data_policy) || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
     var downloadLink = String(fields && (fields.downloadLink || fields.download_link) || "").trim();
     var dataHub = String(fields && (fields.dataHub || fields.data_hub) || "").trim();
     var siteName = String(fields && (fields.siteName || fields.site_name) || "").trim();
@@ -3627,6 +3697,7 @@
       downloadMode: downloadMode,
       downloadLink: downloadLink,
       apiDataProduct: downloadMode === "ameriflux_api" ? apiDataProduct : inferProcessedDataProduct(fields || {}),
+      dataPolicy: dataPolicy,
       dataHub: dataHub,
       sourceOrigin: sourceOrigin || resolveSourceOrigin(fields || {}),
       sourceReason: sourceReason,
@@ -3651,6 +3722,7 @@
       download_mode: downloadMode,
       download_link: downloadLink,
       api_data_product: downloadMode === "ameriflux_api" ? apiDataProduct : inferProcessedDataProduct(fields || {}),
+      data_policy: dataPolicy,
       data_hub: dataHub,
       source_origin: sourceOrigin || resolveSourceOrigin(fields || {}),
       source_reason: sourceReason,
@@ -3679,7 +3751,7 @@
     var lookups = availabilityLookups || {};
     var ameriFluxLookup = lookups.ameriFluxFluxnet || {};
     var fluxnet2015Lookup = lookups.fluxnet2015 || {};
-    var baseLookup = lookups.ameriFluxBase || {};
+    var baseLookup = lookups.ameriFluxBaseCcby || lookups.ameriFluxBase || {};
     var dataHub = String(row && row.data_hub || "").trim();
     var sourceLabel = String(row && row.source_label || "").trim();
     var inferredProduct = inferProcessedDataProduct(row);
@@ -3734,15 +3806,18 @@
     }));
   }
 
-  function buildAmeriFluxBaseProduct(site) {
+  function buildAmeriFluxBaseProduct(site, options) {
     if (!site) {
       return null;
     }
+    var opts = options || {};
+    var dataPolicy = String(opts.dataPolicy || site.data_policy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
+    var isLegacy = dataPolicy === AMERIFLUX_LEGACY_POLICY;
     return buildSurfacedProductMetadata({
       productFamily: PRODUCT_FAMILY_BASE,
       processingLineage: PROCESSING_LINEAGE_OTHER,
       source: AMERIFLUX_API_SOURCE_ORIGIN,
-      sourceLabel: BASE_SOURCE_ONLY,
+      sourceLabel: isLegacy ? AMERIFLUX_BASE_LEGACY_SOURCE_LABEL : BASE_SOURCE_ONLY,
       siteId: site.site_id,
       exactYears: site.publish_years,
       firstYear: site.first_year,
@@ -3750,9 +3825,12 @@
       downloadMode: "ameriflux_api",
       downloadLink: "",
       apiDataProduct: AMERIFLUX_BASE_PRODUCT,
+      dataPolicy: dataPolicy,
       dataHub: AMERIFLUX_DATA_HUB,
       sourceOrigin: AMERIFLUX_API_SOURCE_ORIGIN,
-      sourceReason: "Available from AmeriFlux API.",
+      sourceReason: isLegacy
+        ? "Available from AmeriFlux BASE-BADM under the AmeriFlux Legacy Data Policy."
+        : "Available from AmeriFlux BASE-BADM under CC-BY-4.0.",
       siteName: site.site_name,
       country: site.country,
       vegetationType: site.vegetation_type,
@@ -3785,7 +3863,7 @@
     return years;
   }
 
-  function applySurfacedProductsToRow(row, primaryProcessedProduct, ameriFluxBaseProduct, surfacedProducts, classification) {
+  function applySurfacedProductsToRow(row, primaryProcessedProduct, ameriFluxBaseProduct, surfacedProducts, classification, ameriFluxBaseLegacyProduct) {
     var products = Array.isArray(surfacedProducts) ? surfacedProducts.slice() : [];
     var unionYears = buildSurfacedYearUnion(products);
     var availableYears = unionYears.length
@@ -3801,6 +3879,7 @@
 
     row.primaryProcessedProduct = primaryProcessedProduct || null;
     row.ameriFluxBaseProduct = ameriFluxBaseProduct || null;
+    row.ameriFluxBaseLegacyProduct = ameriFluxBaseLegacyProduct || null;
     row.surfacedProducts = products;
     row.surfacedProductClassification = rowClassification;
     row.hasProcessedProduct = !!primaryProcessedProduct;
@@ -3849,26 +3928,38 @@
     var siteId = normalizeSiteId(row && row.site_id);
     var lookups = availabilityLookups || {};
     var primaryProcessedProduct = buildPrimaryProcessedProduct(row, lookups);
-    var ameriFluxBaseProduct = siteId && lookups.ameriFluxBase && lookups.ameriFluxBase[siteId]
-      ? buildAmeriFluxBaseProduct(lookups.ameriFluxBase[siteId])
+    var ameriFluxBaseCcbyLookup = lookups.ameriFluxBaseCcby || lookups.ameriFluxBase || {};
+    var ameriFluxBaseLegacyLookup = lookups.ameriFluxBaseLegacy || {};
+    var ameriFluxBaseProduct = siteId && ameriFluxBaseCcbyLookup[siteId]
+      ? buildAmeriFluxBaseProduct(ameriFluxBaseCcbyLookup[siteId], { dataPolicy: AMERIFLUX_CCBY_POLICY })
       : null;
-    var surfacedProducts;
+    var ameriFluxBaseLegacyProduct = siteId && ameriFluxBaseLegacyLookup[siteId]
+      ? buildAmeriFluxBaseProduct(ameriFluxBaseLegacyLookup[siteId], { dataPolicy: AMERIFLUX_LEGACY_POLICY })
+      : null;
+    var surfacedProducts = [];
 
-    if (!primaryProcessedProduct && ameriFluxBaseProduct) {
-      surfacedProducts = [ameriFluxBaseProduct];
-    } else if (primaryProcessedProduct && !ameriFluxBaseProduct) {
-      surfacedProducts = [primaryProcessedProduct];
-    } else if (primaryProcessedProduct && ameriFluxBaseProduct && exactYearSetsMatch(
+    if (primaryProcessedProduct) {
+      surfacedProducts.push(primaryProcessedProduct);
+    }
+    if (ameriFluxBaseProduct && !(primaryProcessedProduct && exactYearSetsMatch(
       primaryProcessedProduct.exactYears,
       ameriFluxBaseProduct.exactYears,
       primaryProcessedProduct.firstYear,
       primaryProcessedProduct.lastYear,
       ameriFluxBaseProduct.firstYear,
       ameriFluxBaseProduct.lastYear
-    )) {
-      surfacedProducts = [primaryProcessedProduct];
-    } else {
-      surfacedProducts = [primaryProcessedProduct, ameriFluxBaseProduct].filter(Boolean);
+    ))) {
+      surfacedProducts.push(ameriFluxBaseProduct);
+    }
+    if (ameriFluxBaseLegacyProduct && !(ameriFluxBaseProduct && exactYearSetsMatch(
+      ameriFluxBaseProduct.exactYears,
+      ameriFluxBaseLegacyProduct.exactYears,
+      ameriFluxBaseProduct.firstYear,
+      ameriFluxBaseProduct.lastYear,
+      ameriFluxBaseLegacyProduct.firstYear,
+      ameriFluxBaseLegacyProduct.lastYear
+    ))) {
+      surfacedProducts.push(ameriFluxBaseLegacyProduct);
     }
 
     return applySurfacedProductsToRow(
@@ -3876,11 +3967,12 @@
       primaryProcessedProduct,
       ameriFluxBaseProduct,
       surfacedProducts,
-      classifySurfacedProducts(surfacedProducts)
+      classifySurfacedProducts(surfacedProducts),
+      ameriFluxBaseLegacyProduct
     );
   }
 
-  function mergeCatalogRows(shuttleRows, icosDirectRows, japanFluxRows, ameriFluxSites, fluxnet2015Sites, ameriFluxBaseSites, efdRows) {
+  function mergeCatalogRows(shuttleRows, icosDirectRows, japanFluxRows, ameriFluxSites, fluxnet2015Sites, ameriFluxBaseSites, efdRows, ameriFluxBaseLegacySites) {
     if (arguments.length < 6) {
       var legacyAmeriFluxBaseSites = arguments.length >= 5 ? fluxnet2015Sites : [];
       fluxnet2015Sites = ameriFluxSites;
@@ -3900,6 +3992,7 @@
     var ameriSites = Array.isArray(ameriFluxSites) ? ameriFluxSites : [];
     var fluxnet2015 = Array.isArray(fluxnet2015Sites) ? fluxnet2015Sites : [];
     var ameriFluxBase = Array.isArray(ameriFluxBaseSites) ? ameriFluxBaseSites : [];
+    var ameriFluxBaseLegacy = Array.isArray(ameriFluxBaseLegacySites) ? ameriFluxBaseLegacySites : [];
     var efdSites = dedupeSiteLevelRows((Array.isArray(efdRows) ? efdRows : []).map(function (row) {
       return Object.assign({}, row);
     }));
@@ -3914,6 +4007,8 @@
     var fluxnet2015OnlySites = 0;
     var baseOnlySites = 0;
     var additionalBaseYearsSites = 0;
+    var legacyBaseOnlySites = 0;
+    var additionalLegacyBaseSites = 0;
     var efdSuppressedByHigherPrecedence = 0;
     var efdOnlySites = 0;
 
@@ -4069,7 +4164,9 @@
     var availabilityLookups = {
       ameriFluxFluxnet: buildSiteAvailabilityLookup(ameriSites),
       fluxnet2015: buildSiteAvailabilityLookup(fluxnet2015),
-      ameriFluxBase: buildSiteAvailabilityLookup(ameriFluxBase)
+      ameriFluxBase: buildSiteAvailabilityLookup(ameriFluxBase),
+      ameriFluxBaseCcby: buildSiteAvailabilityLookup(ameriFluxBase),
+      ameriFluxBaseLegacy: buildSiteAvailabilityLookup(ameriFluxBaseLegacy)
     };
     var finalRows = mergedRows.map(function (row) {
       return applySurfacedProductSelection(row, availabilityLookups);
@@ -4100,6 +4197,29 @@
         sourceReason: "Only available from AmeriFlux API."
       });
       finalRows.push(applySurfacedProductSelection(baseRow, availabilityLookups));
+    });
+
+    ameriFluxBaseLegacy.forEach(function (site) {
+      var siteId = normalizeSiteId(site && site.site_id);
+      var legacyBaseRow;
+      if (!siteId) {
+        return;
+      }
+      if (finalSiteIds[siteId]) {
+        if (!availabilityLookups.ameriFluxBaseCcby[siteId]) {
+          additionalLegacyBaseSites += 1;
+        }
+        return;
+      }
+      legacyBaseOnlySites += 1;
+      finalSiteIds[siteId] = true;
+      legacyBaseRow = buildAmeriFluxApiRow(site, finalRows.length, {
+        dataProduct: AMERIFLUX_BASE_PRODUCT,
+        dataPolicy: AMERIFLUX_LEGACY_POLICY,
+        sourceLabel: AMERIFLUX_BASE_LEGACY_SOURCE_LABEL,
+        sourceReason: "Available from AmeriFlux BASE-BADM under the AmeriFlux Legacy Data Policy."
+      });
+      finalRows.push(applySurfacedProductSelection(legacyBaseRow, availabilityLookups));
     });
 
     efdSites.forEach(function (row) {
@@ -4162,6 +4282,10 @@
       ameriFluxBaseSitesWithYears: ameriFluxBase.length,
       baseOnlySites: baseOnlySites,
       additionalBaseYearsSites: additionalBaseYearsSites,
+      ameriFluxBaseLegacyTotalSites: ameriFluxBaseLegacy.length,
+      ameriFluxBaseLegacySitesWithYears: ameriFluxBaseLegacy.length,
+      legacyBaseOnlySites: legacyBaseOnlySites,
+      additionalLegacyBaseSites: additionalLegacyBaseSites,
       fluxnet2015TotalSites: fluxnet2015.length,
       fluxnet2015SitesWithYears: fluxnet2015.length,
       fluxnet2015OnlySites: fluxnet2015OnlySites,
@@ -4531,6 +4655,9 @@
       if (enriched.ameriFluxBaseProduct) {
         enriched.ameriFluxBaseProduct = enrichSurfacedProductSiteName(enriched.ameriFluxBaseProduct, siteName);
       }
+      if (enriched.ameriFluxBaseLegacyProduct) {
+        enriched.ameriFluxBaseLegacyProduct = enrichSurfacedProductSiteName(enriched.ameriFluxBaseLegacyProduct, siteName);
+      }
       if (Array.isArray(enriched.surfacedProducts)) {
         enriched.surfacedProducts = enriched.surfacedProducts.map(function (product) {
           return enrichSurfacedProductSiteName(product, siteName);
@@ -4671,6 +4798,7 @@
     var sourceLabel = String(raw.source_label || raw.source || "").trim();
     var sourceReason = String(raw.source_reason || "").trim();
     var apiDataProduct = String(raw.api_data_product || "").trim();
+    var dataPolicy = String(raw.data_policy || "").trim();
     var sourceOrigin = String(raw.source_origin || raw.catalog_source || "").trim() || SHUTTLE_SOURCE_ORIGIN;
     var sourcePriority = parseIntOrNull(raw.source_priority);
     var objectId = String(raw.object_id || "").trim();
@@ -4733,6 +4861,7 @@
       source_priority: sourcePriority,
       product_family: productFamily,
       api_data_product: apiDataProduct,
+      data_policy: dataPolicy,
       object_id: objectId,
       file_name: fileName,
       direct_download_url: directDownloadUrl,
@@ -5212,13 +5341,16 @@
     this.userEmail = String(opts.userEmail || "").trim();
     this.trustedRuntime = !!opts.trustedRuntime;
     this.dataProduct = normalizeDownloadProduct(opts.dataProduct || AMERIFLUX_FLUXNET_PRODUCT);
+    this.dataPolicy = String(opts.dataPolicy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
     this.downloadUrl = String(opts.downloadUrl || getDownloadEndpointForProduct(this.dataProduct));
     this.sourceLabel = String(opts.sourceLabel || "").trim() || (this.dataProduct === FLUXNET2015_PRODUCT
       ? FLUXNET2015_SOURCE_ONLY
       : (this.dataProduct === AMERIFLUX_BASE_PRODUCT ? BASE_SOURCE_ONLY : AMERIFLUX_SOURCE_ONLY));
     this.availabilityCacheKey = String(opts.availabilityCacheKey || (this.dataProduct === FLUXNET2015_PRODUCT
       ? FLUXNET2015_AVAILABILITY_CACHE_KEY
-      : (this.dataProduct === AMERIFLUX_BASE_PRODUCT ? AMERIFLUX_BASE_AVAILABILITY_CACHE_KEY : AMERIFLUX_FLUXNET_AVAILABILITY_CACHE_KEY)));
+      : (this.dataProduct === AMERIFLUX_BASE_PRODUCT
+        ? (this.dataPolicy === AMERIFLUX_LEGACY_POLICY ? AMERIFLUX_BASE_LEGACY_AVAILABILITY_CACHE_KEY : AMERIFLUX_BASE_CCBY_AVAILABILITY_CACHE_KEY)
+        : AMERIFLUX_FLUXNET_AVAILABILITY_CACHE_KEY)));
     this.freshnessNamespace = String(opts.freshnessNamespace || this.dataProduct.toLowerCase());
     this.retryCount = parseInt(opts.retryCount, 10);
     if (!isFinite(this.retryCount)) {
@@ -5285,7 +5417,7 @@
       timeoutMs: this.availabilityTimeoutMs
     }, this.availabilityRetryCount, this.retryBaseDelayMs)
       .then(function (result) {
-        var parsed = parseAmeriFluxAvailabilityPayload(result.payload || {}, self.freshnessNamespace);
+        var parsed = parseAmeriFluxAvailabilityPayload(result.payload || {}, self.freshnessNamespace, self.dataPolicy);
         writeAvailabilityCache(self.availabilityCacheKey, parsed);
         return {
           totalSites: parsed.totalSites,
@@ -5314,7 +5446,7 @@
 
   AmeriFluxSource.prototype.buildDownloadPayload = function (siteIds, variant, policy, identityOverride) {
     var identity = identityOverride || this.getDownloadIdentity();
-    return buildDownloadPayloadForProduct(siteIds, variant, policy, identity, this.dataProduct);
+    return buildDownloadPayloadForProduct(siteIds, variant, policy || this.dataPolicy, identity, this.dataProduct);
   };
 
   AmeriFluxSource.prototype.getManualDownloadResult = function (siteId, variant, policy, reason, identityOverride) {
@@ -5341,6 +5473,7 @@
   AmeriFluxSource.prototype.get_download_urls = function (siteId, variant, policy, identityOverride) {
     var runtimeIdentity = this.getDownloadIdentity();
     var site = String(siteId || "").trim();
+    var resolvedPolicy = String(policy || this.dataPolicy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
     if (!site) {
       return Promise.reject(new Error("AmeriFlux download requires a site_id."));
     }
@@ -5348,7 +5481,7 @@
       var reason = !runtimeIdentity.trusted_runtime
         ? "AmeriFlux API downloads are disabled in this browser runtime."
         : "AMERIFLUX_USER_ID or AMERIFLUX_USER_EMAIL is missing.";
-      return Promise.resolve(this.getManualDownloadResult(site, variant, policy, reason, identityOverride));
+      return Promise.resolve(this.getManualDownloadResult(site, variant, resolvedPolicy, reason, identityOverride));
     }
 
     var requestIdentity = resolveAmeriFluxIdentityOverride(identityOverride) || runtimeIdentity;
@@ -5356,7 +5489,7 @@
       user_id: requestIdentity.user_id,
       user_email: requestIdentity.user_email
     };
-    var payload = this.buildDownloadPayload([site], variant, policy, identity);
+    var payload = this.buildDownloadPayload([site], variant, resolvedPolicy, identity);
     return fetchJsonWithRetry(this.downloadUrl, {
       method: "POST",
       headers: {
@@ -5604,6 +5737,9 @@
     if (sourceLabel === BASE_SOURCE_ONLY) {
       return "shuttle-explorer__source-badge--base";
     }
+    if (sourceLabel === AMERIFLUX_BASE_LEGACY_SOURCE_LABEL) {
+      return "shuttle-explorer__source-badge--base";
+    }
     if (sourceLabel === AMERIFLUX_SOURCE_ONLY) {
       return "shuttle-explorer__source-badge--ameriflux";
     }
@@ -5637,9 +5773,12 @@
 
     content = products.map(function (product) {
       return "<span class=\"shuttle-explorer__coverage-item\"><strong>" +
-        escapeHtml(surfacedProductDisplayName(product, false)) +
+        escapeHtml(surfacedProductBaseDisplayName(product, false)) +
         ":</strong> " +
         escapeHtml(String(product && product.coverageLabel || "\u2014")) +
+        (isAmeriFluxLegacyPolicy(product && (product.dataPolicy || product.data_policy))
+          ? " <span class=\"shuttle-explorer__source-badge shuttle-explorer__source-badge--base\">Policy: Legacy</span>"
+          : "") +
         "</span>";
     }).join("<span class=\"shuttle-explorer__coverage-sep\" aria-hidden=\"true\">\u00b7</span>");
 
@@ -5653,6 +5792,7 @@
   function buildRowDownloadOptions(row, canAmeriFluxDownload) {
     return getRowActionProducts(row).map(function (product) {
       var dataProduct = normalizeDownloadProduct(product && product.apiDataProduct);
+      var dataPolicy = String(product && (product.dataPolicy || product.data_policy) || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
       var option = {
         product: product,
         displayLabel: String(product && (product.displayLabel || product.display_label) || "").trim() || surfacedProductDisplayName(product, true),
@@ -5661,15 +5801,19 @@
         sourceLabel: String(product && product.sourceLabel || ""),
         sourceOrigin: String(product && (product.sourceOrigin || product.source_origin) || ""),
         dataProduct: dataProduct,
+        dataPolicy: dataPolicy,
         downloadLink: String(product && product.downloadLink || ""),
         isIcos: !!(product && product.isIcos),
         title: ""
       };
 
       if (option.mode === "ameriflux_api") {
-        option.actionLabel = canAmeriFluxDownload ? getApiActionRequestLabel(dataProduct) : getApiActionCopyLabel(dataProduct);
+        option.actionLabel = canAmeriFluxDownload ? getApiActionRequestLabel(dataProduct, dataPolicy) : getApiActionCopyLabel(dataProduct, dataPolicy);
         if (!canAmeriFluxDownload) {
-          option.title = apiProductDisplayName(dataProduct) + " downloads require your own AmeriFlux identity. Click to copy a curl command template.";
+          option.title = apiProductDisplayName(dataProduct, dataPolicy) + " downloads require your own AmeriFlux identity. Click to copy a curl command template.";
+        }
+        if (isAmeriFluxLegacyPolicy(dataPolicy)) {
+          option.title = combineWarnings(option.title, AMERIFLUX_LEGACY_SELECTION_WARNING);
         }
       } else if (option.mode === REQUEST_PAGE_DOWNLOAD_MODE) {
         option.actionLabel = option.sourceOrigin === EFD_SOURCE_ORIGIN || option.sourceLabel === SOURCE_FILTER_TAG_EFD
@@ -5836,7 +5980,7 @@
     root.innerHTML = [
       "<div class=\"shuttle-explorer__header\">",
       "  <h2>FLUXNET Data Explorer</h2>",
-      "  <p class=\"shuttle-explorer__muted\">Explore and download a regularly refreshed snapshot of FLUXNET Shuttle coverage, selected direct FLUXNET archive supplements, JapanFlux2024 archive records, and AmeriFlux BASE (standardized observations) coverage (explorer refreshed: <span data-role=\"widget-refreshed-inline\">unavailable</span>). Search by site ID or site name, then open the download or landing-page links shown in the table. This explorer keeps source provenance explicit instead of folding every record into the FLUXNET Shuttle bucket.</p>",
+      "  <p class=\"shuttle-explorer__muted\">Explore and download a regularly refreshed snapshot of FLUXNET Shuttle coverage, selected direct FLUXNET archive supplements, JapanFlux2024 archive records, and AmeriFlux BASE (standardized observations) coverage shared under CC-BY-4.0 or the AmeriFlux Legacy Data Policy (explorer refreshed: <span data-role=\"widget-refreshed-inline\">unavailable</span>). Search by site ID or site name, then open the download or landing-page links shown in the table. This explorer keeps source provenance explicit instead of folding every record into the FLUXNET Shuttle bucket.</p>",
       "  <p class=\"shuttle-explorer__muted\">Data are provided by site teams around the world. Shuttle-backed FLUXNET rows are served via the FLUXNET Shuttle (<a href=\"https://data.fluxnet.org/\" target=\"_blank\" rel=\"noopener\">https://data.fluxnet.org/</a>), additional FLUXNET rows may be surfaced through ICOS and AmeriFlux APIs, and JapanFlux2024 rows are surfaced separately from the ADS archive because they use FLUXNET-style conventions with dataset-specific adaptations.</p>",
       "</div>",
       "<p class=\"shuttle-explorer__status is-loading\" data-role=\"status\" role=\"status\" aria-live=\"polite\">Loading snapshot…</p>",
@@ -5976,7 +6120,7 @@
       "      <h4 id=\"ameriflux-bulk-source-heading\">Bulk download for surfaced AmeriFlux API products</h4>",
       "      <p class=\"shuttle-explorer__tiny\" data-role=\"ameriflux-selection-count\">0 sites available elsewhere selected</p>",
       "    </div>",
-      "    <p class=\"shuttle-explorer__tiny\">Applies to surfaced AmeriFlux API products selected in the table. This includes AmeriFlux FLUXNET rows, BASE rows, FLUXNET2015 fallback rows, and any additional non-ONEFlux processed years surfaced alongside a FLUXNET-processed product.</p>",
+      "    <p class=\"shuttle-explorer__tiny\">Applies to surfaced AmeriFlux API products selected in the table. This includes AmeriFlux FLUXNET rows, CC-BY-4.0 and Legacy-policy BASE rows, FLUXNET2015 fallback rows, and any additional non-ONEFlux processed years surfaced alongside a FLUXNET-processed product.</p>",
       "    <p class=\"shuttle-explorer__tiny\">Optional: enter your own AmeriFlux username and email. If left blank, the generated script will use default values.</p>",
       "    <div class=\"shuttle-explorer__bulk-identity-grid\">",
       "      <div class=\"shuttle-explorer__field\">",
@@ -6005,7 +6149,7 @@
       "      <li><strong>Show Shuttle CLI command</strong>: reveals a command template that uses <code>shuttle_selected_sites.txt</code> and your local snapshot file.</li>",
       "      <li><strong>Copy Shuttle CLI command</strong>: copies the Shuttle CLI helper command shown in the panel.</li>",
       "      <li><strong>shuttle_selected_sites.txt</strong>: one <code>site_id</code> per line for Shuttle CLI workflows.</li>",
-      "      <li><strong>ameriflux_selected_sites.txt</strong>: tab-delimited <code>site_id</code>, <code>data_product</code>, and <code>source_label</code> for AmeriFlux API-backed workflows.</li>",
+      "      <li><strong>ameriflux_selected_sites.txt</strong>: tab-delimited <code>site_id</code>, <code>data_product</code>, <code>data_policy</code>, and <code>source_label</code> for AmeriFlux API-backed workflows.</li>",
       "      <li><strong>shuttle_selected_manifest.csv</strong>: selected non-AmeriFlux rows with source metadata, download modes, and links.</li>",
       "      <li><strong>shuttle_links.txt / Copy Shuttle links</strong>: validated direct URLs only (AmeriFlux rows, landing-page-only rows, and request-only rows are excluded).</li>",
       "    </ul>",
@@ -6041,19 +6185,20 @@
       "    <li>The FLUXNET Shuttle serves data processed with the most recent ONEFlux version and should generally be treated as the highest-quality processed product available here. Choose the Source filter option [FLUXNET-Shuttle] to view the subset of FLUXNET-format datasets generated with this most up-to-date processing.</li>",
       "    <li>Rows labeled [JapanFlux] come from the public JapanFlux2024 ADS archive. Although JapanFlux2024 is provided in the FLUXNET format and gap-filled/partitioned, it is not processed with ONEflux.</li>",
       "    <li>EFD rows indicate known data records from the public EFD site and policy pages. Access remains request-based, may require PI approval or PI contact, and may not be directly downloadable from EFD.</li>",
-      "    <li>For some sites, the AmeriFlux-BASE product currently extends to years that are not yet available in the corresponding FLUXNET product. Records from both products are presented in such cases</li>",
+      "    <li>AmeriFlux BASE-BADM availability includes CC-BY-4.0 records and records shared under the AmeriFlux Legacy Data Policy. Legacy-policy products are labeled explicitly. AmeriFlux FLUXNET/ONEFlux products remain CC-BY-4.0 only.</li>",
+      "    <li>For some sites, the AmeriFlux-BASE product currently extends to years that are not yet available in the corresponding FLUXNET product. Records from both products are presented in such cases.</li>",
       "    <li>The bulk-download scripts may require users to install a jq package if neither jq nor python3 are already installed. jq is a lightweight command-line JSON parser used by the script workflow.</li>",
       "  </ul>",
       "</aside>",
       "<aside class=\"shuttle-explorer__attribution\" data-role=\"attribution\">",
       "  <h3>Data Use and Attribution</h3>",
-      "  <p class=\"shuttle-explorer__tiny\">Data users must follow dataset- and network-specific access, attribution, and citation guidance included with each downloaded archive or request workflow. All directly downloadable data are provided under <a href=\"https://creativecommons.org/licenses/by/4.0/\" target=\"_blank\" rel=\"noopener noreferrer\">CC-BY 4.0</a></p>",
+      "  <p class=\"shuttle-explorer__tiny\">Data users must follow dataset- and network-specific access, attribution, and citation guidance included with each downloaded archive or request workflow. AmeriFlux BASE-BADM products are labeled by policy: either <a href=\"https://creativecommons.org/licenses/by/4.0/\" target=\"_blank\" rel=\"noopener noreferrer\">CC-BY 4.0</a> or the <a href=\"https://ameriflux.lbl.gov/data/data-policy/\" target=\"_blank\" rel=\"noopener noreferrer\">AmeriFlux Legacy Data Policy</a>. If CC-BY-4.0 and Legacy AmeriFlux data are combined in one project, AmeriFlux requires users to follow the Legacy Data Policy for all AmeriFlux data used. AmeriFlux FLUXNET/ONEFlux products remain CC-BY-4.0 only.</p>",
       "</aside>",
       "<aside class=\"shuttle-explorer__attribution\" data-role=\"citation-source\">",
       "  <h3>Citation and source</h3>",
       "  <p class=\"shuttle-explorer__tiny\">We appreciate acknowledgement of the QED FLUXNET Data Explorer when convenient.</p>",
       "  <p class=\"shuttle-explorer__tiny\"><strong>Citation:</strong> Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. <a href=\"https://doi.org/10.5281/zenodo.20331228\" target=\"_blank\" rel=\"noopener noreferrer\">https://doi.org/10.5281/zenodo.20331228</a> <strong>Version:</strong> v1.0.0. <strong>License:</strong> Apache-2.0. <strong>Source code:</strong> <a href=\"https://github.com/trevorkeenan/fluxnet-data-explorer\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/trevorkeenan/fluxnet-data-explorer</a>.</p>",
-      "  <p class=\"shuttle-explorer__tiny\">Apache-2.0 applies to the Explorer software code and original documentation, not to third-party datasets, metadata, APIs, download URLs, logos, trademarks, or data products surfaced here.</p>",
+      "  <p class=\"shuttle-explorer__tiny\">Apache-2.0 applies to the Explorer software code and original documentation, not to third-party datasets, metadata, APIs, download URLs, logos, trademarks, or data products surfaced here. AmeriFlux Legacy data remain governed by the AmeriFlux Legacy Data Policy.</p>",
       "</aside>"
     ].join("");
   }
@@ -6094,15 +6239,30 @@
       availabilityTimeoutMs: AVAILABILITY_REQUEST_TIMEOUT_MS
     });
     this.ameriFluxBaseSource = new AmeriFluxSource({
-      availabilityUrl: AMERIFLUX_BASE_AVAILABILITY_URL,
+      availabilityUrl: AMERIFLUX_BASE_CCBY_AVAILABILITY_URL,
       downloadUrl: AMERIFLUX_V2_DOWNLOAD_URL,
       userId: ameriIdentity.userId,
       userEmail: ameriIdentity.userEmail,
       trustedRuntime: ameriIdentity.trustedRuntime,
       dataProduct: AMERIFLUX_BASE_PRODUCT,
+      dataPolicy: AMERIFLUX_CCBY_POLICY,
       sourceLabel: BASE_SOURCE_ONLY,
-      availabilityCacheKey: AMERIFLUX_BASE_AVAILABILITY_CACHE_KEY,
-      freshnessNamespace: "ameriflux-base",
+      availabilityCacheKey: AMERIFLUX_BASE_CCBY_AVAILABILITY_CACHE_KEY,
+      freshnessNamespace: "ameriflux-base-ccby",
+      availabilityRetryCount: AVAILABILITY_HTTP_RETRIES,
+      availabilityTimeoutMs: AVAILABILITY_REQUEST_TIMEOUT_MS
+    });
+    this.ameriFluxBaseLegacySource = new AmeriFluxSource({
+      availabilityUrl: AMERIFLUX_BASE_LEGACY_AVAILABILITY_URL,
+      downloadUrl: AMERIFLUX_V2_DOWNLOAD_URL,
+      userId: ameriIdentity.userId,
+      userEmail: ameriIdentity.userEmail,
+      trustedRuntime: ameriIdentity.trustedRuntime,
+      dataProduct: AMERIFLUX_BASE_PRODUCT,
+      dataPolicy: AMERIFLUX_LEGACY_POLICY,
+      sourceLabel: AMERIFLUX_BASE_LEGACY_SOURCE_LABEL,
+      availabilityCacheKey: AMERIFLUX_BASE_LEGACY_AVAILABILITY_CACHE_KEY,
+      freshnessNamespace: "ameriflux-base-legacy",
       availabilityRetryCount: AVAILABILITY_HTTP_RETRIES,
       availabilityTimeoutMs: AVAILABILITY_REQUEST_TIMEOUT_MS
     });
@@ -6163,6 +6323,9 @@
       amerifluxSitesWithYears: 0,
       amerifluxOverlapSites: 0,
       amerifluxOnlySites: 0,
+      amerifluxBaseCcbySitesWithYears: 0,
+      amerifluxBaseLegacySitesWithYears: 0,
+      amerifluxLegacyOnlySites: 0,
       fluxnet2015TotalSites: 0,
       fluxnet2015SitesWithYears: 0,
       fluxnet2015OnlySites: 0,
@@ -7032,11 +7195,12 @@
         }
         var siteId = String(target.getAttribute("data-site-id") || "");
         var dataProduct = String(target.getAttribute("data-product") || "");
+        var dataPolicy = String(target.getAttribute("data-policy") || "");
         var sourceLabel = String(target.getAttribute("data-source-label") || "");
         if (!siteId) {
           return;
         }
-        self.handleAmeriFluxRowDownload(siteId, dataProduct, sourceLabel, target);
+        self.handleAmeriFluxRowDownload(siteId, dataProduct, dataPolicy, sourceLabel, target);
       });
     }
 
@@ -7893,6 +8057,7 @@
       return {
         site_id: String(row && row.site_id || "").trim(),
         data_product: getApiRowDataProduct(row),
+        data_policy: String(row && (row.data_policy || row.dataPolicy) || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY,
         source_label: String(row && row.source_label || "").trim()
       };
     }));
@@ -8557,10 +8722,11 @@
     gaEvent("fx_copy_links", { count: shuttleRows.length });
   };
 
-  Explorer.prototype.handleAmeriFluxRowDownload = function (siteId, dataProduct, sourceLabel, buttonEl) {
+  Explorer.prototype.handleAmeriFluxRowDownload = function (siteId, dataProduct, dataPolicy, sourceLabel, buttonEl) {
     var self = this;
     var site = String(siteId || "").trim();
     var product = normalizeDownloadProduct(dataProduct || AMERIFLUX_FLUXNET_PRODUCT);
+    var policy = String(dataPolicy || AMERIFLUX_DEFAULT_POLICY).trim() || AMERIFLUX_DEFAULT_POLICY;
     var label = String(sourceLabel || "").trim() || (product === FLUXNET2015_PRODUCT
       ? FLUXNET2015_SOURCE_ONLY
       : (product === AMERIFLUX_BASE_PRODUCT ? BASE_SOURCE_ONLY : AMERIFLUX_SOURCE_ONLY));
@@ -8574,17 +8740,17 @@
     var canDirectDownload = apiSource.canDownload();
     if (buttonEl) {
       buttonEl.disabled = true;
-      buttonEl.textContent = getApiActionPreparingLabel(product, canDirectDownload);
+      buttonEl.textContent = getApiActionPreparingLabel(product, canDirectDownload, policy);
     }
 
-    apiSource.download_site(site, AMERIFLUX_DEFAULT_VARIANT, AMERIFLUX_DEFAULT_POLICY, identity)
+    apiSource.download_site(site, AMERIFLUX_DEFAULT_VARIANT, policy, identity)
       .then(function (result) {
         if (result && result.manual_download_required) {
           var curlCommand = String(result.curl_command || "").trim();
           if (curlCommand) {
             self.copyText(
               curlCommand,
-              "Copied " + apiProductDisplayName(product) + " curl command for " + site + "."
+              "Copied " + apiProductDisplayName(product, policy) + " curl command for " + site + "."
             );
           } else {
             self.setBulkStatus(label + " downloads require your own AmeriFlux identity.");
@@ -8617,7 +8783,7 @@
       .then(function () {
         if (buttonEl) {
           buttonEl.disabled = false;
-          buttonEl.textContent = originalText || (apiSource.canDownload() ? getApiActionRequestLabel(product) : getApiActionCopyLabel(product));
+          buttonEl.textContent = originalText || (apiSource.canDownload() ? getApiActionRequestLabel(product, policy) : getApiActionCopyLabel(product, policy));
         }
       });
   };
@@ -8658,6 +8824,10 @@
     var shuttleDisabled = !selectionSummary.shuttleCount;
     var shuttleCliDisabled = !this.getShuttleCliRows(selectedRows).length;
     var ameriFluxDisabled = !selectionSummary.ameriFluxCount;
+    var bulkWarning = combineWarnings(
+      this.state.downloadWarning,
+      selectionSummary.hasAmeriFluxLegacy ? AMERIFLUX_LEGACY_SELECTION_WARNING : ""
+    );
     var wasHidden;
 
     if (!b.bulkPanel) {
@@ -8679,8 +8849,8 @@
       b.selectionCount.textContent = formatSelectedSiteCount(selectedCount);
     }
     if (b.bulkWarning) {
-      b.bulkWarning.textContent = this.state.downloadWarning || "";
-      b.bulkWarning.classList.toggle("shuttle-explorer__hidden", !this.state.downloadWarning);
+      b.bulkWarning.textContent = bulkWarning;
+      b.bulkWarning.classList.toggle("shuttle-explorer__hidden", !bulkWarning);
     }
 
     if (b.allSelectedActions) {
@@ -9011,6 +9181,7 @@
           control.setAttribute("data-role", "ameriflux-download");
           control.setAttribute("data-site-id", option.siteId);
           control.setAttribute("data-product", option.dataProduct);
+          control.setAttribute("data-policy", option.dataPolicy);
           control.setAttribute("data-source-label", option.sourceLabel);
           control.textContent = option.actionLabel;
           control.setAttribute("aria-label", option.actionLabel + " for " + option.siteId);
@@ -9181,6 +9352,9 @@
     this.state.amerifluxSitesWithYears = snapshot && snapshot.amerifluxSitesWithYears ? snapshot.amerifluxSitesWithYears : 0;
     this.state.amerifluxOverlapSites = snapshot && snapshot.amerifluxOverlapSites ? snapshot.amerifluxOverlapSites : 0;
     this.state.amerifluxOnlySites = snapshot && snapshot.amerifluxOnlySites ? snapshot.amerifluxOnlySites : 0;
+    this.state.amerifluxBaseCcbySitesWithYears = snapshot && snapshot.amerifluxBaseCcbySitesWithYears ? snapshot.amerifluxBaseCcbySitesWithYears : 0;
+    this.state.amerifluxBaseLegacySitesWithYears = snapshot && snapshot.amerifluxBaseLegacySitesWithYears ? snapshot.amerifluxBaseLegacySitesWithYears : 0;
+    this.state.amerifluxLegacyOnlySites = snapshot && snapshot.amerifluxLegacyOnlySites ? snapshot.amerifluxLegacyOnlySites : 0;
     this.state.fluxnet2015TotalSites = snapshot && snapshot.fluxnet2015TotalSites ? snapshot.fluxnet2015TotalSites : 0;
     this.state.fluxnet2015SitesWithYears = snapshot && snapshot.fluxnet2015SitesWithYears ? snapshot.fluxnet2015SitesWithYears : 0;
     this.state.fluxnet2015OnlySites = snapshot && snapshot.fluxnet2015OnlySites ? snapshot.fluxnet2015OnlySites : 0;
@@ -9193,7 +9367,7 @@
     this.trackExplorerLoadedOnce();
   };
 
-  function buildMergedSnapshotStateForRoot(jsonUrl, shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult) {
+  function buildMergedSnapshotStateForRoot(jsonUrl, shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult, ameriBaseLegacyResult) {
     var ameriFluxSiteInfoLookup = ameriFluxSiteInfoResult && ameriFluxSiteInfoResult.lookup ? ameriFluxSiteInfoResult.lookup : {};
     var fluxnet2015SiteInfoLookup = fluxnet2015SiteInfoResult && fluxnet2015SiteInfoResult.lookup ? fluxnet2015SiteInfoResult.lookup : {};
     var siteNameMetadataLookup = siteNameMetadataResult && siteNameMetadataResult.lookup ? siteNameMetadataResult.lookup : {};
@@ -9205,6 +9379,11 @@
     );
     var enrichedAmeriFluxBaseSites = enrichAmeriFluxSitesWithMetadata(
       ameriBaseResult && Array.isArray(ameriBaseResult.sites) ? ameriBaseResult.sites : [],
+      ameriFluxSiteInfoLookup,
+      vegetationMetadataLookup
+    );
+    var enrichedAmeriFluxBaseLegacySites = enrichAmeriFluxSitesWithMetadata(
+      ameriBaseLegacyResult && Array.isArray(ameriBaseLegacyResult.sites) ? ameriBaseLegacyResult.sites : [],
       ameriFluxSiteInfoLookup,
       vegetationMetadataLookup
     );
@@ -9220,13 +9399,14 @@
       enrichedAmeriFluxSites,
       enrichedFluxnet2015Sites,
       enrichedAmeriFluxBaseSites,
-      efdResult && Array.isArray(efdResult.rows) ? efdResult.rows : []
+      efdResult && Array.isArray(efdResult.rows) ? efdResult.rows : [],
+      enrichedAmeriFluxBaseLegacySites
     );
     var rows = enrichRowsWithSiteNameLookup(merge.rows, siteNameMetadataLookup);
     return {
       rows: rows,
       droppedRows: shuttleResult && shuttleResult.droppedRows ? shuttleResult.droppedRows : 0,
-      source: "Shuttle + ICOS + JapanFlux + AmeriFlux FLUXNET + AmeriFlux BASE + FLUXNET2015 + EFD",
+      source: "Shuttle + ICOS + JapanFlux + AmeriFlux FLUXNET + AmeriFlux BASE CC-BY-4.0 + AmeriFlux BASE Legacy + FLUXNET2015 + EFD",
       sourceUrl: shuttleResult && shuttleResult.sourceUrl ? shuttleResult.sourceUrl : jsonUrl,
       warning: combineWarnings(
         shuttleResult && shuttleResult.warning ? shuttleResult.warning : "",
@@ -9235,6 +9415,7 @@
         efdResult && efdResult.warning ? efdResult.warning : "",
         ameriResult && ameriResult.warning ? ameriResult.warning : "",
         ameriBaseResult && ameriBaseResult.warning ? ameriBaseResult.warning : "",
+        ameriBaseLegacyResult && ameriBaseLegacyResult.warning ? ameriBaseLegacyResult.warning : "",
         fluxnet2015Result && fluxnet2015Result.warning ? fluxnet2015Result.warning : "",
         ameriFluxSiteInfoResult && ameriFluxSiteInfoResult.warning ? ameriFluxSiteInfoResult.warning : "",
         fluxnet2015SiteInfoResult && fluxnet2015SiteInfoResult.warning ? fluxnet2015SiteInfoResult.warning : "",
@@ -9244,6 +9425,7 @@
       downloadWarning: combineWarnings(
         ameriResult && ameriResult.downloadWarning ? ameriResult.downloadWarning : "",
         ameriBaseResult && ameriBaseResult.downloadWarning ? ameriBaseResult.downloadWarning : "",
+        ameriBaseLegacyResult && ameriBaseLegacyResult.downloadWarning ? ameriBaseLegacyResult.downloadWarning : "",
         fluxnet2015Result && fluxnet2015Result.downloadWarning ? fluxnet2015Result.downloadWarning : ""
       ),
       snapshotRefreshedDate: latestSnapshotRefreshedDateFromResults([
@@ -9257,13 +9439,16 @@
       amerifluxSitesWithYears: ameriResult && ameriResult.sitesWithYears ? ameriResult.sitesWithYears : 0,
       amerifluxOverlapSites: merge.amerifluxOverlapSites || 0,
       amerifluxOnlySites: merge.amerifluxOnlySites || 0,
+      amerifluxBaseCcbySitesWithYears: ameriBaseResult && ameriBaseResult.sitesWithYears ? ameriBaseResult.sitesWithYears : 0,
+      amerifluxBaseLegacySitesWithYears: ameriBaseLegacyResult && ameriBaseLegacyResult.sitesWithYears ? ameriBaseLegacyResult.sitesWithYears : 0,
+      amerifluxLegacyOnlySites: merge.legacyBaseOnlySites || 0,
       fluxnet2015TotalSites: fluxnet2015Result && fluxnet2015Result.totalSites ? fluxnet2015Result.totalSites : 0,
       fluxnet2015SitesWithYears: fluxnet2015Result && fluxnet2015Result.sitesWithYears ? fluxnet2015Result.sitesWithYears : 0,
       fluxnet2015OnlySites: merge.fluxnet2015OnlySites || 0
     };
   };
 
-  Explorer.prototype.buildMergedSnapshotState = function (shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult) {
+  Explorer.prototype.buildMergedSnapshotState = function (shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult, ameriBaseLegacyResult) {
     return buildMergedSnapshotStateForRoot(
       this.jsonUrl,
       shuttleResult,
@@ -9276,7 +9461,8 @@
       ameriFluxSiteInfoResult,
       fluxnet2015SiteInfoResult,
       siteNameMetadataResult,
-      vegetationMetadataResult
+      vegetationMetadataResult,
+      ameriBaseLegacyResult
     );
   };
 
@@ -9324,6 +9510,9 @@
         amerifluxSitesWithYears: cached.amerifluxSitesWithYears || 0,
         amerifluxOverlapSites: cached.amerifluxOverlapSites || 0,
         amerifluxOnlySites: cached.amerifluxOnlySites || 0,
+        amerifluxBaseCcbySitesWithYears: cached.amerifluxBaseCcbySitesWithYears || 0,
+        amerifluxBaseLegacySitesWithYears: cached.amerifluxBaseLegacySitesWithYears || 0,
+        amerifluxLegacyOnlySites: cached.amerifluxLegacyOnlySites || 0,
         fluxnet2015TotalSites: cached.fluxnet2015TotalSites || 0,
         fluxnet2015SitesWithYears: cached.fluxnet2015SitesWithYears || 0,
         fluxnet2015OnlySites: cached.fluxnet2015OnlySites || 0
@@ -9372,7 +9561,8 @@
           ameriFluxSiteInfoResult,
           fluxnet2015SiteInfoResult,
           siteNameMetadataResult,
-          vegetationMetadataResult
+          vegetationMetadataResult,
+          buildAvailabilityFallbackResult(AMERIFLUX_BASE_LEGACY_SOURCE_LABEL, "ameriflux-base-legacy", "")
         );
 
         if (!hadCache || self.state.mode !== "ready" || !self.state.rows.length) {
@@ -9382,13 +9572,15 @@
         return Promise.all([
           self.ameriFluxSource.list_sites(),
           self.ameriFluxBaseSource.list_sites(),
-          self.fluxnet2015Source.list_sites()
+          self.fluxnet2015Source.list_sites(),
+          self.ameriFluxBaseLegacySource.list_sites()
         ]);
       })
       .then(function (availabilityResults) {
         var ameriResult = availabilityResults[0] || {};
         var ameriBaseResult = availabilityResults[1] || {};
         var fluxnet2015Result = availabilityResults[2] || {};
+        var ameriBaseLegacyResult = availabilityResults[3] || {};
         var shuttleResult = localResultsBundle ? localResultsBundle.shuttleResult : {};
         var icosDirectResult = localResultsBundle ? localResultsBundle.icosDirectResult : {};
         var japanFluxResult = localResultsBundle ? localResultsBundle.japanFluxResult : {};
@@ -9408,7 +9600,8 @@
           ameriFluxSiteInfoResult,
           fluxnet2015SiteInfoResult,
           siteNameMetadataResult,
-          vegetationMetadataResult
+          vegetationMetadataResult,
+          ameriBaseLegacyResult
         );
         var freshnessKey = [
           "shuttle:" + buildSnapshotFreshnessKey(shuttleResult),
@@ -9417,6 +9610,7 @@
           "efd:" + buildSnapshotFreshnessKey(efdResult),
           String(ameriResult.freshnessKey || "ameriflux:none"),
           String(ameriBaseResult.freshnessKey || "ameriflux-base:none"),
+          String(ameriBaseLegacyResult.freshnessKey || "ameriflux-base-legacy:none"),
           String(fluxnet2015Result.freshnessKey || "fluxnet2015:none"),
           "ameriflux-site-info:" + buildSnapshotFreshnessKey(ameriFluxSiteInfoResult),
           "fluxnet2015-site-info:" + buildSnapshotFreshnessKey(fluxnet2015SiteInfoResult),
@@ -9439,6 +9633,9 @@
           amerifluxSitesWithYears: snapshotState.amerifluxSitesWithYears,
           amerifluxOverlapSites: snapshotState.amerifluxOverlapSites,
           amerifluxOnlySites: snapshotState.amerifluxOnlySites,
+          amerifluxBaseCcbySitesWithYears: snapshotState.amerifluxBaseCcbySitesWithYears,
+          amerifluxBaseLegacySitesWithYears: snapshotState.amerifluxBaseLegacySitesWithYears,
+          amerifluxLegacyOnlySites: snapshotState.amerifluxLegacyOnlySites,
           fluxnet2015TotalSites: snapshotState.fluxnet2015TotalSites,
           fluxnet2015SitesWithYears: snapshotState.fluxnet2015SitesWithYears,
           fluxnet2015OnlySites: snapshotState.fluxnet2015OnlySites

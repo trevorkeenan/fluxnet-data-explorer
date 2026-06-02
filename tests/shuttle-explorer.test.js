@@ -379,6 +379,63 @@ test('FLUXNET2015 availability payload uses the same filtering rules', () => {
   assert.match(parsed.freshnessKey, /^fluxnet2015:/);
 });
 
+test('AmeriFlux BASE Legacy availability keeps the explicit LEGACY policy', () => {
+  const parsed = hooks.parseAmeriFluxAvailabilityPayload({
+    values: [
+      { site_id: 'US-Leg', publish_years: [2001, 2002] }
+    ]
+  }, 'ameriflux-base-legacy', 'LEGACY');
+
+  assert.equal(parsed.sites.length, 1);
+  assert.equal(parsed.sites[0].data_policy, 'LEGACY');
+  assert.match(parsed.freshnessKey, /^ameriflux-base-legacy:/);
+});
+
+test('AmeriFlux BASE CC-BY and Legacy availability use V2 API endpoints', async () => {
+  const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
+  const legacyUrl = 'https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/BASE-BADM/LEGACY';
+  const originalFetch = global.fetch;
+  const requests = [];
+
+  assert.equal(explorerJs.includes('https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/BASE-BADM/CCBY4.0'), true);
+  assert.equal(explorerJs.includes(legacyUrl), true);
+  assert.equal(explorerJs.includes('/api/v1/data_availability/AmeriFlux/BASE-BADM/LEGACY'), false);
+
+  global.fetch = async (url) => {
+    requests.push(url);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        values: [
+          { site_id: 'US-Leg', publish_years: [2001, 2002] }
+        ]
+      }),
+      headers: mockHeaders()
+    };
+  };
+
+  try {
+    const source = hooks.createAmeriFluxSource({
+      availabilityUrl: legacyUrl,
+      dataProduct: 'BASE-BADM',
+      dataPolicy: 'LEGACY',
+      sourceLabel: 'AmeriFlux BASE (Legacy)',
+      availabilityCacheKey: 'test-ameriflux-base-legacy-v2',
+      freshnessNamespace: 'test-ameriflux-base-legacy-v2',
+      availabilityRetryCount: 0
+    });
+    const result = await source.list_sites();
+
+    assert.deepEqual(requests, [legacyUrl]);
+    assert.equal(result.sites[0].data_policy, 'LEGACY');
+    assert.equal(source.downloadUrl, 'https://amfcdn.lbl.gov/api/v2/data_download');
+    assert.equal(source.buildDownloadPayload(['US-Leg'], 'FULLSET').data_policy, 'LEGACY');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('Explorer default snapshot JSON files exist and are loadable by the current JSON loader', () => {
   const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
   const expectedJsonFiles = [
@@ -1189,7 +1246,80 @@ test('BASE-only sites surface BASE only and bulk helpers keep the BASE product',
   assert.equal(partition.ameriFluxRows[0].api_data_product, 'BASE-BADM');
   assert.match(
     hooks.buildAmeriFluxSelectedSitesText(partition.ameriFluxRows),
-    /US-Base\tBASE-BADM\tBASE/
+    /US-Base\tBASE-BADM\tCCBY4\.0\tBASE/
+  );
+});
+
+test('Legacy BASE-only sites surface with Legacy policy metadata and warning-aware bulk entries', () => {
+  const merged = hooks.mergeCatalogRows(
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      makeAvailabilitySite('US-Leg', [2001, 2002], {
+        data_policy: 'LEGACY'
+      })
+    ]
+  );
+  const row = merged.rows[0];
+  const partition = hooks.partitionRowsByBulkSource([row]);
+  const summary = hooks.summarizeBulkSelection([row]);
+
+  assert.equal(row.source_label, 'AmeriFlux BASE (Legacy)');
+  assert.equal(row.processing_lineage, 'other_processed');
+  assert.equal(row.surfacedProducts.length, 1);
+  assert.equal(row.surfacedProducts[0].apiDataProduct, 'BASE-BADM');
+  assert.equal(row.surfacedProducts[0].data_policy, 'LEGACY');
+  assert.equal(partition.ameriFluxRows[0].data_policy, 'LEGACY');
+  assert.equal(summary.hasAmeriFluxLegacy, true);
+  assert.match(hooks.renderSurfacedCoverageHtml(row), /Policy: Legacy/);
+});
+
+test('BASE CC-BY and Legacy policies remain distinct products when their coverage differs', () => {
+  const merged = hooks.mergeCatalogRows(
+    [],
+    [],
+    [],
+    [],
+    [],
+    [makeAvailabilitySite('US-Policy', [2001], { data_policy: 'CCBY4.0' })],
+    [],
+    [makeAvailabilitySite('US-Policy', [2001, 2002], { data_policy: 'LEGACY' })]
+  );
+  const row = merged.rows[0];
+  const partition = hooks.partitionRowsByBulkSource([row]);
+
+  assert.deepEqual(
+    row.surfacedProducts.map((product) => product.data_policy),
+    ['CCBY4.0', 'LEGACY']
+  );
+  assert.deepEqual(
+    partition.ameriFluxRows.map((entry) => entry.data_policy),
+    ['CCBY4.0', 'LEGACY']
+  );
+  assert.match(row.years, /BASE: 2001/);
+  assert.match(row.years, /BASE \(Policy: Legacy\): 2001-2002/);
+});
+
+test('BASE Legacy products are suppressed when CC-BY coverage is identical', () => {
+  const merged = hooks.mergeCatalogRows(
+    [],
+    [],
+    [],
+    [],
+    [],
+    [makeAvailabilitySite('US-SamePolicy', [2001, 2002], { data_policy: 'CCBY4.0' })],
+    [],
+    [makeAvailabilitySite('US-SamePolicy', [2001, 2002], { data_policy: 'LEGACY' })]
+  );
+
+  assert.deepEqual(
+    merged.rows[0].surfacedProducts.map((product) => product.data_policy),
+    ['CCBY4.0']
   );
 });
 
@@ -3899,17 +4029,21 @@ test('AmeriFlux row-level curl command reports API account errors clearly withou
   assert.match(String(result.stderr || ''), /unset them to use the Explorer defaults/);
 });
 
-test('AmeriFlux selected-sites export includes source label and keeps multiple products for one site', () => {
+test('AmeriFlux selected-sites export includes policy and keeps multiple products for one site', () => {
   const text = hooks.buildAmeriFluxSelectedSitesText([
     { site_id: 'AR-Bal', data_product: 'FLUXNET', source_label: 'AmeriFlux' },
     { site_id: 'AR-Bal', data_product: 'BASE-BADM', source_label: 'BASE' },
+    { site_id: 'AR-Bal', data_product: 'BASE-BADM', source_label: 'BASE' },
+    { site_id: 'AR-Bal', data_product: 'BASE-BADM', data_policy: 'LEGACY', source_label: 'AmeriFlux BASE (Legacy)' },
     { site_id: 'CL-Old', data_product: 'FLUXNET2015', source_label: 'FLUXNET2015' }
   ]);
 
-  assert.match(text, /^# site_id\tdata_product\tsource_label/m);
-  assert.match(text, /^AR-Bal\tFLUXNET\tAmeriFlux$/m);
-  assert.match(text, /^AR-Bal\tBASE-BADM\tBASE$/m);
-  assert.match(text, /^CL-Old\tFLUXNET2015\tFLUXNET2015$/m);
+  assert.match(text, /^# site_id\tdata_product\tdata_policy\tsource_label/m);
+  assert.match(text, /^AR-Bal\tFLUXNET\tCCBY4\.0\tAmeriFlux$/m);
+  assert.match(text, /^AR-Bal\tBASE-BADM\tCCBY4\.0\tBASE$/m);
+  assert.match(text, /^AR-Bal\tBASE-BADM\tLEGACY\tAmeriFlux BASE \(Legacy\)$/m);
+  assert.match(text, /^CL-Old\tFLUXNET2015\tCCBY4\.0\tFLUXNET2015$/m);
+  assert.equal((text.match(/^AR-Bal\tBASE-BADM\tCCBY4\.0\tBASE$/gm) || []).length, 1);
 });
 
 test('AmeriFlux bulk script generator supports mixed FLUXNET and FLUXNET2015 products and filename cleanup', () => {
@@ -3923,10 +4057,10 @@ test('AmeriFlux bulk script generator supports mixed FLUXNET and FLUXNET2015 pro
     defaultUserEmail: 'custom@example.org'
   });
 
-  assert.equal(script.includes('# site_id\tdata_product\tsource_label'), true);
-  assert.equal(script.includes('AR-Bal\tFLUXNET\tAmeriFlux'), true);
-  assert.equal(script.includes('AR-Bal\tBASE-BADM\tBASE'), true);
-  assert.equal(script.includes('CL-Old\tFLUXNET2015\tFLUXNET2015'), true);
+  assert.equal(script.includes('# site_id\tdata_product\tdata_policy\tsource_label'), true);
+  assert.equal(script.includes('AR-Bal\tFLUXNET\tCCBY4.0\tAmeriFlux'), true);
+  assert.equal(script.includes('AR-Bal\tBASE-BADM\tCCBY4.0\tBASE'), true);
+  assert.equal(script.includes('CL-Old\tFLUXNET2015\tCCBY4.0\tFLUXNET2015'), true);
   assert.equal(script.includes('USER_ID="${AMERIFLUX_USER_ID:-custom-user}"'), true);
   assert.equal(script.includes('USER_EMAIL="${AMERIFLUX_USER_EMAIL:-custom@example.org}"'), true);
   assert.equal(script.includes('V2_DOWNLOAD_URL="${AMERIFLUX_V2_DOWNLOAD_URL:-https://amfcdn.lbl.gov/api/v2/data_download}"'), true);
@@ -3963,11 +4097,11 @@ test('AmeriFlux bulk script generator supports mixed FLUXNET and FLUXNET2015 pro
   assert.equal(script.includes('REQUEST_URL="$(resolve_request_url "$DATA_PRODUCT")" || {'), true);
   assert.equal(script.includes('\\"data_product\\": \\"${DATA_PRODUCT}\\"'), true);
   assert.equal(script.includes('\\"data_variant\\": \\"FULLSET\\"'), true);
-  assert.equal(script.includes('\\"data_policy\\": \\"CCBY4.0\\"'), true);
+  assert.equal(script.includes('\\"data_policy\\": \\"${DATA_POLICY}\\"'), true);
   assert.equal(script.includes('\\"intended_use\\": \\"other_research\\"'), true);
   assert.equal(script.includes('\\"intended_use\\": \\"QED Lab FLUXNET Data Explorer\\"'), true);
   assert.equal(script.includes('\\"is_test\\": false'), false);
-  assert.equal(script.includes('while IFS=$\'\\t\' read -r SITE_ID DATA_PRODUCT SOURCE_LABEL; do'), true);
+  assert.equal(script.includes('while IFS=$\'\\t\' read -r SITE_ID DATA_PRODUCT DATA_POLICY SOURCE_LABEL; do'), true);
   assert.equal(script.includes('URLS=$(extract_urls "$RESPONSE" 2>/dev/null || true)'), true);
   assert.equal(script.includes('clean_url="${url%%\\?*}"'), true);
   assert.equal(script.includes('filename="$(basename "$clean_url")"'), true);
@@ -4009,7 +4143,48 @@ test('Generated AmeriFlux bulk script falls back to python3 when jq is unavailab
   assert.equal(fs.existsSync(path.join(outDir, 'mock.zip')), true);
   assert.match(fs.readFileSync(path.join(outDir, 'mock.zip'), 'utf8'), /downloaded:https:\/\/example\.org\/mock\.zip\?download=1/);
   assert.match(fs.readFileSync(logFile, 'utf8'), /Downloading mock\.zip \(AR-Bal, FLUXNET\)/);
-  assert.match(fs.readFileSync(sitesFile, 'utf8'), /^# site_id\tdata_product\tsource_label/m);
+  assert.match(fs.readFileSync(sitesFile, 'utf8'), /^# site_id\tdata_product\tdata_policy\tsource_label/m);
+});
+
+test('Generated AmeriFlux bulk script posts CC-BY and Legacy BASE requests separately through V2', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ameriflux-bulk-script-'));
+  const scriptPath = path.join(tempDir, 'download_ameriflux_selected.sh');
+  const outDir = path.join(tempDir, 'downloads');
+  const sitesFile = path.join(tempDir, 'ameriflux_selected_sites.txt');
+  const logFile = path.join(tempDir, 'ameriflux_bulk_download.log');
+  const postUrlLogFile = path.join(tempDir, 'posted_urls.log');
+  const postBodyLogFile = path.join(tempDir, 'posted_bodies.log');
+  const binDir = buildScriptRuntimeBin(tempDir, {
+    includePython3: true,
+    postUrlLogFile: postUrlLogFile,
+    postBodyLogFile: postBodyLogFile
+  });
+  const scriptText = hooks.buildAmeriFluxBulkScriptText([
+    { site_id: 'US-Policy', data_product: 'BASE-BADM', data_policy: 'CCBY4.0', source_label: 'BASE' },
+    { site_id: 'US-Policy', data_product: 'BASE-BADM', data_policy: 'LEGACY', source_label: 'AmeriFlux BASE (Legacy)' }
+  ]);
+
+  writeExecutable(scriptPath, scriptText);
+
+  childProcess.execFileSync(BASH_PATH, [scriptPath, outDir, sitesFile, logFile], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: binDir
+    }
+  });
+
+  assert.equal(scriptText.includes('# WARNING: This selection includes AmeriFlux data shared under the AmeriFlux Legacy Data Policy.'), true);
+  assert.deepEqual(fs.readFileSync(postUrlLogFile, 'utf8').trim().split('\n'), [
+    'https://amfcdn.lbl.gov/api/v2/data_download',
+    'https://amfcdn.lbl.gov/api/v2/log_shuttle_data_request',
+    'https://amfcdn.lbl.gov/api/v2/data_download',
+    'https://amfcdn.lbl.gov/api/v2/log_shuttle_data_request'
+  ]);
+  const postedBodies = fs.readFileSync(postBodyLogFile, 'utf8').split('\n---END---\n').filter(Boolean);
+  assert.equal(JSON.parse(postedBodies[0]).data_policy, 'CCBY4.0');
+  assert.equal(JSON.parse(postedBodies[2]).data_policy, 'LEGACY');
+  assert.equal((fs.readFileSync(logFile, 'utf8').match(/This selection includes AmeriFlux data shared under the AmeriFlux Legacy Data Policy\./g) || []).length, 1);
 });
 
 test('Generated AmeriFlux bulk script decodes and uses the FLUXNET2015 request URL at runtime without exposing the raw v1 URL', () => {
