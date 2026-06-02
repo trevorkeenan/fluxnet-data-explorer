@@ -5980,7 +5980,7 @@
     root.innerHTML = [
       "<div class=\"shuttle-explorer__header\">",
       "  <h2>FLUXNET Data Explorer</h2>",
-      "  <p class=\"shuttle-explorer__muted\">Explore and download a regularly refreshed snapshot of FLUXNET Shuttle coverage, selected direct FLUXNET archive supplements, JapanFlux2024 archive records, and AmeriFlux BASE (standardized observations) coverage shared under CC-BY-4.0 or the AmeriFlux Legacy Data Policy (explorer refreshed: <span data-role=\"widget-refreshed-inline\">unavailable</span>). Search by site ID or site name, then open the download or landing-page links shown in the table. This explorer keeps source provenance explicit instead of folding every record into the FLUXNET Shuttle bucket.</p>",
+      "  <p class=\"shuttle-explorer__muted\">Explore and download a regularly refreshed snapshot of FLUXNET Shuttle coverage, selected direct FLUXNET archive supplements, JapanFlux2024 archive records, and other regional network records (explorer refreshed: <span data-role=\"widget-refreshed-inline\">unavailable</span>). Search by site ID or site name, then open the download or landing-page links shown in the table. This explorer keeps source provenance explicit instead of folding every record into the FLUXNET Shuttle bucket.</p>",
       "  <p class=\"shuttle-explorer__muted\">Data are provided by site teams around the world. Shuttle-backed FLUXNET rows are served via the FLUXNET Shuttle (<a href=\"https://data.fluxnet.org/\" target=\"_blank\" rel=\"noopener\">https://data.fluxnet.org/</a>), additional FLUXNET rows may be surfaced through ICOS and AmeriFlux APIs, and JapanFlux2024 rows are surfaced separately from the ADS archive because they use FLUXNET-style conventions with dataset-specific adaptations.</p>",
       "</div>",
       "<p class=\"shuttle-explorer__status is-loading\" data-role=\"status\" role=\"status\" aria-live=\"polite\">Loading snapshot…</p>",
@@ -6192,13 +6192,13 @@
       "</aside>",
       "<aside class=\"shuttle-explorer__attribution\" data-role=\"attribution\">",
       "  <h3>Data Use and Attribution</h3>",
-      "  <p class=\"shuttle-explorer__tiny\">Data users must follow dataset- and network-specific access, attribution, and citation guidance included with each downloaded archive or request workflow. AmeriFlux BASE-BADM products are labeled by policy: either <a href=\"https://creativecommons.org/licenses/by/4.0/\" target=\"_blank\" rel=\"noopener noreferrer\">CC-BY 4.0</a> or the <a href=\"https://ameriflux.lbl.gov/data/data-policy/\" target=\"_blank\" rel=\"noopener noreferrer\">AmeriFlux Legacy Data Policy</a>. If CC-BY-4.0 and Legacy AmeriFlux data are combined in one project, AmeriFlux requires users to follow the Legacy Data Policy for all AmeriFlux data used. AmeriFlux FLUXNET/ONEFlux products remain CC-BY-4.0 only.</p>",
+      "  <p class=\"shuttle-explorer__tiny\">Data surfaced by the Explorer remain governed by the original data providers' terms, licenses, citation requirements, and data-use policies. Follow the applicable policy for each downloaded dataset, and cite or acknowledge the original data providers, networks, and product DOIs where applicable.</p>",
       "</aside>",
       "<aside class=\"shuttle-explorer__attribution\" data-role=\"citation-source\">",
       "  <h3>Citation and source</h3>",
       "  <p class=\"shuttle-explorer__tiny\">We appreciate acknowledgement of the QED FLUXNET Data Explorer when convenient.</p>",
       "  <p class=\"shuttle-explorer__tiny\"><strong>Citation:</strong> Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. <a href=\"https://doi.org/10.5281/zenodo.20331228\" target=\"_blank\" rel=\"noopener noreferrer\">https://doi.org/10.5281/zenodo.20331228</a> <strong>Version:</strong> v1.0.0. <strong>License:</strong> Apache-2.0. <strong>Source code:</strong> <a href=\"https://github.com/trevorkeenan/fluxnet-data-explorer\" target=\"_blank\" rel=\"noopener noreferrer\">github.com/trevorkeenan/fluxnet-data-explorer</a>.</p>",
-      "  <p class=\"shuttle-explorer__tiny\">Apache-2.0 applies to the Explorer software code and original documentation, not to third-party datasets, metadata, APIs, download URLs, logos, trademarks, or data products surfaced here. AmeriFlux Legacy data remain governed by the AmeriFlux Legacy Data Policy.</p>",
+      "  <p class=\"shuttle-explorer__tiny\">Apache-2.0 applies to the Explorer software code and original documentation, not to third-party datasets, metadata, APIs, download URLs, logos, trademarks, or data products surfaced here.</p>",
       "</aside>"
     ].join("");
   }

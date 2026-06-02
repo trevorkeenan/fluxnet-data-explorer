@@ -67,7 +67,7 @@ The Explorer software code and original documentation in this repository are lic
 
 Third-party datasets, metadata, download URLs, APIs, logos, trademarks, and data products surfaced by the Explorer remain governed by the original providers' terms, licenses, citation requirements, and data-use policies, including those of FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, and other contributing networks or repositories.
 
-The Explorer software license does not apply to third-party datasets. In particular, AmeriFlux Legacy data remain governed by the [AmeriFlux Legacy Data Policy](https://ameriflux.lbl.gov/data/data-policy/). If CC-BY-4.0 and Legacy AmeriFlux data are combined in one project, AmeriFlux requires users to follow the Legacy Data Policy for all AmeriFlux data used.
+The Explorer preserves product-level data-policy labels for AmeriFlux API-backed products so generated manifests and download helpers can apply the policy associated with each selected product.
 
 Use of the FLUXNET Data Explorer does not imply endorsement by UC Berkeley, the Keenan Lab, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or any data provider.
 
