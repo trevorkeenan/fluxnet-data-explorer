@@ -44,6 +44,8 @@ CA-CF2,Churchill Fen Site 2,Canada,58.6658,-93.8300
 CA-CF3,Churchill Fen Site 3,Canada,58.6658,-93.8304
 CA-CHA,New Brunswick - Charlie Lake site 01 (immature balsam fir forest to be thinned in year 3),Canada,45.8847,-67.3569
 CA-CQ1,Québec. Carbonique1 - Lac Saint-Pierre Disturbed Marsh,Canada,46.1645,-72.6850
+CA-CQ2,Québec. Carbonique2 - Natural Lac-à-la-Tortue Open Bog,Canada,46.5316,-72.6450
+CA-CQ3,Québec. Carbonique3  - Carbonique Lac-à-la-Tortue Forested bog,Canada,46.5280,-72.6462
 CA-CRB,Carberry,Canada,49.9061,-99.3480
 CA-DB2,Delta Burns Bog 2,Canada,49.1190,-122.9951
 CA-DBB,Delta Burns Bog,Canada,49.1293,-122.9849
@@ -56,6 +58,7 @@ CA-EM3,Oak Hammock Marsh Manitoba,Canada,50.1738,-97.1231
 CA-ER1,Elora Research Station,Canada,43.6405,-80.4123
 CA-ER2,Elora Research Station,Canada,43.6419,-80.4140
 CA-GL3,Long Point,Canada,42.5487,-80.0165
+CA-GL4,Nine Mile Lighthouse,Canada,44.1516,-76.5559
 CA-GRO,"Ontario - Groundhog River, Boreal Mixedwood Forest",Canada,48.2167,-82.1556
 CA-HPC,Havikpak Creek,Canada,68.3203,-133.5188
 CA-IQT,Iqaluit Tundra,Canada,63.7507,-68.4285
@@ -150,6 +153,7 @@ PA-BAR,Barro Colorado Island,Panama,9.1568,-79.8486
 PA-BAS,Barro Colorado Island,Panama,9.1565,-79.8482
 PE-AMG,Los Amigos,Peru,-12.5598,-70.1018
 PE-BRE,El Breo,Peru,-7.1026,-77.1619
+PE-IGP,Observatorio Geofísico de Huancayo del Instituto Geofísico del Perú,Peru,-12.0414,-75.3187
 PE-PAN,Panguana,Peru,-9.6237,-74.9315
 PE-QFR,Quistococha Forest Reserve,Peru,-3.8344,-73.3190
 PE-TNR,Tambopata,Peru,-12.8314,-69.2836
@@ -176,6 +180,7 @@ US-ABB,Archbold ungrazed seminative pasture,USA,27.1346,-81.2031
 US-ABC,Archbold grazed improved pasture,USA,27.1633,-81.1873
 US-ABD,Archbold ungrazed improved pasture,USA,27.1699,-81.2152
 US-ABE,Archbold Ungrazed Wetland,USA,27.1656,-81.2161
+US-ABF,Archbold BIR Ranch Improved Pasture,USA,27.1879,-81.1996
 US-AC2,ARM-CRG-Rural,USA,39.4220,-77.2100
 US-AC3,ARM-CRG-Bay,USA,38.8380,-76.3700
 US-AC5,ARM-CRG-UrbanNW,USA,39.3105,-76.6238
@@ -362,9 +367,9 @@ US-HBK,Hubbard Brook Experimental Forest,USA,43.9397,-71.7181
 US-HN1,Hanford 300 Area,USA,46.4089,-119.2750
 US-HN2,Hanford 100H grassland,USA,46.6889,-119.4641
 US-HN3,Hanford 100H sagebrush,USA,46.6878,-119.4614
-US-HO1,Howland Forest (main tower),USA,45.2041,-68.7402
-US-HO2,Howland Forest (west tower),USA,45.2091,-68.7470
-US-HO3,Howland Forest (harvest site),USA,45.2072,-68.7250
+US-HO1,Howland Forest (main tower),USA,45.2040,-68.7402
+US-HO2,Howland Forest (west tower),USA,45.2090,-68.7470
+US-HO3,Howland Forest (harvest site),USA,45.2072,-68.7265
 US-HPY,Hawk Property,USA,40.7692,-74.0853
 US-HRA,Humnoke Farm Rice Field – Field A,USA,34.5852,-91.7517
 US-HRC,Humnoke Farm Rice Field – Field C,USA,34.5888,-91.7517
@@ -385,7 +390,6 @@ US-IB2,Fermi National Accelerator Laboratory- Batavia (Prairie site),USA,41.8406
 US-ICH,Imnavait Creek Watershed Heath Tundra,USA,68.6068,-149.2958
 US-ICS,Imnavait Creek Watershed Wet Sedge Tundra,USA,68.6058,-149.3110
 US-ICT,Imnavait Creek Watershed Tussock Tundra,USA,68.6063,-149.3041
-US-IL1,Paspalum notatum long rotational grazing,USA,27.1879,-81.1996
 US-INA,INFLUX - Cemetery Turfgrass Tower,USA,39.8273,-86.1790
 US-INB,INFLUX - Golf Course,USA,39.8706,-86.0024
 US-INC,INFLUX - Downtown Indianapolis (Site-3),USA,39.7833,-86.1652
@@ -450,7 +454,7 @@ US-LMA,Mississippi ARS Arant ASP,USA,33.7275,-90.4850
 US-LMB,Mississippi ARS Arant Bau,USA,33.7283,-90.4730
 US-LMS,LMRB LTAR Schmidt Farm,USA,34.1431,-90.6591
 US-LMW,Mississippi ARS Watts,USA,34.1536,-90.6486
-US-LOS,Lost Creek,USA,46.0827,-89.9792
+US-LOS,Lost Creek,USA,46.0827,-89.9786
 US-LPH,Little Prospect Hill,USA,42.5419,-72.1850
 US-LS1,San Pedro River Lewis Springs Sacaton Grassland,USA,31.5615,-110.1403
 US-LS2,San Pedro River Lewis Springs Savanna,USA,31.5659,-110.1344
@@ -464,9 +468,9 @@ US-MCP,"Moro Cojo Slough, PG&E Treatment Wetland",USA,36.7830,-121.7690
 US-ME1,Metolius - Eyerly burn,USA,44.5794,-121.5000
 US-ME2,Metolius mature ponderosa pine,USA,44.4526,-121.5589
 US-ME3,Metolius-second young aged pine,USA,44.3154,-121.6078
-US-ME4,Metolius-old aged ponderosa pine,USA,44.4992,-121.6224
+US-ME4,Metolius-old aged ponderosa pine,USA,44.4990,-121.6236
 US-ME5,Metolius-first young aged pine,USA,44.4372,-121.5668
-US-ME6,Metolius Young Pine Burn,USA,44.3233,-121.6078
+US-ME6,Metolius Young Pine Burn,USA,44.3232,-121.6044
 US-ME7,Metolius Low Burn Severity Subcanopy,USA,44.4534,-121.5619
 US-MEF,Manitou Experimental Forest,USA,39.1006,-105.1024
 US-MEN,"Lake Mendota, Center for Limnology Site",USA,43.0772,-89.4030
@@ -508,7 +512,7 @@ US-MZA,"Hidden Marsh, Montezuma NWR",USA,43.0441,-76.7897
 US-NC1,NC_Clearcut,USA,35.8118,-76.7119
 US-NC2,NC_Loblolly Plantation,USA,35.8030,-76.6685
 US-NC3,NC_Clearcut#3,USA,35.7990,-76.6560
-US-NC4,NC_AlligatorRiver,USA,35.7879,-75.9038
+US-NC4,NC_AlligatorRiver,USA,35.7817,-75.9135
 US-NC5,NC Butner Farm,USA,36.1565,-78.7878
 US-NE1,Mead - irrigated continuous maize site,USA,41.1651,-96.4766
 US-NE2,Mead - irrigated maize-soybean rotation site,USA,41.1649,-96.4701
@@ -518,7 +522,7 @@ US-NGC,NGEE Arctic Council,USA,64.8618,-163.7002
 US-NMJ,Northern Michigan Jack Pine Stand,USA,46.6465,-88.5194
 US-NP1,Business-As-Usual Management (mandanh5),USA,46.7756,-100.9510
 US-NP2,ASPirational Management (mandani2),USA,46.7613,-100.9257
-US-NR1,Niwot Ridge Forest (LTER NWT1),USA,40.0329,-105.5464
+US-NR1,Niwot Ridge Forest (LTER NWT1),USA,40.0329,-105.5470
 US-NR2,Niwot Ridge Forest (USGS site),USA,40.0325,-105.5469
 US-NR3,Niwot Ridge Alpine (T-Van West),USA,40.0520,-105.5864
 US-NR4,Niwot Ridge Alpine (T-Van East),USA,40.0520,-105.5859
@@ -527,6 +531,24 @@ US-NRS,Nisqually restoring,USA,47.0936,-122.7079
 US-NSA,NASA HAQ - SJV East Irrigated Vineyard,USA,36.6029,-119.5061
 US-NSB,NASA HAQ - SJV West Irrigated Cotton,USA,36.3354,-120.1183
 US-NSW,Newman Seasonal Wetlands,USA,37.3091,-121.0042
+US-NYA,NYSM - Voorheesville,USA,42.6524,-73.9756
+US-NYB,NYSM - Schuylerville,USA,43.1170,-73.5783
+US-NYC,NYSM - Whitehall,USA,43.4851,-73.4231
+US-NYD,NYSM - Red Hook,USA,42.0017,-73.8839
+US-NYE,NYSM - Ontario,USA,43.2594,-77.3733
+US-NYF,NYSM - Burt,USA,43.3170,-78.7490
+US-NYG,NYSM - Chazy,USA,44.8957,-73.4646
+US-NYH,NYSM - Owego,USA,42.0257,-76.2554
+US-NYI,NYSM - Redfield,USA,43.6222,-75.8777
+US-NYJ,NYSM - Queens,USA,40.7343,-73.8159
+US-NYK,NYSM - Staten Island,USA,40.6040,-74.1485
+US-NYL,NYSM - Southold,USA,41.0401,-72.4659
+US-NYM,NYSM - Belleville,USA,43.7896,-76.1137
+US-NYN,NYSM - Brooklyn,USA,40.6318,-73.9537
+US-NYO,NYSM - Penn Yan,USA,42.6558,-76.9875
+US-NYP,NYSM - Fredonia,USA,42.4182,-79.3666
+US-NYQ,NYSM - Warsaw,USA,42.7799,-78.2089
+US-NYR,NYSM - Claryville,USA,41.9792,-74.5171
 US-OF1,Osceola Farm Rice Field - SW,USA,35.7371,-90.0492
 US-OF2,Osceola Farm Rice Field - NW,USA,35.7406,-90.0489
 US-OHO,Oak Openings,USA,41.5545,-83.8438
@@ -538,7 +560,7 @@ US-ORV,Olentangy River Wetland Research Park,USA,40.0201,-83.0183
 US-OWC,Old Woman Creek,USA,41.3795,-82.5125
 US-PAS,"Florida, Paspalum notatum pasture",USA,27.3944,-81.9510
 US-PEA,5R Pecan Farm Above Canopy,USA,31.4123,-106.0788
-US-PFA,Park Falls/WLEF,USA,45.9459,-90.2723
+US-PFA,Park Falls/WLEF,USA,45.9451,-90.2732
 US-PFB,NW1 Pine-1 CHEESEHEAD 2019,USA,45.9720,-90.3232
 US-PFC,NW2 Aspen-1 CHEESEHEAD 2019,USA,45.9677,-90.3088
 US-PFD,NW3 Tussock-1 CHEESEHEAD 2019,USA,45.9689,-90.3010
@@ -656,7 +678,7 @@ US-SVP,Savannah River Prescribe Fire,USA,33.3616,-81.6730
 US-SX1,Santee Experimental Forest Longleaf Pine Clearcut,USA,33.1439,-79.7748
 US-SX2,Santee Experimental Forest Longleaf Pine Thinned,USA,33.1404,-79.7718
 US-SX3,Santee Experimental Forest Unmanaged HW-Pine,USA,33.1494,-79.7888
-US-SYV,Sylvania Wilderness Area,USA,46.2420,-89.3477
+US-SYV,Sylvania Wilderness Area,USA,46.2421,-89.3459
 US-SZ1,"St. John, WA On-farm site Zone 1",USA,47.1245,-117.5306
 US-SZ2,"St. John, WA On-farm site Zone 2",USA,47.1226,-117.5271
 US-SZ3,"St. John, WA On-farm site Zone 3",USA,47.1261,-117.5267
@@ -733,7 +755,7 @@ US-VFP,Virginia Coast Reserve Fowling Point,USA,37.4111,-75.8333
 US-VT1,Vermillion Tributary Paired Cropland – Site 1 (Corn/Soy; No Cover Crops),USA,40.4064,-87.5214
 US-VT2,Vermillion Tributary Paired Cropland – Site 2 (Corn/Soy; Cover Crops),USA,40.4018,-87.5213
 US-WBW,Walker Branch Watershed,USA,35.9588,-84.2874
-US-WCR,Willow Creek,USA,45.8059,-90.0799
+US-WCR,Willow Creek,USA,45.8058,-90.0795
 US-WDN,Walden,USA,40.7838,-106.2618
 US-WEP,West Edge Parking Lot,USA,43.1421,-70.9543
 US-WGR,Willamette Grass,USA,45.1129,-122.6560

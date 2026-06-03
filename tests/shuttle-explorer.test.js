@@ -1279,6 +1279,61 @@ test('Legacy BASE-only sites surface with Legacy policy metadata and warning-awa
   assert.match(hooks.renderSurfacedCoverageHtml(row), /Policy: Legacy/);
 });
 
+test('AmeriFlux Legacy BASE-only site metadata enriches CA-GL4 for table and map display', () => {
+  const siteInfoLookup = hooks.buildAmeriFluxSiteInfoLookup([
+    {
+      SITE_ID: ' CA-GL4 ',
+      SITE_NAME: 'Nine Mile Lighthouse',
+      COUNTRY: 'Canada',
+      LOCATION_LAT: '44.1516',
+      LOCATION_LONG: '-76.5559'
+    }
+  ]);
+  const vegetationLookup = hooks.buildVegetationMetadataLookup([
+    {
+      site_id: 'CA-GL4',
+      vegetation_type: 'WAT'
+    }
+  ]);
+  const enrichedLegacySites = hooks.enrichAmeriFluxSitesWithMetadata(
+    [
+      makeAvailabilitySite('CA-GL4', [2016, 2017, 2018], {
+        data_policy: 'LEGACY'
+      })
+    ],
+    siteInfoLookup,
+    vegetationLookup
+  );
+  const merged = hooks.mergeCatalogRows(
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    enrichedLegacySites
+  );
+  const row = merged.rows.find((candidate) => candidate.site_id === 'CA-GL4');
+  const mapState = hooks.buildMapDisplayState([row], {});
+  const mapSummary = hooks.buildMapSummaryHtml(mapState, { totalCount: 0, accessibleCount: 0 }, false);
+  const partition = hooks.partitionRowsByBulkSource([row]);
+
+  assert.equal(row.site_name, 'Nine Mile Lighthouse');
+  assert.equal(row.country, 'Canada');
+  assert.equal(row.latitude, 44.1516);
+  assert.equal(row.longitude, -76.5559);
+  assert.equal(row.vegetation_type, 'WAT');
+  assert.equal(row.has_coordinates, true);
+  assert.equal(row.source_label, 'AmeriFlux BASE (Legacy)');
+  assert.equal(row.surfacedProducts[0].data_policy, 'LEGACY');
+  assert.equal(partition.ameriFluxRows[0].api_data_product, 'BASE-BADM');
+  assert.equal(partition.ameriFluxRows[0].data_policy, 'LEGACY');
+  assert.deepEqual(mapState.mappableRows.map((candidate) => candidate.site_id), ['CA-GL4']);
+  assert.equal(mapState.missingCoordinates, 0);
+  assert.equal(mapSummary.includes('omitted because coordinates are unavailable'), false);
+});
+
 test('BASE CC-BY and Legacy policies remain distinct products when their coverage differs', () => {
   const merged = hooks.mergeCatalogRows(
     [],
@@ -1693,6 +1748,39 @@ test('AmeriFlux-Shuttle overlap keeps Shuttle vegetation unchanged when API meta
 
   assert.equal(merged.rows[0].source_label, 'AmeriFlux-Shuttle');
   assert.equal(merged.rows[0].vegetation_type, 'CRO');
+});
+
+test('Sparse AmeriFlux availability records do not overwrite populated site metadata', () => {
+  const [enriched] = hooks.enrichAmeriFluxSitesWithMetadata(
+    [
+      makeAvailabilitySite('CA-GL4', [2016], {
+        site_name: '',
+        country: 'CA',
+        latitude: '',
+        longitude: '',
+        vegetation_type: ''
+      })
+    ],
+    hooks.buildAmeriFluxSiteInfoLookup([
+      {
+        site_id: 'CA-GL4',
+        site_name: 'Nine Mile Lighthouse',
+        country: 'Canada',
+        location_lat: '44.1516',
+        location_long: '-76.5559'
+      }
+    ]),
+    {
+      'CA-GL4': 'WAT'
+    }
+  );
+
+  assert.equal(enriched.site_name, 'Nine Mile Lighthouse');
+  assert.equal(enriched.country, 'Canada');
+  assert.equal(enriched.latitude, 44.1516);
+  assert.equal(enriched.longitude, -76.5559);
+  assert.equal(enriched.vegetation_type, 'WAT');
+  assert.deepEqual(enriched.publish_years, [2016]);
 });
 
 test('API-only rows do not fabricate vegetation when authoritative metadata is absent', () => {

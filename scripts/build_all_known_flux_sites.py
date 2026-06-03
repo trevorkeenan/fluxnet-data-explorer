@@ -41,6 +41,7 @@ MIN_NEAREST_COUNTRY_RATIO = 1.5
 
 AMERIFLUX_FLUXNET_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/FLUXNET/CCBY4.0"
 AMERIFLUX_BASE_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/BASE-BADM/CCBY4.0"
+AMERIFLUX_BASE_LEGACY_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/AmeriFlux/BASE-BADM/LEGACY"
 FLUXNET2015_AVAILABILITY_URL = "https://amfcdn.lbl.gov/api/v2/data_availability/FLUXNET/FLUXNET2015/CCBY4.0"
 NATURAL_EARTH_COUNTRIES_GEOJSON_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson"
 NATURAL_EARTH_COUNTRIES_CACHE_PATH = Path.home() / ".cache" / "fluxnet-data-explorer" / "ne_50m_admin_0_countries.geojson"
@@ -1598,7 +1599,8 @@ def load_accessible_truth_from_availability_sources() -> ExplorerAccessibleTruth
     truth = ExplorerAccessibleTruth()
     availability_sources = [
         ("AmeriFlux FLUXNET", AMERIFLUX_FLUXNET_AVAILABILITY_URL),
-        ("AmeriFlux BASE", AMERIFLUX_BASE_AVAILABILITY_URL),
+        ("AmeriFlux BASE CC-BY-4.0", AMERIFLUX_BASE_AVAILABILITY_URL),
+        ("AmeriFlux BASE Legacy", AMERIFLUX_BASE_LEGACY_AVAILABILITY_URL),
         ("FLUXNET2015", FLUXNET2015_AVAILABILITY_URL),
     ]
 

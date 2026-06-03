@@ -73,6 +73,8 @@ CA-CF2,WET,ameriflux_site_search
 CA-CF3,WET,ameriflux_site_search
 CA-CHA,MF,ameriflux_site_search
 CA-CQ1,CRO,ameriflux_site_search
+CA-CQ2,WET,ameriflux_site_search
+CA-CQ3,WET,ameriflux_site_search
 CA-CRB,CRO,ameriflux_site_search
 CA-DB2,WET,ameriflux_site_search
 CA-DBB,WET,ameriflux_site_search
@@ -85,6 +87,7 @@ CA-EM3,WET,ameriflux_site_search
 CA-ER1,CRO,ameriflux_site_search
 CA-ER2,CRO,ameriflux_site_search
 CA-GL3,WAT,ameriflux_site_search
+CA-GL4,WAT,ameriflux_site_search
 CA-GRO,MF,ameriflux_site_search
 CA-HPC,ENF,ameriflux_site_search
 CA-IQT,GRA,ameriflux_site_search
@@ -261,6 +264,7 @@ PA-SPN,DBF,fluxnet_siteinfo
 PA-SPS,GRA,fluxnet_siteinfo
 PE-AMG,EBF,ameriflux_site_search
 PE-BRE,EBF,ameriflux_site_search
+PE-IGP,GRA,ameriflux_site_search
 PE-PAN,EBF,ameriflux_site_search
 PE-QFR,WET,ameriflux_site_search
 PE-TNR,MF,ameriflux_site_search
@@ -300,6 +304,7 @@ US-ABB,GRA,ameriflux_site_search
 US-ABC,GRA,ameriflux_site_search
 US-ABD,GRA,ameriflux_site_search
 US-ABE,WET,ameriflux_site_search
+US-ABF,GRA,ameriflux_site_search
 US-AC2,CRO,ameriflux_site_search
 US-AC3,WAT,ameriflux_site_search
 US-AC5,URB,ameriflux_site_search
@@ -509,7 +514,6 @@ US-IB2,GRA,ameriflux_site_search
 US-ICH,OSH,ameriflux_site_search
 US-ICS,WET,ameriflux_site_search
 US-ICT,OSH,ameriflux_site_search
-US-IL1,GRA,ameriflux_site_search
 US-INA,URB,ameriflux_site_search
 US-INB,URB,ameriflux_site_search
 US-INC,URB,ameriflux_site_search
@@ -651,6 +655,24 @@ US-NRS,WET,ameriflux_site_search
 US-NSA,CRO,ameriflux_site_search
 US-NSB,CRO,ameriflux_site_search
 US-NSW,GRA,ameriflux_site_search
+US-NYA,CRO,ameriflux_site_search
+US-NYB,GRA,ameriflux_site_search
+US-NYC,CRO,ameriflux_site_search
+US-NYD,CRO,ameriflux_site_search
+US-NYE,CRO,ameriflux_site_search
+US-NYF,CRO,ameriflux_site_search
+US-NYG,CRO,ameriflux_site_search
+US-NYH,GRA,ameriflux_site_search
+US-NYI,GRA,ameriflux_site_search
+US-NYJ,URB,ameriflux_site_search
+US-NYK,URB,ameriflux_site_search
+US-NYL,CRO,ameriflux_site_search
+US-NYM,CRO,ameriflux_site_search
+US-NYN,URB,ameriflux_site_search
+US-NYO,CRO,ameriflux_site_search
+US-NYP,CRO,ameriflux_site_search
+US-NYQ,CRO,ameriflux_site_search
+US-NYR,GRA,ameriflux_site_search
 US-OF1,CRO,ameriflux_site_search
 US-OF2,CRO,ameriflux_site_search
 US-OHO,DBF,ameriflux_site_search

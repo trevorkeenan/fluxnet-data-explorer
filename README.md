@@ -41,6 +41,8 @@ Then open http://localhost:8000/ in a browser.
 
 The GitHub Actions workflow in `.github/workflows/update-shuttle-snapshot.yml` can be run manually or on its schedule. It refreshes the Shuttle, ICOS-direct, JapanFlux-direct, and curated EFD snapshot files, validates ICOS coverage, and commits only the generated snapshot artifacts back to this repository when they materially change.
 
+AmeriFlux site metadata and vegetation metadata can be refreshed with `scripts/refresh_ameriflux_site_info.py` and `scripts/refresh_site_vegetation_metadata.py`. The AmeriFlux site-info refresh validates that sites surfaced by the AmeriFlux FLUXNET, BASE-BADM CC-BY-4.0, and BASE-BADM Legacy availability endpoints are present in the metadata snapshot.
+
 The broader known-sites map assets are committed in `assets/all_known_flux_sites*`. They can be regenerated with `scripts/build_all_known_flux_sites.py`; optional supplemental source lists should be placed in `external_site_lists/` when needed.
 
 ## Maintainer Workflow

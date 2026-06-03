@@ -24,8 +24,8 @@
   var MAX_PAGE_BUTTONS = 7;
   var SEARCH_DEBOUNCE_MS = 180;
   var STYLE_ID = "shuttle-explorer-inline-styles";
-  var SNAPSHOT_CACHE_SCHEMA_VERSION = 10;
-  var SNAPSHOT_CACHE_STORAGE_PREFIX = "shuttle-explorer:snapshot-cache:v10";
+  var SNAPSHOT_CACHE_SCHEMA_VERSION = 11;
+  var SNAPSHOT_CACHE_STORAGE_PREFIX = "shuttle-explorer:snapshot-cache:v11";
   var MAP_CATEGORY_COLORS = {
     filteredAccessible: {
       color: "#9b6a08",
@@ -317,6 +317,9 @@
 
   function firstDefinedString(raw, keys) {
     var i;
+    var j;
+    var rawKeys;
+    var normalizedKey;
     if (!raw || typeof raw !== "object") {
       return "";
     }
@@ -328,6 +331,23 @@
       value = String(value).trim();
       if (value) {
         return value;
+      }
+    }
+    rawKeys = Object.keys(raw);
+    for (i = 0; i < keys.length; i += 1) {
+      normalizedKey = toSnakeCase(keys[i]);
+      for (j = 0; j < rawKeys.length; j += 1) {
+        if (toSnakeCase(rawKeys[j]) !== normalizedKey) {
+          continue;
+        }
+        var fallbackValue = raw[rawKeys[j]];
+        if (fallbackValue == null) {
+          continue;
+        }
+        fallbackValue = String(fallbackValue).trim();
+        if (fallbackValue) {
+          return fallbackValue;
+        }
       }
     }
     return "";
@@ -4445,7 +4465,7 @@
 
   function extractRawLatitude(raw) {
     return parseCoordinate(
-      raw && (raw.location_lat || raw.latitude || raw.lat),
+      firstDefinedString(raw, ["location_lat", "latitude", "lat"]),
       -90,
       90
     );
@@ -4453,7 +4473,7 @@
 
   function extractRawLongitude(raw) {
     return parseCoordinate(
-      raw && (raw.location_long || raw.location_lon || raw.longitude || raw.lon || raw.lng),
+      firstDefinedString(raw, ["location_long", "location_lon", "longitude", "lon", "lng"]),
       -180,
       180
     );

@@ -110,6 +110,13 @@ jobs:
             --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
             --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
 
+      - name: Refresh AmeriFlux site metadata
+        run: |
+          python scripts/refresh_ameriflux_site_info.py \
+            --output-csv assets/ameriflux_site_info.csv
+          python scripts/refresh_site_vegetation_metadata.py \
+            assets/site_vegetation_metadata.csv
+
       - name: Commit and push snapshot files if changed
         env:
           TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
@@ -120,6 +127,8 @@ jobs:
           TARGET_JAPANFLUX_JSON: assets/japanflux_direct_snapshot.json
           TARGET_EFD_CSV: assets/efd_curated_sites_snapshot.csv
           TARGET_EFD_JSON: assets/efd_curated_sites_snapshot.json
+          TARGET_AMERIFLUX_SITE_INFO_CSV: assets/ameriflux_site_info.csv
+          TARGET_SITE_VEGETATION_CSV: assets/site_vegetation_metadata.csv
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -133,7 +142,9 @@ jobs:
             "${TARGET_JAPANFLUX_CSV}" \
             "${TARGET_JAPANFLUX_JSON}" \
             "${TARGET_EFD_CSV}" \
-            "${TARGET_EFD_JSON}"
+            "${TARGET_EFD_JSON}" \
+            "${TARGET_AMERIFLUX_SITE_INFO_CSV}" \
+            "${TARGET_SITE_VEGETATION_CSV}"
 
           if git diff --cached --quiet; then
             echo "No snapshot file changes to commit."
