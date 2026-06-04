@@ -154,7 +154,7 @@ A20241210-030\tJP-Tmd\tTomakomai Flux Research Disturbed\tDNF\t42.735911\t141.52
 """
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-csv", required=True, help="Destination CSV path.")
     parser.add_argument("--output-json", required=True, help="Destination JSON path.")
@@ -192,11 +192,25 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Snapshot refresh date in YYYY-MM-DD form.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--strict-refresh",
+        action="store_true",
+        help="Fail instead of carrying forward the previous valid snapshot when ADS is temporarily unavailable.",
+    )
+    parser.add_argument(
+        "--status-output",
+        default="",
+        help="Optional diagnostic JSON path describing the JapanFlux source refresh status.",
+    )
+    return parser.parse_args(argv)
 
 
 class ResponseParseError(RuntimeError):
     """Raised when an upstream ADS response is not valid JSON."""
+
+
+class UpstreamUnavailableError(RuntimeError):
+    """Raised when ADS appears temporarily unavailable after bounded retries."""
 
 
 def maybe_float(value: Any) -> Optional[float]:
@@ -244,6 +258,14 @@ def normalize_snapshot_updated_date(value: str, fallback_at: str = "") -> str:
     return ""
 
 
+def choose_requested_refresh_fields(requested_updated_at: str, requested_updated_date: str) -> Tuple[str, str]:
+    updated_at = normalize_snapshot_updated_at(requested_updated_at)
+    if not updated_at:
+        updated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    updated_date = normalize_snapshot_updated_date(requested_updated_date, updated_at)
+    return updated_at, updated_date
+
+
 def load_existing_meta(output_path: Path) -> Dict[str, Any]:
     if not output_path.exists():
         return {}
@@ -253,6 +275,17 @@ def load_existing_meta(output_path: Path) -> Dict[str, Any]:
         return {}
     meta = payload.get("meta")
     return meta if isinstance(meta, dict) else {}
+
+
+def load_source_statuses(meta: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    raw = meta.get("source_statuses")
+    if not isinstance(raw, dict):
+        return {}
+    statuses: Dict[str, Dict[str, Any]] = {}
+    for source_name, value in raw.items():
+        if isinstance(value, dict):
+            statuses[str(source_name)] = dict(value)
+    return statuses
 
 
 def choose_snapshot_updated_fields(
@@ -316,6 +349,24 @@ def should_retry_http_status(status_code: int) -> bool:
     return status_code >= 500 or status_code in (408, 409, 425, 429)
 
 
+def is_temporary_ads_http_error(status_code: int, detail: str) -> bool:
+    lowered = str(detail or "").casefold()
+    return (
+        status_code >= 500
+        or status_code in (408, 425, 429)
+        or "ads is under maintenance" in lowered
+        or "maintenance" in lowered and status_code == 503
+    )
+
+
+def read_http_error_preview(error: HTTPError) -> str:
+    try:
+        raw = error.read()
+    except Exception:  # pragma: no cover - defensive fallback for unusual HTTPError objects
+        return compact_text(error, 300)
+    return compact_text(raw.decode("utf-8", "replace"), 300)
+
+
 def request_json(url: str, timeout: int, retries: int, retry_delay: float, label: str) -> Any:
     last_error: Optional[Exception] = None
     for attempt in range(1, max(1, retries) + 1):
@@ -334,21 +385,35 @@ def request_json(url: str, timeout: int, retries: int, retry_delay: float, label
                 try:
                     return json.loads(text)
                 except json.JSONDecodeError as err:
+                    if "ads is under maintenance" in text.casefold():
+                        raise UpstreamUnavailableError(
+                            f"ADS returned a maintenance page for {label}; bytes={len(raw)}; preview={compact_text(text, 300)}"
+                        ) from err
                     raise ResponseParseError(
                         f"Invalid JSON from ADS {label}; bytes={len(raw)}; preview={compact_text(text, 300)}; parse_error={err}"
                     ) from err
         except HTTPError as err:
-            detail = compact_text(err.read().decode("utf-8", "replace"))
+            detail = read_http_error_preview(err)
             last_error = RuntimeError(f"HTTP {err.code}: {detail}")
             if attempt >= retries or not should_retry_http_status(err.code):
+                if is_temporary_ads_http_error(err.code, detail):
+                    raise UpstreamUnavailableError(
+                        f"ADS unavailable after {attempt} attempt(s) ({label}): HTTP {err.code}: {detail}"
+                    ) from err
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             log(f"ADS retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(last_error)}")
             time.sleep(delay)
-        except (URLError, TimeoutError, OSError, ResponseParseError) as err:
+        except UpstreamUnavailableError:
+            raise
+        except ResponseParseError:
+            raise
+        except (URLError, TimeoutError, OSError) as err:
             last_error = err
             if attempt >= retries:
-                break
+                raise UpstreamUnavailableError(
+                    f"ADS network request failed after {attempt} attempt(s) ({label}): {compact_error(err)}"
+                ) from err
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             log(f"ADS retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(err)}")
             time.sleep(delay)
@@ -356,8 +421,15 @@ def request_json(url: str, timeout: int, retries: int, retry_delay: float, label
 
 
 def looks_like_ads_outage(error: object) -> bool:
+    if isinstance(error, UpstreamUnavailableError):
+        return True
     text = str(error or "").casefold()
-    return "ads is under maintenance" in text or "http 503" in text
+    return (
+        "ads is under maintenance" in text
+        or "http 503" in text
+        or "http error 503" in text
+        or "ads network request failed" in text
+    )
 
 
 def extract_latest_version(metadata_id: str, timeout: int, retries: int, retry_delay: float) -> str:
@@ -469,6 +541,11 @@ def probe_direct_download_url(url: str, timeout: int) -> Optional[str]:
                 return str(response.geturl() or url)
     except HTTPError as err:
         if err.code not in (400, 403, 404, 405):
+            detail = read_http_error_preview(err)
+            if is_temporary_ads_http_error(err.code, detail):
+                raise UpstreamUnavailableError(
+                    f"ADS direct download probe unavailable: HTTP {err.code}: {detail}"
+                ) from err
             raise
     except (URLError, TimeoutError, OSError):
         pass
@@ -489,7 +566,12 @@ def probe_direct_download_url(url: str, timeout: int) -> Optional[str]:
                 if chunk.lstrip().lower().startswith((b"<!doctype html", b"<html")):
                     return None
                 return str(response.geturl() or url)
-    except HTTPError:
+    except HTTPError as err:
+        detail = read_http_error_preview(err)
+        if is_temporary_ads_http_error(err.code, detail):
+            raise UpstreamUnavailableError(
+                f"ADS direct download probe unavailable: HTTP {err.code}: {detail}"
+            ) from err
         return None
     except (URLError, TimeoutError, OSError):
         return None
@@ -556,6 +638,190 @@ def write_json(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=True, separators=(",", ":")), encoding="utf-8")
     return version_hash
+
+
+def site_ids_from_rows(rows: Sequence[Dict[str, Any]]) -> set[str]:
+    return {str(row.get("site_id") or "").strip() for row in rows if str(row.get("site_id") or "").strip()}
+
+
+def site_ids_from_payload(columns: Sequence[str], rows: Sequence[Sequence[Any]]) -> set[str]:
+    try:
+        site_id_index = list(columns).index("site_id")
+    except ValueError:
+        return set()
+    return {str(row[site_id_index] or "").strip() for row in rows if len(row) > site_id_index and str(row[site_id_index] or "").strip()}
+
+
+def fallback_last_success(existing_meta: Dict[str, Any], existing_status: Dict[str, Any] | None) -> Tuple[str, str]:
+    if existing_status:
+        status_at = normalize_snapshot_updated_at(str(existing_status.get("last_successful_refresh_at") or ""))
+        status_date = normalize_snapshot_updated_date(
+            str(existing_status.get("last_successful_refresh_date") or ""),
+            status_at,
+        )
+        if status_at or status_date:
+            return status_at, status_date
+    meta_at = normalize_snapshot_updated_at(str(existing_meta.get("snapshot_updated_at") or ""))
+    meta_date = normalize_snapshot_updated_date(str(existing_meta.get("snapshot_updated_date") or ""), meta_at)
+    return meta_at, meta_date
+
+
+def build_fresh_status(
+    rows: Sequence[Dict[str, Any]],
+    *,
+    snapshot_updated_at: str,
+    snapshot_updated_date: str,
+) -> Dict[str, Any]:
+    return {
+        "status": "fresh",
+        "source": JAPANFLUX_SOURCE,
+        "last_successful_refresh_at": normalize_snapshot_updated_at(snapshot_updated_at),
+        "last_successful_refresh_date": normalize_snapshot_updated_date(snapshot_updated_date, snapshot_updated_at),
+        "published_row_count": len(rows),
+        "published_site_count": len(site_ids_from_rows(rows)),
+    }
+
+
+def build_carried_forward_status(
+    rows: Sequence[Sequence[Any]],
+    columns: Sequence[str],
+    existing_meta: Dict[str, Any],
+    *,
+    reason: str,
+    requested_at: str,
+    requested_date: str,
+    output_csv: Path,
+    output_json: Path,
+) -> Dict[str, Any]:
+    existing_status = load_source_statuses(existing_meta).get(JAPANFLUX_SOURCE)
+    last_success_at, last_success_date = fallback_last_success(existing_meta, existing_status)
+    return {
+        "status": "carried_forward",
+        "source": JAPANFLUX_SOURCE,
+        "last_successful_refresh_at": last_success_at,
+        "last_successful_refresh_date": last_success_date,
+        "published_row_count": len(rows),
+        "published_site_count": len(site_ids_from_payload(columns, rows)),
+        "candidate_row_count": 0,
+        "candidate_site_count": 0,
+        "carried_forward_at": requested_at,
+        "carried_forward_date": requested_date,
+        "previous_snapshot_refreshed_at": normalize_snapshot_updated_at(str(existing_meta.get("snapshot_refreshed_at") or "")),
+        "previous_snapshot_refreshed_date": normalize_snapshot_updated_date(
+            str(existing_meta.get("snapshot_refreshed_date") or ""),
+            str(existing_meta.get("snapshot_refreshed_at") or ""),
+        ),
+        "previous_snapshot_json": str(output_json),
+        "previous_snapshot_csv": str(output_csv),
+        "reason": reason,
+    }
+
+
+def build_fatal_status(reason: str, *, failed_at: str, failed_date: str) -> Dict[str, Any]:
+    return {
+        "status": "failed_fatally",
+        "source": JAPANFLUX_SOURCE,
+        "failed_at": failed_at,
+        "failed_date": failed_date,
+        "reason": reason,
+    }
+
+
+def source_status_output_payload(source_status: Dict[str, Any]) -> Dict[str, Any]:
+    status = str(source_status.get("status") or "").strip().lower()
+    carried_forward_sources = [JAPANFLUX_SOURCE] if status == "carried_forward" else []
+    fatal_sources = [JAPANFLUX_SOURCE] if status == "failed_fatally" else []
+    return {
+        "source_statuses": {JAPANFLUX_SOURCE: source_status},
+        "carried_forward_sources": carried_forward_sources,
+        "fatal_sources": fatal_sources,
+    }
+
+
+def write_status_output(path_value: str, source_status: Dict[str, Any]) -> None:
+    if not str(path_value or "").strip():
+        return
+    path = Path(path_value)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(source_status_output_payload(source_status), ensure_ascii=True, separators=(",", ":")), encoding="utf-8")
+
+
+def load_previous_valid_snapshot(output_json: Path, output_csv: Path) -> Tuple[Dict[str, Any], List[str], List[List[Any]], int]:
+    if not output_json.exists():
+        raise RuntimeError(f"No previous valid JapanFlux JSON snapshot exists at {output_json}")
+    if not output_csv.exists():
+        raise RuntimeError(f"No previous valid JapanFlux CSV snapshot exists at {output_csv}")
+
+    try:
+        payload = json.loads(output_json.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as err:
+        raise RuntimeError(f"Previous JapanFlux JSON snapshot is not readable JSON: {output_json}: {err}") from err
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Previous JapanFlux JSON snapshot must be an object: {output_json}")
+
+    meta = payload.get("meta")
+    columns = payload.get("columns")
+    rows = payload.get("rows")
+    if not isinstance(meta, dict):
+        raise RuntimeError(f"Previous JapanFlux JSON snapshot is missing object meta: {output_json}")
+    if not str(meta.get("version") or "").strip():
+        raise RuntimeError(f"Previous JapanFlux JSON snapshot is missing meta.version: {output_json}")
+    if not isinstance(columns, list) or [str(column) for column in columns] != list(OUTPUT_COLUMNS):
+        raise RuntimeError(f"Previous JapanFlux JSON snapshot columns do not match expected schema: {output_json}")
+    if not isinstance(rows, list) or not rows:
+        raise RuntimeError(f"Previous JapanFlux JSON snapshot has no rows to carry forward: {output_json}")
+
+    normalized_rows: List[List[Any]] = []
+    for index, row in enumerate(rows, start=1):
+        if not isinstance(row, list) or len(row) != len(OUTPUT_COLUMNS):
+            raise RuntimeError(f"Previous JapanFlux JSON row {index} does not match expected schema: {output_json}")
+        normalized_rows.append(list(row))
+
+    try:
+        with output_csv.open("r", encoding="utf-8", newline="") as fh:
+            reader = csv.DictReader(fh)
+            csv_columns = [str(column or "").strip() for column in (reader.fieldnames or [])]
+            if csv_columns != list(OUTPUT_COLUMNS):
+                raise RuntimeError(f"Previous JapanFlux CSV columns do not match expected schema: {output_csv}")
+            csv_row_count = sum(1 for _ in reader)
+    except OSError as err:
+        raise RuntimeError(f"Previous JapanFlux CSV snapshot is not readable: {output_csv}: {err}") from err
+
+    if csv_row_count != len(normalized_rows):
+        raise RuntimeError(
+            f"Previous JapanFlux JSON/CSV row counts differ: json_rows={len(normalized_rows)} csv_rows={csv_row_count}"
+        )
+
+    return payload, [str(column) for column in columns], normalized_rows, csv_row_count
+
+
+def write_carried_forward_json(
+    output_json: Path,
+    output_csv: Path,
+    payload: Dict[str, Any],
+    columns: Sequence[str],
+    rows: Sequence[Sequence[Any]],
+    source_status: Dict[str, Any],
+    *,
+    requested_at: str,
+    requested_date: str,
+) -> None:
+    meta = dict(payload["meta"])
+    source_statuses = load_source_statuses(meta)
+    source_statuses[JAPANFLUX_SOURCE] = source_status
+    meta["source_statuses"] = {source_name: source_statuses[source_name] for source_name in sorted(source_statuses)}
+    meta["snapshot_refreshed_at"] = requested_at
+    meta["snapshot_refreshed_date"] = requested_date
+    meta["last_refresh_status"] = "carried_forward"
+    output_payload = {
+        "meta": meta,
+        "columns": list(columns),
+        "rows": [list(row) for row in rows],
+    }
+    output_json.parent.mkdir(parents=True, exist_ok=True)
+    output_json.write_text(json.dumps(output_payload, ensure_ascii=True, separators=(",", ":")), encoding="utf-8")
+    log(f"Retained previous JapanFlux CSV without rewriting: {output_csv}")
+    log(f"Updated JapanFlux JSON carry-forward metadata: {output_json}")
 
 
 def build_site_row(
@@ -646,12 +912,96 @@ def fetch_site_row(
     return build_site_row(inventory_record, version, first_year, last_year, direct_download_url)
 
 
-def main() -> None:
-    args = parse_args()
+def preflight_ads_availability(
+    inventory: Sequence[Dict[str, Any]],
+    timeout: int,
+    retries: int,
+    retry_delay: float,
+) -> None:
+    if not inventory:
+        raise RuntimeError("JapanFlux static inventory is empty.")
+    first_record = inventory[0]
+    metadata_id = str(first_record["metadata_id"])
+    site_id = str(first_record["site_id"])
+    log(f"JapanFlux ADS preflight endpoint: {metadata_id} versions ({site_id})")
+    version = extract_latest_version(metadata_id, timeout, retries, retry_delay)
+    log(f"JapanFlux ADS preflight succeeded: {metadata_id} latest version={version}")
+
+
+def carry_forward_previous_snapshot(
+    *,
+    args: argparse.Namespace,
+    output_csv: Path,
+    output_json: Path,
+    reason: str,
+    requested_at: str,
+    requested_date: str,
+) -> None:
+    if bool(args.strict_refresh):
+        raise UpstreamUnavailableError(
+            "JapanFlux ADS unavailable and --strict-refresh is enabled; refusing to carry forward previous snapshot. "
+            + reason
+        )
+
+    with phase("carry forward previous JapanFlux snapshot"):
+        payload, columns, rows, csv_row_count = load_previous_valid_snapshot(output_json, output_csv)
+        source_status = build_carried_forward_status(
+            rows,
+            columns,
+            payload["meta"],
+            reason=reason,
+            requested_at=requested_at,
+            requested_date=requested_date,
+            output_csv=output_csv,
+            output_json=output_json,
+        )
+        write_carried_forward_json(
+            output_json,
+            output_csv,
+            payload,
+            columns,
+            rows,
+            source_status,
+            requested_at=requested_at,
+            requested_date=requested_date,
+        )
+        write_status_output(args.status_output, source_status)
+        log(
+            "JapanFlux ADS unavailable; carrying forward previous valid snapshot. "
+            f"previous_json={output_json} previous_csv={output_csv} "
+            f"previous_snapshot_date={source_status.get('last_successful_refresh_date') or 'unavailable'} "
+            f"rows={len(rows)} csv_rows={csv_row_count}. Workflow is continuing."
+        )
+
+
+def refresh(args: argparse.Namespace) -> None:
     output_csv = Path(args.output_csv)
     output_json = Path(args.output_json)
+    requested_at, requested_date = choose_requested_refresh_fields(args.snapshot_updated_at, args.snapshot_updated_date)
     inventory = parse_site_inventory()
     log(f"JapanFlux inventory sites: {len(inventory)}")
+    log(f"JapanFlux strict refresh mode: {bool(args.strict_refresh)}")
+
+    try:
+        with phase("preflight JapanFlux ADS availability"):
+            preflight_ads_availability(
+                inventory,
+                timeout=max(1, args.timeout),
+                retries=max(1, args.retries),
+                retry_delay=max(0.1, args.retry_delay),
+            )
+    except UpstreamUnavailableError as err:
+        reason = f"JapanFlux ADS is unavailable or under maintenance during preflight: {compact_error(err, 300)}"
+        log("JapanFlux ADS unavailable; carrying forward previous valid snapshot")
+        carry_forward_previous_snapshot(
+            args=args,
+            output_csv=output_csv,
+            output_json=output_json,
+            reason=reason,
+            requested_at=requested_at,
+            requested_date=requested_date,
+        )
+        return
 
     rows: List[Dict[str, Any]] = []
     failures: List[str] = []
@@ -684,10 +1034,20 @@ def main() -> None:
                 failures.append(failure)
                 log(f"JapanFlux site {index}/{total}: {site_id} ({metadata_id}) FAILED: {compact_error(err)}")
                 if looks_like_ads_outage(err):
-                    raise RuntimeError(
-                        "JapanFlux refresh aborted because ADS appears unavailable or under maintenance: "
-                        + failure
-                    ) from err
+                    reason = (
+                        "JapanFlux ADS is unavailable or under maintenance during site refresh; "
+                        f"no partial JapanFlux output was written. First failing site: {failure}"
+                    )
+                    log("JapanFlux ADS unavailable; carrying forward previous valid snapshot")
+                    carry_forward_previous_snapshot(
+                        args=args,
+                        output_csv=output_csv,
+                        output_json=output_json,
+                        reason=reason,
+                        requested_at=requested_at,
+                        requested_date=requested_date,
+                    )
+                    return
                 if len(failures) >= max(1, int(args.max_failures)):
                     raise RuntimeError(
                         f"JapanFlux refresh aborted after {len(failures)} site failure(s): "
@@ -697,6 +1057,11 @@ def main() -> None:
     rows.sort(key=lambda row: (str(row.get("country") or ""), str(row.get("site_id") or "")))
 
     with phase("write JapanFlux outputs"):
+        source_status = build_fresh_status(
+            rows,
+            snapshot_updated_at=requested_at,
+            snapshot_updated_date=requested_date,
+        )
         write_csv(output_csv, rows)
         version_hash = write_json(
             output_json,
@@ -711,10 +1076,13 @@ def main() -> None:
                 "landing_page_fallbacks": landing_page_count,
                 "source": "JapanFlux2024 (Ueyama et al., 2025, ESSD)",
                 "license": "CC BY 4.0",
+                "source_statuses": {JAPANFLUX_SOURCE: source_status},
+                "last_refresh_status": "fresh",
             },
-            snapshot_updated_at=args.snapshot_updated_at,
-            snapshot_updated_date=args.snapshot_updated_date,
+            snapshot_updated_at=requested_at,
+            snapshot_updated_date=requested_date,
         )
+        write_status_output(args.status_output, source_status)
 
     log(f"Wrote JapanFlux CSV: {output_csv}")
     log(f"Wrote JapanFlux JSON: {output_json}")
@@ -725,6 +1093,19 @@ def main() -> None:
 
     if failures:
         raise RuntimeError("JapanFlux refresh completed with site failures: " + "; ".join(failures))
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    args = parse_args(argv)
+    try:
+        refresh(args)
+    except Exception as err:
+        requested_at, requested_date = choose_requested_refresh_fields(args.snapshot_updated_at, args.snapshot_updated_date)
+        write_status_output(
+            args.status_output,
+            build_fatal_status(compact_error(err, 500), failed_at=requested_at, failed_date=requested_date),
+        )
+        raise
 
 
 if __name__ == "__main__":

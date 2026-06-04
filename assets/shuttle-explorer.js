@@ -576,9 +576,9 @@
       return "";
     }
     if (stale.length === 1) {
-      return stale[0] + " Shuttle snapshot data is being carried forward from the last validated refresh. Site browsing remains available, but this source may be temporarily stale.";
+      return stale[0] + " snapshot data is being carried forward from the last validated refresh. Site browsing remains available, but this source may be temporarily stale.";
     }
-    return "Some Shuttle snapshot sources are being carried forward from the last validated refresh: " + stale.join(", ") + ". Site browsing remains available, but those sources may be temporarily stale.";
+    return "Some snapshot sources are being carried forward from the last validated refresh: " + stale.join(", ") + ". Site browsing remains available, but those sources may be temporarily stale.";
   }
 
   function logSnapshotSourceStatusWarnings(meta) {
@@ -595,7 +595,7 @@
         return;
       }
       console.warn(
-        "Shuttle snapshot source carried forward:",
+        "Snapshot source carried forward:",
         hub,
         String(entry.reason || "No carry-forward reason recorded."),
         "Last successful refresh:",

@@ -2290,7 +2290,7 @@ test('Snapshot refreshed helper separates workflow refresh date from data freshn
   );
 });
 
-test('Snapshot source-status helper surfaces carried-forward Shuttle sources as a non-blocking warning', () => {
+test('Snapshot source-status helper surfaces carried-forward sources as a non-blocking warning', () => {
   assert.equal(
     hooks.buildSnapshotSourceStatusWarning({
       source_statuses: {
@@ -2305,7 +2305,7 @@ test('Snapshot source-status helper surfaces carried-forward Shuttle sources as 
         }
       }
     }),
-    'AmeriFlux (2026-04-10) Shuttle snapshot data is being carried forward from the last validated refresh. Site browsing remains available, but this source may be temporarily stale.'
+    'AmeriFlux (2026-04-10) snapshot data is being carried forward from the last validated refresh. Site browsing remains available, but this source may be temporarily stale.'
   );
   assert.equal(hooks.buildSnapshotSourceStatusWarning({}), '');
 });
@@ -4775,7 +4775,7 @@ test('Merged snapshot state keeps explorer refresh date separate from carried-fo
 
   assert.equal(merged.snapshotRefreshedDate, '2026-04-28');
   assert.equal(merged.snapshotUpdatedDate, '2026-04-21');
-  assert.match(merged.warning, /AmeriFlux \(2026-04-21\) Shuttle snapshot data is being carried forward/);
+  assert.match(merged.warning, /AmeriFlux \(2026-04-21\) snapshot data is being carried forward/);
 });
 
 test('AmeriFlux availability failures degrade to snapshot-only mode for HTTP, network, and timeout failures', async () => {

@@ -2,6 +2,12 @@ name: Update FLUXNET Explorer Snapshots
 
 "on":
   workflow_dispatch:
+    inputs:
+      strict_refresh:
+        description: "Fail instead of carrying forward a previous valid source snapshot when an upstream source is temporarily unavailable."
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "17 5 * * *"
 
@@ -16,6 +22,8 @@ jobs:
   update-shuttle-snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      STRICT_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.strict_refresh == true && 'true' || 'false' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -119,16 +127,45 @@ jobs:
           source .github/scripts/gha_timing.sh
           SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
+          JAPANFLUX_SOURCE_STATUS_JSON="$RUNNER_TEMP/japanflux-source-status.json"
+          JAPANFLUX_STRICT_ARGS=()
+          if [ "${STRICT_REFRESH:-false}" = "true" ]; then
+            JAPANFLUX_STRICT_ARGS+=(--strict-refresh)
+            gha_log "JapanFlux strict refresh mode enabled; upstream outages will fail this workflow."
+          else
+            gha_log "JapanFlux tolerant refresh mode enabled; known temporary ADS outages will carry forward the previous valid snapshot."
+          fi
+          set +e
           gha_run_timed "Refresh JapanFlux-direct snapshot" python scripts/refresh_japanflux_direct.py \
             --output-csv "${TARGET_JAPANFLUX_CSV}" \
             --output-json "${TARGET_JAPANFLUX_JSON}" \
+            --status-output "${JAPANFLUX_SOURCE_STATUS_JSON}" \
             --timeout 30 \
             --retries 4 \
             --max-failures 3 \
             --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
-            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
-          gha_log "JapanFlux CSV path=${TARGET_JAPANFLUX_CSV} bytes=$(wc -c < "${TARGET_JAPANFLUX_CSV}")"
-          gha_log "JapanFlux JSON path=${TARGET_JAPANFLUX_JSON} bytes=$(wc -c < "${TARGET_JAPANFLUX_JSON}")"
+            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}" \
+            "${JAPANFLUX_STRICT_ARGS[@]}"
+          JAPANFLUX_REFRESH_STATUS=$?
+          set -e
+          if [ -f "${TARGET_JAPANFLUX_CSV}" ]; then
+            gha_log "JapanFlux CSV path=${TARGET_JAPANFLUX_CSV} bytes=$(wc -c < "${TARGET_JAPANFLUX_CSV}")"
+          else
+            gha_log "JapanFlux CSV missing after refresh attempt: ${TARGET_JAPANFLUX_CSV}"
+          fi
+          if [ -f "${TARGET_JAPANFLUX_JSON}" ]; then
+            gha_log "JapanFlux JSON path=${TARGET_JAPANFLUX_JSON} bytes=$(wc -c < "${TARGET_JAPANFLUX_JSON}")"
+          else
+            gha_log "JapanFlux JSON missing after refresh attempt: ${TARGET_JAPANFLUX_JSON}"
+          fi
+          if [ -f "${JAPANFLUX_SOURCE_STATUS_JSON}" ]; then
+            gha_log "JapanFlux source status path=${JAPANFLUX_SOURCE_STATUS_JSON} bytes=$(wc -c < "${JAPANFLUX_SOURCE_STATUS_JSON}")"
+            python -m json.tool "${JAPANFLUX_SOURCE_STATUS_JSON}"
+          fi
+          if [ "${JAPANFLUX_REFRESH_STATUS}" -ne 0 ]; then
+            gha_log "JapanFlux refresh exited with status ${JAPANFLUX_REFRESH_STATUS}; failing workflow after diagnostics."
+            exit "${JAPANFLUX_REFRESH_STATUS}"
+          fi
 
       - name: Refresh curated EFD site inventory
         timeout-minutes: 6
