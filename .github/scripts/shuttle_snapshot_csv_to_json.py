@@ -15,6 +15,11 @@ from typing import Dict, List, Optional
 PROCESSING_LINEAGE_ONEFLUX = "oneflux"
 
 
+def log(message: str) -> None:
+    timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    print(f"[{timestamp}] {message}", flush=True)
+
+
 def to_snake_case(name: str) -> str:
     value = (name or "").strip()
     value = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value)
@@ -258,11 +263,11 @@ def main() -> None:
     json_text = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
     output_path.write_text(json_text, encoding="utf-8")
 
-    print(f"Wrote compact JSON: {output_path}")
-    print(f"Columns: {columns}")
-    print(f"Rows: {len(payload_rows)}")
-    print(f"Version: sha256:{version_hash}")
-    print(f"Bytes: {len(json_text.encode('utf-8'))}")
+    log(f"Wrote compact JSON: {output_path}")
+    log(f"Columns: {columns}")
+    log(f"Rows: {len(payload_rows)}")
+    log(f"Version: sha256:{version_hash}")
+    log(f"Bytes: {len(json_text.encode('utf-8'))}")
 
 
 if __name__ == "__main__":

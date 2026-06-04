@@ -18,6 +18,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+try:
+    from .refresh_logging import compact_text, log, phase
+except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_logging import compact_text, log, phase
+
 SPARQL_ENDPOINT = "https://meta.icos-cp.eu/sparql"
 OBJECT_METADATA_BASE_URL = "https://meta.icos-cp.eu/objects/"
 PROJECT_FLUXNET = "http://meta.icos-cp.eu/resources/projects/FLUXNET"
@@ -160,6 +165,10 @@ where {{
 }}
 order by ?stationId ?name ?obj
 """
+
+
+class ResponseParseError(RuntimeError):
+    """Raised when an upstream HTTP response is not valid JSON."""
 
 
 def parse_args() -> argparse.Namespace:
@@ -604,6 +613,20 @@ def write_json(
     return version_hash
 
 
+def read_json_response(response: Any, label: str) -> Dict[str, Any]:
+    raw = response.read()
+    text = raw.decode("utf-8", "replace")
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as err:
+        raise ResponseParseError(
+            f"Invalid JSON from {label}; bytes={len(raw)}; preview={compact_text(text, 300)}; parse_error={err}"
+        ) from err
+    if not isinstance(payload, dict):
+        raise ResponseParseError(f"Unexpected JSON payload from {label}: {type(payload).__name__}")
+    return payload
+
+
 def sparql_post(query: str, timeout: int, retries: int, retry_delay: float, label: str = "") -> Dict[str, Any]:
     body = query.encode("utf-8")
     last_error: Optional[Exception] = None
@@ -620,21 +643,24 @@ def sparql_post(query: str, timeout: int, retries: int, retry_delay: float, labe
                 method="POST",
             )
             with urlopen(request, timeout=timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
+                return read_json_response(response, f"ICOS SPARQL {label or '<unlabeled>'}")
         except HTTPError as err:
-            detail = err.read().decode("utf-8", "replace")
+            detail = compact_text(err.read().decode("utf-8", "replace"))
             last_error = RuntimeError(f"HTTP {err.code}: {detail}")
             if attempt >= retries:
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             if "per-minute query quota" in detail.lower():
                 delay = max(65.0, delay)
+            log(f"ICOS SPARQL retry {attempt}/{retries} ({label or 'query'}) after {delay:.1f}s: {last_error}")
             time.sleep(delay)
-        except (URLError, TimeoutError, json.JSONDecodeError) as err:
+        except (URLError, TimeoutError, OSError, ResponseParseError) as err:
             last_error = err
             if attempt >= retries:
                 break
-            time.sleep(min(30.0, retry_delay * (2 ** (attempt - 1))))
+            delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+            log(f"ICOS SPARQL retry {attempt}/{retries} ({label or 'query'}) after {delay:.1f}s: {err}")
+            time.sleep(delay)
     detail = f" ({label})" if label else ""
     raise RuntimeError(f"ICOS SPARQL request failed after {retries} attempt(s){detail}: {last_error}")
 
@@ -720,18 +746,22 @@ def load_object_metadata(object_id: str, timeout: int, retries: int, retry_delay
                 method="GET",
             )
             with urlopen(request, timeout=timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
+                return read_json_response(response, f"ICOS object metadata {object_id}")
         except HTTPError as err:
-            detail = err.read().decode("utf-8", "replace")
+            detail = compact_text(err.read().decode("utf-8", "replace"))
             last_error = RuntimeError(f"HTTP {err.code}: {detail}")
             if attempt >= retries:
                 break
-            time.sleep(min(30.0, retry_delay * (2 ** (attempt - 1))))
-        except (URLError, TimeoutError, json.JSONDecodeError) as err:
+            delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+            log(f"ICOS object metadata retry {attempt}/{retries} ({object_id}) after {delay:.1f}s: {last_error}")
+            time.sleep(delay)
+        except (URLError, TimeoutError, OSError, ResponseParseError) as err:
             last_error = err
             if attempt >= retries:
                 break
-            time.sleep(min(30.0, retry_delay * (2 ** (attempt - 1))))
+            delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+            log(f"ICOS object metadata retry {attempt}/{retries} ({object_id}) after {delay:.1f}s: {err}")
+            time.sleep(delay)
     raise RuntimeError(f"ICOS object metadata request failed after {retries} attempt(s) ({object_id}): {last_error}")
 
 
@@ -829,7 +859,7 @@ def hydrate_candidates(
     for index, candidate in enumerate(candidates, start=1):
         hydrated.append(hydrate_candidate_from_metadata(candidate, timeout, retries, retry_delay))
         if index == total or index % 25 == 0:
-            print(f"ICOS object metadata hydrated: {index}/{total}", flush=True)
+            log(f"ICOS object metadata hydrated: {index}/{total}")
         time.sleep(0.05)
     return hydrated
 
@@ -850,7 +880,7 @@ def fetch_candidates(timeout: int, retries: int, retry_delay: float) -> Tuple[Li
         payload = sparql_post(query, timeout, retries, retry_delay, label=label)
         bindings = payload.get("results", {}).get("bindings", [])
         total_bindings += len(bindings)
-        print(f"ICOS discovery query rows ({label}): {len(bindings)}", flush=True)
+        log(f"ICOS discovery query rows ({label}): {len(bindings)}")
         for binding in bindings:
             candidate = build_candidate(binding)
             if candidate is None:
@@ -867,9 +897,9 @@ def print_expected_site_stage(stage_label: str, site_ids: Iterable[str]) -> List
     normalized = {str(site_id).strip() for site_id in site_ids if str(site_id).strip()}
     present = [site_id for site_id in EXPECTED_REGRESSION_SITE_IDS if site_id in normalized]
     missing = [site_id for site_id in EXPECTED_REGRESSION_SITE_IDS if site_id not in normalized]
-    print(f"{stage_label}: expected sites present {len(present)}/{len(EXPECTED_REGRESSION_SITE_IDS)}", flush=True)
-    print(f"{stage_label} present: {', '.join(present) if present else '(none)'}", flush=True)
-    print(f"{stage_label} missing: {', '.join(missing) if missing else '(none)'}", flush=True)
+    log(f"{stage_label}: expected sites present {len(present)}/{len(EXPECTED_REGRESSION_SITE_IDS)}")
+    log(f"{stage_label} present: {', '.join(present) if present else '(none)'}")
+    log(f"{stage_label} missing: {', '.join(missing) if missing else '(none)'}")
     return missing
 
 
@@ -892,26 +922,34 @@ def main() -> None:
     output_json = Path(args.output_json)
     shuttle_site_ids = load_shuttle_site_ids(args.shuttle_csv)
 
-    raw_candidates, fetched_binding_count = fetch_candidates(
-        timeout=max(1, args.timeout),
-        retries=max(1, args.retries),
-        retry_delay=max(0.1, args.retry_delay),
-    )
-    normalized_candidates = sorted(
-        raw_candidates,
-        key=lambda row: (str(row.get("site_id") or ""), str(row.get("file_name") or ""), str(row.get("object_id") or "")),
-    )
-    shortlisted_candidates = shortlist_candidates_for_hydration(normalized_candidates)
-    hydrated_candidates = hydrate_candidates(
-        shortlisted_candidates,
-        timeout=max(1, args.timeout),
-        retries=max(1, args.retries),
-        retry_delay=max(0.1, args.retry_delay),
-    )
-    deduped_rows = dedupe_candidates(hydrated_candidates)
-    deduped_rows = sorted(deduped_rows, key=lambda row: (str(row.get("site_id") or ""), str(row.get("file_name") or "")))
-    final_icos_rows = [row for row in deduped_rows if str(row.get("site_id") or "") not in shuttle_site_ids]
-    final_explorer_sources = build_final_explorer_sources(shuttle_site_ids, deduped_rows)
+    with phase("fetch ICOS discovery candidates"):
+        raw_candidates, fetched_binding_count = fetch_candidates(
+            timeout=max(1, args.timeout),
+            retries=max(1, args.retries),
+            retry_delay=max(0.1, args.retry_delay),
+        )
+    with phase("normalize and shortlist ICOS candidates"):
+        normalized_candidates = sorted(
+            raw_candidates,
+            key=lambda row: (
+                str(row.get("site_id") or ""),
+                str(row.get("file_name") or ""),
+                str(row.get("object_id") or ""),
+            ),
+        )
+        shortlisted_candidates = shortlist_candidates_for_hydration(normalized_candidates)
+    with phase(f"hydrate ICOS object metadata ({len(shortlisted_candidates)} objects)"):
+        hydrated_candidates = hydrate_candidates(
+            shortlisted_candidates,
+            timeout=max(1, args.timeout),
+            retries=max(1, args.retries),
+            retry_delay=max(0.1, args.retry_delay),
+        )
+    with phase("dedupe ICOS candidates"):
+        deduped_rows = dedupe_candidates(hydrated_candidates)
+        deduped_rows = sorted(deduped_rows, key=lambda row: (str(row.get("site_id") or ""), str(row.get("file_name") or "")))
+        final_icos_rows = [row for row in deduped_rows if str(row.get("site_id") or "") not in shuttle_site_ids]
+        final_explorer_sources = build_final_explorer_sources(shuttle_site_ids, deduped_rows)
 
     fetched_site_ids = {str(row.get("site_id") or "") for row in raw_candidates}
     normalized_site_ids = {str(row.get("site_id") or "") for row in normalized_candidates}
@@ -920,58 +958,58 @@ def main() -> None:
     deduped_site_ids = {str(row.get("site_id") or "") for row in deduped_rows}
     final_icos_site_ids = {str(row.get("site_id") or "") for row in final_icos_rows}
 
-    print(f"ICOS FLUXNET rows fetched: {fetched_binding_count}", flush=True)
-    print(f"ICOS unique site IDs after fetch: {len(fetched_site_ids)}", flush=True)
+    log(f"ICOS FLUXNET rows fetched: {fetched_binding_count}")
+    log(f"ICOS unique site IDs after fetch: {len(fetched_site_ids)}")
     print_expected_site_stage("After fetch", fetched_site_ids)
-    print(f"ICOS rows after normalization: {len(normalized_candidates)}", flush=True)
-    print(f"ICOS unique site IDs after normalization: {len(normalized_site_ids)}", flush=True)
+    log(f"ICOS rows after normalization: {len(normalized_candidates)}")
+    log(f"ICOS unique site IDs after normalization: {len(normalized_site_ids)}")
     print_expected_site_stage("After normalization", normalized_site_ids)
-    print(f"ICOS rows shortlisted for metadata hydration: {len(shortlisted_candidates)}", flush=True)
+    log(f"ICOS rows shortlisted for metadata hydration: {len(shortlisted_candidates)}")
     print_expected_site_stage("After hydration shortlist", shortlisted_site_ids)
-    print(f"ICOS rows after metadata hydration: {len(hydrated_candidates)}", flush=True)
+    log(f"ICOS rows after metadata hydration: {len(hydrated_candidates)}")
     print_expected_site_stage("After metadata hydration", hydrated_site_ids)
-    print(f"ICOS rows after per-site deduplication: {len(deduped_rows)}", flush=True)
+    log(f"ICOS rows after per-site deduplication: {len(deduped_rows)}")
     print_expected_site_stage("After deduplication", deduped_site_ids)
-    print(f"ICOS rows after Shuttle precedence suppression: {len(final_icos_rows)}", flush=True)
+    log(f"ICOS rows after Shuttle precedence suppression: {len(final_icos_rows)}")
     print_expected_site_stage("After ICOS manifest emission", final_icos_site_ids)
 
     final_missing = [site_id for site_id in EXPECTED_REGRESSION_SITE_IDS if site_id not in final_explorer_sources]
-    print(f"Final explorer site count (Shuttle + ICOS-direct before AmeriFlux fallbacks): {len(final_explorer_sources)}", flush=True)
-    print(
+    log(f"Final explorer site count (Shuttle + ICOS-direct before AmeriFlux fallbacks): {len(final_explorer_sources)}")
+    log(
         "Final explorer sources for expected sites: "
         + ", ".join(f"{site_id}={final_explorer_sources.get(site_id, 'MISSING')}" for site_id in EXPECTED_REGRESSION_SITE_IDS),
-        flush=True,
     )
     if final_missing:
         raise RuntimeError(
             "Expected ICOS/Shuttle sites missing from final explorer data: " + ", ".join(final_missing)
         )
 
-    write_csv(output_csv, deduped_rows)
-    suppressed_by_shuttle = len(deduped_rows) - len(final_icos_rows)
-    version_hash = write_json(
-        output_json,
-        deduped_rows,
-        meta_extra={
-            "discovery_method": "ICOS SPARQL metadata query",
-            "sparql_endpoint": SPARQL_ENDPOINT,
-            "fetched_binding_rows": fetched_binding_count,
-            "fetched_unique_site_ids": len(fetched_site_ids),
-            "normalized_rows": len(normalized_candidates),
-            "normalized_unique_site_ids": len(normalized_site_ids),
-            "retained_rows_after_dedup": len(deduped_rows),
-            "suppressed_by_shuttle": suppressed_by_shuttle,
-            "final_rows_after_precedence": len(final_icos_rows),
-            "projects": [PROJECT_FLUXNET, PROJECT_ICOS],
-            "product_families": [PRODUCT_FAMILY_CLASSIC, PRODUCT_FAMILY_ETC],
-        },
-        snapshot_updated_at=args.snapshot_updated_at,
-        snapshot_updated_date=args.snapshot_updated_date,
-    )
+    with phase("write ICOS outputs"):
+        write_csv(output_csv, deduped_rows)
+        suppressed_by_shuttle = len(deduped_rows) - len(final_icos_rows)
+        version_hash = write_json(
+            output_json,
+            deduped_rows,
+            meta_extra={
+                "discovery_method": "ICOS SPARQL metadata query",
+                "sparql_endpoint": SPARQL_ENDPOINT,
+                "fetched_binding_rows": fetched_binding_count,
+                "fetched_unique_site_ids": len(fetched_site_ids),
+                "normalized_rows": len(normalized_candidates),
+                "normalized_unique_site_ids": len(normalized_site_ids),
+                "retained_rows_after_dedup": len(deduped_rows),
+                "suppressed_by_shuttle": suppressed_by_shuttle,
+                "final_rows_after_precedence": len(final_icos_rows),
+                "projects": [PROJECT_FLUXNET, PROJECT_ICOS],
+                "product_families": [PRODUCT_FAMILY_CLASSIC, PRODUCT_FAMILY_ETC],
+            },
+            snapshot_updated_at=args.snapshot_updated_at,
+            snapshot_updated_date=args.snapshot_updated_date,
+        )
 
-    print(f"Wrote ICOS-direct CSV: {output_csv}")
-    print(f"Wrote ICOS-direct JSON: {output_json}")
-    print(f"Version: sha256:{version_hash}")
+    log(f"Wrote ICOS-direct CSV: {output_csv}")
+    log(f"Wrote ICOS-direct JSON: {output_json}")
+    log(f"Version: sha256:{version_hash}")
 
 
 if __name__ == "__main__":

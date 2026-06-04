@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import codecs
 import concurrent.futures
 import csv
@@ -10,7 +11,14 @@ import json
 import pathlib
 import re
 import sys
+import time
+from urllib.error import HTTPError, URLError
 import urllib.request
+
+try:
+    from .refresh_logging import compact_error, compact_text, log, phase
+except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_logging import compact_error, compact_text, log, phase
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -20,15 +28,73 @@ DEFAULT_OUTPUT_PATH = REPO_ROOT / "assets" / "site_vegetation_metadata.csv"
 FLUXNET2015_SITE_INFO_PATH = REPO_ROOT / "assets" / "siteinfo_fluxnet2015.csv"
 USER_AGENT = "Mozilla/5.0 (compatible; Codex FLUXNET Data Explorer)"
 MAX_WORKERS = 12
+DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_RETRIES = 4
+DEFAULT_RETRY_DELAY_SECONDS = 2.0
 
 EMBEDDED_JSON_STRING_RE = re.compile(r"const\s+jsonSites\s*=\s*'((?:\\.|[^'])*)';", re.S)
 VEGETATION_CODE_RE = re.compile(r"<td>\s*Vegetation IGBP:\s*</td>\s*<td>\s*([A-Z]{2,3})\b", re.I | re.S)
 
 
-def fetch_text(url: str) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return response.read().decode("utf-8", errors="replace")
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "output_csv",
+        nargs="?",
+        default=str(DEFAULT_OUTPUT_PATH),
+        help="CSV path to write. Defaults to assets/site_vegetation_metadata.csv.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help=f"Per-request timeout in seconds (default: {DEFAULT_TIMEOUT_SECONDS}).",
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=DEFAULT_RETRIES,
+        help=f"Maximum retries per request (default: {DEFAULT_RETRIES}).",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=DEFAULT_RETRY_DELAY_SECONDS,
+        help=f"Base retry delay in seconds (default: {DEFAULT_RETRY_DELAY_SECONDS}).",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=MAX_WORKERS,
+        help=f"Concurrent FLUXNET siteinfo workers (default: {MAX_WORKERS}).",
+    )
+    return parser.parse_args(argv)
+
+
+def should_retry_http_status(status_code: int) -> bool:
+    return status_code >= 500 or status_code in (408, 409, 425, 429)
+
+
+def fetch_text(url: str, timeout: int, retries: int, retry_delay: float, label: str) -> str:
+    last_error: Exception | None = None
+    for attempt in range(1, max(1, retries) + 1):
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read().decode("utf-8", errors="replace")
+        except HTTPError as err:
+            detail = compact_text(err.read().decode("utf-8", "replace"))
+            last_error = RuntimeError(f"HTTP {err.code}: {detail}")
+            if attempt >= max(1, retries) or not should_retry_http_status(err.code):
+                break
+        except (URLError, TimeoutError, OSError) as err:
+            last_error = err
+            if attempt >= max(1, retries):
+                break
+        delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+        log(f"Vegetation metadata retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(last_error)}")
+        time.sleep(delay)
+    raise RuntimeError(f"Vegetation metadata request failed after {retries} attempt(s) ({label}): {compact_error(last_error)}")
 
 
 def normalize_site_id(value: object) -> str:
@@ -71,20 +137,33 @@ def parse_fluxnet_siteinfo_vegetation(page_html: str, site_id: str) -> str:
     return str(match.group(1)).strip().upper()
 
 
-def build_combined_lookup() -> dict[str, tuple[str, str]]:
-    combined = parse_ameriflux_site_search_vegetation(fetch_text(AMERIFLUX_SITE_SEARCH_URL))
+def build_combined_lookup(timeout: int, retries: int, retry_delay: float, workers: int) -> dict[str, tuple[str, str]]:
+    with phase("fetch AmeriFlux vegetation metadata"):
+        site_search_html = fetch_text(AMERIFLUX_SITE_SEARCH_URL, timeout, retries, retry_delay, "AmeriFlux site search")
+        combined = parse_ameriflux_site_search_vegetation(site_search_html)
+        log(f"AmeriFlux vegetation rows: {len(combined)}")
     missing_fluxnet2015 = [site_id for site_id in read_fluxnet2015_site_ids(FLUXNET2015_SITE_INFO_PATH) if site_id not in combined]
+    log(f"FLUXNET2015 siteinfo pages needed: {len(missing_fluxnet2015)}")
 
     def fetch_fluxnet_entry(site_id: str) -> tuple[str, tuple[str, str]]:
         vegetation_type = parse_fluxnet_siteinfo_vegetation(
-            fetch_text(FLUXNET_SITEINFO_URL_TEMPLATE.format(site_id=site_id)),
+            fetch_text(
+                FLUXNET_SITEINFO_URL_TEMPLATE.format(site_id=site_id),
+                timeout,
+                retries,
+                retry_delay,
+                f"FLUXNET siteinfo {site_id}",
+            ),
             site_id
         )
         return site_id, (vegetation_type, "fluxnet_siteinfo")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        for site_id, payload in executor.map(fetch_fluxnet_entry, missing_fluxnet2015):
-            combined[site_id] = payload
+    with phase(f"fetch FLUXNET2015 vegetation pages ({len(missing_fluxnet2015)} pages, workers={workers})"):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
+            for index, (site_id, payload) in enumerate(executor.map(fetch_fluxnet_entry, missing_fluxnet2015), start=1):
+                combined[site_id] = payload
+                if index == len(missing_fluxnet2015) or index % 25 == 0:
+                    log(f"FLUXNET2015 vegetation pages fetched: {index}/{len(missing_fluxnet2015)}")
 
     return combined
 
@@ -100,19 +179,26 @@ def write_lookup_csv(output_path: pathlib.Path, lookup: dict[str, tuple[str, str
 
 
 def main(argv: list[str]) -> int:
-    output_path = pathlib.Path(argv[1]).resolve() if len(argv) > 1 else DEFAULT_OUTPUT_PATH
-    lookup = build_combined_lookup()
-    write_lookup_csv(output_path, lookup)
+    args = parse_args(argv)
+    output_path = pathlib.Path(args.output_csv).resolve()
+    lookup = build_combined_lookup(
+        timeout=max(1, args.timeout),
+        retries=max(1, args.retries),
+        retry_delay=max(0.1, args.retry_delay),
+        workers=max(1, args.workers),
+    )
+    with phase("write vegetation metadata"):
+        write_lookup_csv(output_path, lookup)
 
     counts: dict[str, int] = {}
     for _, metadata_source in lookup.values():
         counts[metadata_source] = counts.get(metadata_source, 0) + 1
 
-    print(f"Wrote {len(lookup)} vegetation metadata rows to {output_path}")
+    log(f"Wrote {len(lookup)} vegetation metadata rows to {output_path}")
     for metadata_source in sorted(counts):
-        print(f"  {metadata_source}: {counts[metadata_source]}")
+        log(f"  {metadata_source}: {counts[metadata_source]}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    raise SystemExit(main(sys.argv[1:]))

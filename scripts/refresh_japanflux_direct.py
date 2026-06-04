@@ -17,6 +17,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+try:
+    from .refresh_logging import compact_error, compact_text, log, phase
+except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_logging import compact_error, compact_text, log, phase
+
 ADS_API_BASE = "https://ads.nipr.ac.jp/api/v1"
 ADS_DATASET_BASE = "https://ads.nipr.ac.jp/dataset"
 JAPANFLUX_SOURCE = "JapanFlux"
@@ -26,6 +31,7 @@ PROCESSING_LINEAGE_OTHER_PROCESSED = "other_processed"
 DEFAULT_TIMEOUT_SECONDS = 60
 DEFAULT_RETRIES = 5
 DEFAULT_RETRY_DELAY_SECONDS = 2.0
+DEFAULT_MAX_FAILURES = 3
 DIRECT_DOWNLOAD_PROBE_TIMEOUT_SECONDS = 5
 USER_AGENT = "trevorkeenan.github.io/fluxnet-explorer-japanflux-refresh"
 DIRECT_DOWNLOAD_PATH = "data/zip/DATA"
@@ -171,6 +177,12 @@ def parse_args() -> argparse.Namespace:
         help=f"Base retry delay in seconds (default: {DEFAULT_RETRY_DELAY_SECONDS}).",
     )
     parser.add_argument(
+        "--max-failures",
+        type=int,
+        default=DEFAULT_MAX_FAILURES,
+        help=f"Abort after this many site failures to avoid spending the whole job on an upstream outage (default: {DEFAULT_MAX_FAILURES}).",
+    )
+    parser.add_argument(
         "--snapshot-updated-at",
         default="",
         help="Snapshot refresh timestamp in ISO-8601 form.",
@@ -181,6 +193,10 @@ def parse_args() -> argparse.Namespace:
         help="Snapshot refresh date in YYYY-MM-DD form.",
     )
     return parser.parse_args()
+
+
+class ResponseParseError(RuntimeError):
+    """Raised when an upstream ADS response is not valid JSON."""
 
 
 def maybe_float(value: Any) -> Optional[float]:
@@ -313,19 +329,35 @@ def request_json(url: str, timeout: int, retries: int, retry_delay: float, label
                 method="GET",
             )
             with urlopen(request, timeout=timeout) as response:
-                return json.loads(response.read().decode("utf-8"))
+                raw = response.read()
+                text = raw.decode("utf-8", "replace")
+                try:
+                    return json.loads(text)
+                except json.JSONDecodeError as err:
+                    raise ResponseParseError(
+                        f"Invalid JSON from ADS {label}; bytes={len(raw)}; preview={compact_text(text, 300)}; parse_error={err}"
+                    ) from err
         except HTTPError as err:
-            detail = err.read().decode("utf-8", "replace")
+            detail = compact_text(err.read().decode("utf-8", "replace"))
             last_error = RuntimeError(f"HTTP {err.code}: {detail}")
             if attempt >= retries or not should_retry_http_status(err.code):
                 break
-            time.sleep(min(30.0, retry_delay * (2 ** (attempt - 1))))
-        except (URLError, TimeoutError, OSError, json.JSONDecodeError) as err:
+            delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+            log(f"ADS retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(last_error)}")
+            time.sleep(delay)
+        except (URLError, TimeoutError, OSError, ResponseParseError) as err:
             last_error = err
             if attempt >= retries:
                 break
-            time.sleep(min(30.0, retry_delay * (2 ** (attempt - 1))))
+            delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+            log(f"ADS retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(err)}")
+            time.sleep(delay)
     raise RuntimeError(f"ADS request failed after {retries} attempt(s) ({label}): {last_error}")
+
+
+def looks_like_ads_outage(error: object) -> bool:
+    text = str(error or "").casefold()
+    return "ads is under maintenance" in text or "http 503" in text
 
 
 def extract_latest_version(metadata_id: str, timeout: int, retries: int, retry_delay: float) -> str:
@@ -619,6 +651,7 @@ def main() -> None:
     output_csv = Path(args.output_csv)
     output_json = Path(args.output_json)
     inventory = parse_site_inventory()
+    log(f"JapanFlux inventory sites: {len(inventory)}")
 
     rows: List[Dict[str, Any]] = []
     failures: List[str] = []
@@ -626,60 +659,72 @@ def main() -> None:
     landing_page_count = 0
     total = len(inventory)
 
-    for index, site_record in enumerate(inventory, start=1):
-        site_id = str(site_record["site_id"])
-        metadata_id = str(site_record["metadata_id"])
-        try:
-            row = fetch_site_row(
-                site_record,
-                timeout=max(1, args.timeout),
-                retries=max(1, args.retries),
-                retry_delay=max(0.1, args.retry_delay),
-            )
-            rows.append(row)
-            if row["download_mode"] == "direct":
-                direct_download_count += 1
-            else:
-                landing_page_count += 1
-            print(
-                f"JapanFlux site {index}/{total}: {site_id} ({metadata_id}) -> {row['download_mode']} {row['first_year']}-{row['last_year']} v{row['version']}",
-                flush=True,
-            )
-            time.sleep(0.05)
-        except Exception as err:  # noqa: BLE001 - collect all site failures before failing the refresh
-            failures.append(f"{site_id} ({metadata_id}): {err}")
-            print(f"JapanFlux site {index}/{total}: {site_id} ({metadata_id}) FAILED: {err}", flush=True)
+    with phase("refresh JapanFlux sites"):
+        for index, site_record in enumerate(inventory, start=1):
+            site_id = str(site_record["site_id"])
+            metadata_id = str(site_record["metadata_id"])
+            try:
+                row = fetch_site_row(
+                    site_record,
+                    timeout=max(1, args.timeout),
+                    retries=max(1, args.retries),
+                    retry_delay=max(0.1, args.retry_delay),
+                )
+                rows.append(row)
+                if row["download_mode"] == "direct":
+                    direct_download_count += 1
+                else:
+                    landing_page_count += 1
+                log(
+                    f"JapanFlux site {index}/{total}: {site_id} ({metadata_id}) -> {row['download_mode']} {row['first_year']}-{row['last_year']} v{row['version']}"
+                )
+                time.sleep(0.05)
+            except Exception as err:  # noqa: BLE001 - collect enough failures to diagnose before failing the refresh
+                failure = f"{site_id} ({metadata_id}): {compact_error(err)}"
+                failures.append(failure)
+                log(f"JapanFlux site {index}/{total}: {site_id} ({metadata_id}) FAILED: {compact_error(err)}")
+                if looks_like_ads_outage(err):
+                    raise RuntimeError(
+                        "JapanFlux refresh aborted because ADS appears unavailable or under maintenance: "
+                        + failure
+                    ) from err
+                if len(failures) >= max(1, int(args.max_failures)):
+                    raise RuntimeError(
+                        f"JapanFlux refresh aborted after {len(failures)} site failure(s): "
+                        + "; ".join(failures)
+                    ) from err
 
     rows.sort(key=lambda row: (str(row.get("country") or ""), str(row.get("site_id") or "")))
 
-    write_csv(output_csv, rows)
-    version_hash = write_json(
-        output_json,
-        rows,
-        meta_extra={
-            "discovery_method": "ADS REST API with static inventory",
-            "api_base": ADS_API_BASE,
-            "total_inventory_sites": total,
-            "successful_sites": len(rows),
-            "failed_sites": len(failures),
-            "direct_download_urls": direct_download_count,
-            "landing_page_fallbacks": landing_page_count,
-            "source": "JapanFlux2024 (Ueyama et al., 2025, ESSD)",
-            "license": "CC BY 4.0",
-        },
-        snapshot_updated_at=args.snapshot_updated_at,
-        snapshot_updated_date=args.snapshot_updated_date,
-    )
+    with phase("write JapanFlux outputs"):
+        write_csv(output_csv, rows)
+        version_hash = write_json(
+            output_json,
+            rows,
+            meta_extra={
+                "discovery_method": "ADS REST API with static inventory",
+                "api_base": ADS_API_BASE,
+                "total_inventory_sites": total,
+                "successful_sites": len(rows),
+                "failed_sites": len(failures),
+                "direct_download_urls": direct_download_count,
+                "landing_page_fallbacks": landing_page_count,
+                "source": "JapanFlux2024 (Ueyama et al., 2025, ESSD)",
+                "license": "CC BY 4.0",
+            },
+            snapshot_updated_at=args.snapshot_updated_at,
+            snapshot_updated_date=args.snapshot_updated_date,
+        )
 
-    print(f"Wrote JapanFlux CSV: {output_csv}", flush=True)
-    print(f"Wrote JapanFlux JSON: {output_json}", flush=True)
-    print(f"Rows: {len(rows)} / {total}", flush=True)
-    print(f"Direct download URLs: {direct_download_count}", flush=True)
-    print(f"Landing-page fallbacks: {landing_page_count}", flush=True)
-    print(f"Version: sha256:{version_hash}", flush=True)
+    log(f"Wrote JapanFlux CSV: {output_csv}")
+    log(f"Wrote JapanFlux JSON: {output_json}")
+    log(f"Rows: {len(rows)} / {total}")
+    log(f"Direct download URLs: {direct_download_count}")
+    log(f"Landing-page fallbacks: {landing_page_count}")
+    log(f"Version: sha256:{version_hash}")
 
     if failures:
-        raise SystemExit("JapanFlux refresh completed with site failures: " + "; ".join(failures))
+        raise RuntimeError("JapanFlux refresh completed with site failures: " + "; ".join(failures))
 
 
 if __name__ == "__main__":

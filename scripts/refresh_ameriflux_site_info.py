@@ -10,8 +10,15 @@ import json
 import pathlib
 import re
 import sys
+import time
+from urllib.error import HTTPError, URLError
 import urllib.request
 from typing import Any
+
+try:
+    from .refresh_logging import compact_error, compact_text, log, phase
+except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_logging import compact_error, compact_text, log, phase
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -23,6 +30,9 @@ AMERIFLUX_AVAILABILITY_URLS = (
 )
 DEFAULT_OUTPUT_PATH = REPO_ROOT / "assets" / "ameriflux_site_info.csv"
 USER_AGENT = "Mozilla/5.0 (compatible; Codex FLUXNET Data Explorer)"
+DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_RETRIES = 4
+DEFAULT_RETRY_DELAY_SECONDS = 2.0
 EMBEDDED_JSON_STRING_RE = re.compile(r"const\s+jsonSites\s*=\s*'((?:\\.|[^'])*)';", re.S)
 OUTPUT_COLUMNS = ("SITE_ID", "SITE_NAME", "COUNTRY", "LOCATION_LAT", "LOCATION_LONG")
 
@@ -39,17 +49,62 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Do not validate that AmeriFlux availability sites are present in site-search metadata.",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help=f"Per-request timeout in seconds (default: {DEFAULT_TIMEOUT_SECONDS}).",
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=DEFAULT_RETRIES,
+        help=f"Maximum retries per request (default: {DEFAULT_RETRIES}).",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=DEFAULT_RETRY_DELAY_SECONDS,
+        help=f"Base retry delay in seconds (default: {DEFAULT_RETRY_DELAY_SECONDS}).",
+    )
     return parser.parse_args(argv)
 
 
-def fetch_text(url: str) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return response.read().decode("utf-8", errors="replace")
+def should_retry_http_status(status_code: int) -> bool:
+    return status_code >= 500 or status_code in (408, 409, 425, 429)
 
 
-def fetch_json(url: str) -> Any:
-    return json.loads(fetch_text(url))
+def fetch_text(url: str, timeout: int, retries: int, retry_delay: float, label: str) -> str:
+    last_error: Exception | None = None
+    for attempt in range(1, max(1, retries) + 1):
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read().decode("utf-8", errors="replace")
+        except HTTPError as err:
+            detail = compact_text(err.read().decode("utf-8", "replace"))
+            last_error = RuntimeError(f"HTTP {err.code}: {detail}")
+            if attempt >= max(1, retries) or not should_retry_http_status(err.code):
+                break
+        except (URLError, TimeoutError, OSError) as err:
+            last_error = err
+            if attempt >= max(1, retries):
+                break
+        delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+        log(f"AmeriFlux retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(last_error)}")
+        time.sleep(delay)
+    raise RuntimeError(f"AmeriFlux request failed after {retries} attempt(s) ({label}): {compact_error(last_error)}")
+
+
+def fetch_json(url: str, timeout: int, retries: int, retry_delay: float, label: str) -> Any:
+    text = fetch_text(url, timeout, retries, retry_delay, label)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as err:
+        raise RuntimeError(
+            f"Invalid JSON from AmeriFlux {label}; bytes={len(text.encode('utf-8'))}; "
+            f"preview={compact_text(text, 300)}; parse_error={err}"
+        ) from err
 
 
 def clean_string(value: object) -> str:
@@ -107,11 +162,13 @@ def normalize_publish_years(values: object) -> list[int]:
     return sorted(years)
 
 
-def load_available_site_ids() -> set[str]:
+def load_available_site_ids(timeout: int, retries: int, retry_delay: float) -> set[str]:
     site_ids: set[str] = set()
     for url in AMERIFLUX_AVAILABILITY_URLS:
-        payload = fetch_json(url)
+        label = "availability " + "/".join(url.rsplit("/", 3)[-3:])
+        payload = fetch_json(url, timeout, retries, retry_delay, label)
         values = payload.get("values", []) if isinstance(payload, dict) else []
+        log(f"AmeriFlux availability rows from {url}: {len(values) if isinstance(values, list) else 0}")
         for entry in values:
             if not isinstance(entry, dict):
                 continue
@@ -121,9 +178,11 @@ def load_available_site_ids() -> set[str]:
     return site_ids
 
 
-def validate_available_sites_are_present(rows: list[dict[str, str]]) -> None:
+def validate_available_sites_are_present(rows: list[dict[str, str]], timeout: int, retries: int, retry_delay: float) -> None:
     metadata_site_ids = {row["SITE_ID"] for row in rows if row.get("SITE_ID")}
-    missing = sorted(load_available_site_ids() - metadata_site_ids)
+    available_site_ids = load_available_site_ids(timeout, retries, retry_delay)
+    log(f"AmeriFlux availability unique site IDs: {len(available_site_ids)}")
+    missing = sorted(available_site_ids - metadata_site_ids)
     if missing:
         sample = ", ".join(missing[:20])
         suffix = "" if len(missing) <= 20 else f", ... ({len(missing)} total)"
@@ -144,13 +203,21 @@ def write_rows(path: pathlib.Path, rows: list[dict[str, str]]) -> None:
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     output_path = pathlib.Path(args.output_csv).resolve()
-    rows = build_site_info_rows(parse_ameriflux_site_search(fetch_text(AMERIFLUX_SITE_SEARCH_URL)))
+    timeout = max(1, args.timeout)
+    retries = max(1, args.retries)
+    retry_delay = max(0.1, args.retry_delay)
+    with phase("fetch AmeriFlux site-search metadata"):
+        site_search_html = fetch_text(AMERIFLUX_SITE_SEARCH_URL, timeout, retries, retry_delay, "site search")
+        rows = build_site_info_rows(parse_ameriflux_site_search(site_search_html))
+        log(f"AmeriFlux site-search metadata rows: {len(rows)}")
     if not rows:
         raise RuntimeError("AmeriFlux site-search returned no usable site metadata rows.")
     if not args.skip_availability_validation:
-        validate_available_sites_are_present(rows)
-    write_rows(output_path, rows)
-    print(f"Wrote {len(rows)} AmeriFlux site metadata rows to {output_path}")
+        with phase("validate AmeriFlux availability coverage"):
+            validate_available_sites_are_present(rows, timeout, retries, retry_delay)
+    with phase("write AmeriFlux site metadata"):
+        write_rows(output_path, rows)
+    log(f"Wrote {len(rows)} AmeriFlux site metadata rows to {output_path}")
     return 0
 
 

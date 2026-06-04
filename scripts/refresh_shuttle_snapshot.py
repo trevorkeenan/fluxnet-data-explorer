@@ -7,9 +7,16 @@ import argparse
 import csv
 import json
 import os
+import signal
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
+
+try:
+    from .refresh_logging import log, phase
+except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_logging import log, phase
 
 PROCESSING_LINEAGE_ONEFLUX = "oneflux"
 REQUIRED_FIELDS = ("data_hub", "site_id", "download_link")
@@ -57,7 +64,34 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_MIN_GUARDED_SITE_COUNT,
         help="Only apply relative completeness safeguards to sources with at least this many previously published sites.",
     )
+    parser.add_argument(
+        "--candidate-timeout",
+        type=int,
+        default=300,
+        help="Maximum seconds to allow fluxnet_shuttle.listall() to build a candidate CSV before carrying forward existing data.",
+    )
     return parser.parse_args()
+
+
+@contextmanager
+def candidate_runtime_limit(timeout_seconds: int):
+    timeout = int(timeout_seconds or 0)
+    if timeout <= 0 or not hasattr(signal, "SIGALRM"):
+        yield
+        return
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+
+    def handle_timeout(_signum: int, _frame: object) -> None:
+        raise TimeoutError(f"fluxnet_shuttle.listall() exceeded {timeout}s")
+
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.setitimer(signal.ITIMER_REAL, float(timeout))
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def normalize_snapshot_updated_at(value: str) -> str:
@@ -430,6 +464,7 @@ def fetch_candidate_csv_via_shuttle() -> Path:
     import fluxnet_shuttle.plugins  # noqa: F401
     from fluxnet_shuttle.shuttle import listall
 
+    log(f"Calling fluxnet_shuttle.listall(output_dir={tmp_dir})")
     return Path(listall(output_dir=str(tmp_dir)))
 
 
@@ -462,8 +497,10 @@ def main() -> None:
         args.snapshot_updated_date,
     )
 
-    existing_fieldnames, raw_existing_rows = read_csv_snapshot(output_csv)
-    existing_meta = load_existing_meta(existing_json)
+    with phase("read existing Shuttle snapshot"):
+        existing_fieldnames, raw_existing_rows = read_csv_snapshot(output_csv)
+        existing_meta = load_existing_meta(existing_json)
+        log(f"Existing Shuttle CSV rows: {len(raw_existing_rows)} path={output_csv}")
     normalized_existing_fieldnames: List[str] = []
     normalized_existing_rows: List[Dict[str, str]] = []
     if raw_existing_rows:
@@ -477,51 +514,59 @@ def main() -> None:
     normalized_candidate_fieldnames: List[str] = []
     normalized_candidate_rows: List[Dict[str, str]] = []
     try:
-        candidate_path = Path(args.candidate_csv) if args.candidate_csv else fetch_candidate_csv_via_shuttle()
-        candidate_fieldnames, raw_candidate_rows = read_csv_snapshot(candidate_path)
-        normalized_candidate_fieldnames, normalized_candidate_rows = normalize_snapshot_rows(
-            candidate_fieldnames,
-            raw_candidate_rows,
-            empty_rows_message="Refusing to overwrite Shuttle snapshot: listall() returned zero rows.",
-        )
+        with phase("build Shuttle candidate snapshot"):
+            if args.candidate_csv:
+                candidate_path = Path(args.candidate_csv)
+                log(f"Using supplied Shuttle candidate CSV: {candidate_path}")
+            else:
+                with candidate_runtime_limit(max(1, int(args.candidate_timeout))):
+                    candidate_path = fetch_candidate_csv_via_shuttle()
+            candidate_fieldnames, raw_candidate_rows = read_csv_snapshot(candidate_path)
+            log(f"Candidate Shuttle CSV rows: {len(raw_candidate_rows)} path={candidate_path}")
+            normalized_candidate_fieldnames, normalized_candidate_rows = normalize_snapshot_rows(
+                candidate_fieldnames,
+                raw_candidate_rows,
+                empty_rows_message="Refusing to overwrite Shuttle snapshot: listall() returned zero rows.",
+            )
     except Exception as err:  # noqa: BLE001 - preserve last-known-good snapshot when candidate generation fails
         candidate_error = str(err)
-        print(f"Warning: {candidate_error}", flush=True)
+        log(f"Warning: {candidate_error}")
 
-    published_rows, source_statuses = stabilize_snapshot(
-        normalized_candidate_rows,
-        normalized_existing_rows,
-        existing_meta,
-        snapshot_updated_at=snapshot_updated_at,
-        snapshot_updated_date=snapshot_updated_date,
-        min_site_retention_ratio=max(0.0, min(1.0, float(args.min_site_retention_ratio))),
-        min_guarded_site_count=max(1, int(args.min_guarded_site_count)),
-        candidate_error=candidate_error,
-    )
+    with phase("stabilize Shuttle snapshot"):
+        published_rows, source_statuses = stabilize_snapshot(
+            normalized_candidate_rows,
+            normalized_existing_rows,
+            existing_meta,
+            snapshot_updated_at=snapshot_updated_at,
+            snapshot_updated_date=snapshot_updated_date,
+            min_site_retention_ratio=max(0.0, min(1.0, float(args.min_site_retention_ratio))),
+            min_guarded_site_count=max(1, int(args.min_guarded_site_count)),
+            candidate_error=candidate_error,
+        )
 
     fieldnames = normalized_candidate_fieldnames or normalized_existing_fieldnames
     if not fieldnames:
         raise RuntimeError("Unable to determine Shuttle snapshot fieldnames.")
 
-    write_csv_snapshot(output_csv, fieldnames, published_rows)
+    with phase("write Shuttle snapshot outputs"):
+        write_csv_snapshot(output_csv, fieldnames, published_rows)
 
-    status_payload = build_status_output(source_statuses, published_rows)
-    if source_status_output:
-        write_status_output(source_status_output, status_payload)
+        status_payload = build_status_output(source_statuses, published_rows)
+        if source_status_output:
+            write_status_output(source_status_output, status_payload)
 
-    print(f"Wrote {len(published_rows)} rows to {output_csv}", flush=True)
-    print(f"Rows by hub: {format_counts_by_hub(published_rows)}", flush=True)
+    log(f"Wrote {len(published_rows)} rows to {output_csv}")
+    log(f"Rows by hub: {format_counts_by_hub(published_rows)}")
     if status_payload["carried_forward_sources"]:
-        print(
+        log(
             "Carried forward sources: " + ", ".join(status_payload["carried_forward_sources"]),
-            flush=True,
         )
         for hub in status_payload["carried_forward_sources"]:
             reason = str(source_statuses.get(hub, {}).get("reason") or "").strip()
             if reason:
-                print(f"  - {hub}: {reason}", flush=True)
+                log(f"  - {hub}: {reason}")
     else:
-        print("Carried forward sources: none", flush=True)
+        log("Carried forward sources: none")
 
 
 if __name__ == "__main__":

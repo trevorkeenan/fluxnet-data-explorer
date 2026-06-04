@@ -103,6 +103,10 @@ class RefreshJapanFluxDirectTests(unittest.TestCase):
 
         self.assertEqual(resolved, "")
 
+    def test_ads_outage_detection_matches_maintenance_response(self):
+        self.assertTrue(module.looks_like_ads_outage(RuntimeError("HTTP 503: ADS is under maintenance.")))
+        self.assertFalse(module.looks_like_ads_outage(RuntimeError("No versions returned for A20240722-001")))
+
 
 if __name__ == "__main__":
     unittest.main()

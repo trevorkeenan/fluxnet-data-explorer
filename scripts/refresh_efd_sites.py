@@ -18,6 +18,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+try:
+    from .refresh_logging import compact_error, log, phase
+except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_logging import compact_error, log, phase
+
 SITES_LIST_URL = "https://www.europe-fluxdata.eu/home/sites-list"
 REQUEST_PAGE_URL = "https://www.europe-fluxdata.eu/home/data/request-data"
 DATA_POLICY_URL = "https://www.europe-fluxdata.eu/home/data/data-policy"
@@ -421,11 +426,13 @@ def fetch_json_with_retry(
             request = Request(url, data=body, headers=headers, method="POST")
             with urlopen(request, timeout=timeout) as response:
                 return json.load(response)
-        except (HTTPError, URLError, json.JSONDecodeError) as exc:
-            errors.append(f"attempt {attempt}: {exc}")
+        except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            errors.append(f"attempt {attempt}: {compact_error(exc)}")
             if attempt >= max(1, retries):
                 break
-            time.sleep(retry_delay * attempt)
+            delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+            log(f"EFD JSON retry {attempt}/{retries} after {delay:.1f}s: {compact_error(exc)}")
+            time.sleep(delay)
     raise RuntimeError(f"Failed to fetch EFD public site JSON from {url}: {'; '.join(errors)}")
 
 
@@ -446,11 +453,13 @@ def fetch_text_with_retry(
             request = Request(url, headers=headers, method="GET")
             with urlopen(request, timeout=timeout) as response:
                 return response.read().decode("utf-8-sig", errors="replace")
-        except (HTTPError, URLError, UnicodeDecodeError) as exc:
-            errors.append(f"attempt {attempt}: {exc}")
+        except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError) as exc:
+            errors.append(f"attempt {attempt}: {compact_error(exc)}")
             if attempt >= max(1, retries):
                 break
-            time.sleep(retry_delay * attempt)
+            delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
+            log(f"EFD text retry {attempt}/{retries} ({url}) after {delay:.1f}s: {compact_error(exc)}")
+            time.sleep(delay)
     raise RuntimeError(f"Failed to fetch text from {url}: {'; '.join(errors)}")
 
 
@@ -732,60 +741,63 @@ def main() -> None:
     if not provisional_updated_at:
         provisional_updated_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
-    public_rows, warning = load_public_site_rows(
-        provisional_updated_at,
-        args.timeout,
-        args.retries,
-        args.retry_delay,
-    )
+    with phase("load public EFD site catalog"):
+        public_rows, warning = load_public_site_rows(
+            provisional_updated_at,
+            args.timeout,
+            args.retries,
+            args.retry_delay,
+        )
     if not public_rows:
         raise RuntimeError("Refusing to curate an empty EFD site inventory.")
 
-    curated_rows = curate_public_site_rows(
-        public_rows,
-        provisional_updated_at,
-        args.timeout,
-        args.retries,
-        args.retry_delay,
-        args.workers,
-    )
+    with phase(f"curate EFD site details ({len(public_rows)} catalog rows, workers={args.workers})"):
+        curated_rows = curate_public_site_rows(
+            public_rows,
+            provisional_updated_at,
+            args.timeout,
+            args.retries,
+            args.retry_delay,
+            args.workers,
+        )
     if not curated_rows:
         raise RuntimeError("Refusing to write empty curated EFD snapshot.")
 
-    version_payload = build_version_payload(curated_rows)
-    canonical_data = json.dumps(version_payload, ensure_ascii=True, separators=(",", ":"))
-    version_hash = hashlib.sha256(canonical_data.encode("utf-8")).hexdigest()
-    version_value = f"sha256:{version_hash}"
+    with phase("write EFD outputs"):
+        version_payload = build_version_payload(curated_rows)
+        canonical_data = json.dumps(version_payload, ensure_ascii=True, separators=(",", ":"))
+        version_hash = hashlib.sha256(canonical_data.encode("utf-8")).hexdigest()
+        version_value = f"sha256:{version_hash}"
 
-    existing_meta = load_existing_meta(output_json)
-    snapshot_updated_at, snapshot_updated_date = choose_snapshot_updated_fields(
-        existing_meta,
-        version_value,
-        args.snapshot_updated_at,
-        args.snapshot_updated_date,
-    )
+        existing_meta = load_existing_meta(output_json)
+        snapshot_updated_at, snapshot_updated_date = choose_snapshot_updated_fields(
+            existing_meta,
+            version_value,
+            args.snapshot_updated_at,
+            args.snapshot_updated_date,
+        )
 
-    finalized_records = [dict(record, last_updated=snapshot_updated_at) for record in curated_rows]
-    write_csv(output_csv, finalized_records)
-    snapshot_refreshed_at = normalize_snapshot_updated_at(args.snapshot_updated_at) or snapshot_updated_at
-    snapshot_refreshed_date = normalize_snapshot_updated_date(args.snapshot_updated_date, args.snapshot_updated_at) or snapshot_updated_date
-    write_json(
-        output_json,
-        finalized_records,
-        snapshot_updated_at,
-        snapshot_updated_date,
-        snapshot_refreshed_at,
-        snapshot_refreshed_date,
-        version_value,
-    )
+        finalized_records = [dict(record, last_updated=snapshot_updated_at) for record in curated_rows]
+        write_csv(output_csv, finalized_records)
+        snapshot_refreshed_at = normalize_snapshot_updated_at(args.snapshot_updated_at) or snapshot_updated_at
+        snapshot_refreshed_date = normalize_snapshot_updated_date(args.snapshot_updated_date, args.snapshot_updated_at) or snapshot_updated_date
+        write_json(
+            output_json,
+            finalized_records,
+            snapshot_updated_at,
+            snapshot_updated_date,
+            snapshot_refreshed_at,
+            snapshot_refreshed_date,
+            version_value,
+        )
 
-    print(f"Loaded {len(public_rows)} public EFD catalog rows")
-    print(f"Wrote {len(finalized_records)} curated EFD rows with known data records")
-    print(f"CSV: {output_csv}")
-    print(f"JSON: {output_json}")
-    print(f"Version: {version_value}")
+    log(f"Loaded {len(public_rows)} public EFD catalog rows")
+    log(f"Wrote {len(finalized_records)} curated EFD rows with known data records")
+    log(f"CSV: {output_csv}")
+    log(f"JSON: {output_json}")
+    log(f"Version: {version_value}")
     if warning:
-        print(f"Warning: {warning}")
+        log(f"Warning: {warning}")
 
 
 if __name__ == "__main__":
