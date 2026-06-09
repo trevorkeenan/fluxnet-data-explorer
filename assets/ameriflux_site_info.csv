@@ -240,12 +240,12 @@ US-BRG,Bayles Road Grassland Tower,USA,39.2167,-86.5406
 US-BRW,Barrow,USA,71.3225,-156.6092
 US-BSG,Burns Sagebrush,USA,43.4712,-119.6909
 US-BSM,Barnstable Great Marsh,USA,41.7297,-70.3644
+US-BTL,Goldstream Valley Thermokarst Lake,USA,64.9194,-147.8222
 US-BWA,INFLUX - NIST Turfgrass Site,USA,39.1389,-77.2175
 US-BWB,INFLUX - Montgomery County pasture site,USA,39.1955,-77.4509
 US-BWE,Clifton Park Turfgrass,USA,39.3170,-76.5870
 US-BZB,Bonanza Creek Thermokarst Bog,USA,64.6955,-148.3208
 US-BZF,Bonanza Creek Rich Fen,USA,64.7013,-148.3121
-US-BZL,Goldstream Valley Thermokarst Lake,USA,64.9194,-147.8222
 US-BZO,Bonanza Creek Old Thermokarst Bog,USA,64.6936,-148.3300
 US-BZS,Bonanza Creek Black Spruce,USA,64.6963,-148.3235
 US-CAK,Council Alaska Tundra,USA,64.8618,-163.7002
@@ -486,7 +486,7 @@ US-MJ2,Montana Judith Basin summer fallow field,USA,46.9957,-109.6295
 US-MKG,Maggie Creek Fall Grazed,USA,40.9452,-116.1701
 US-MKH,Maggie Creek Hay Meadow,USA,40.9882,-116.1633
 US-MKN,Maggie Creek Non-grazed,USA,40.8941,-116.1800
-US-MMS,Morgan Monroe State Forest,USA,39.3232,-86.4131
+US-MMS,Morgan Monroe State Forest,USA,39.3232,-86.4133
 US-MN1,"Morris: Corn-Soybean with Cover Crops, Strip Tillage",USA,45.6168,-96.1269
 US-MN2,"Morris: Corn-Soybean-Wheat with Cover Crops, Minimal Tillage",USA,45.6270,-96.1271
 US-MN3,"Morris: Corn-Soybean, Conventional Tillage",USA,45.6091,-96.1265
@@ -494,7 +494,7 @@ US-MO1,LTAR CMRB Field 1 (CMRB ASP),USA,39.2298,-92.1167
 US-MO2,LTAR CMRB Tucker Prairie (CMRB TP),USA,38.9488,-91.9945
 US-MO3,LTAR CMRB Field 3 (CMRB BAU),USA,39.2322,-92.1493
 US-MOZ,Missouri Ozark Site,USA,38.7441,-92.2000
-US-MPJ,Mountainair Pinyon-Juniper Woodland,USA,34.4385,-106.2377
+US-MPJ,Mountainair Pinyon-Juniper Woodland,USA,34.4382,-106.2385
 US-MRF,Mary's River (Fir) site,USA,44.6465,-123.5515
 US-MRM,Marsh Resource Meadowlands Mitigation Bank,USA,40.8164,-74.0435
 US-MSR,Montana Sun River winter wheat,USA,47.4758,-111.7207
@@ -557,7 +557,7 @@ US-OK2,ECB: Site A3 - South Field,USA,41.7660,-111.8550
 US-ONA,Florida pine flatwoods,USA,27.3836,-81.9509
 US-OPE,Optimizing Production Inputs for Economic and Environmental Enhancement (OPE3),USA,39.0293,-76.8457
 US-ORV,Olentangy River Wetland Research Park,USA,40.0201,-83.0183
-US-OWC,Old Woman Creek,USA,41.3795,-82.5125
+US-OWC,Old Woman Creek,USA,41.3793,-82.5124
 US-PAS,"Florida, Paspalum notatum pasture",USA,27.3944,-81.9510
 US-PEA,5R Pecan Farm Above Canopy,USA,31.4123,-106.0788
 US-PFA,Park Falls/WLEF,USA,45.9451,-90.2732
@@ -638,8 +638,8 @@ US-SD1,Shatto Ditch Paired Cropland - Site 1 (Corn/Soy; No Cover Crops),USA,41.2
 US-SD2,Shatto Ditch Paired Cropland - Site 2 (Corn/Soy; Cover Crops),USA,41.1785,-85.9977
 US-SDH,Nebraska SandHills Dry Valley,USA,42.0693,-101.4072
 US-SDU,South Denver Urban Tower,USA,39.6594,-105.0127
-US-SEG,Sevilleta grassland,USA,34.3623,-106.7020
-US-SES,Sevilleta shrubland,USA,34.3349,-106.7442
+US-SEG,Sevilleta grassland,USA,34.3603,-106.7003
+US-SES,Sevilleta shrubland,USA,34.3350,-106.7448
 US-SFP,Sioux Falls Portable,USA,43.2408,-96.9020
 US-SHC,Sagehen Creek Field Station,USA,39.4315,-120.2398
 US-SHD,Shidler- Oklahoma,USA,36.9333,-96.6833
@@ -748,9 +748,9 @@ US-UTW,UFLUX Wellington,USA,39.4453,-110.7288
 US-UUC,University of Utah Compass Minerals Flux,USA,41.2961,-112.3074
 US-UUP,University of Utah Playa Flux,USA,41.0303,-112.1175
 US-VAR,Vaira Ranch- Ione,USA,38.4133,-120.9508
-US-VCM,Valles Caldera Mixed Conifer,USA,35.8884,-106.5321
-US-VCP,Valles Caldera Ponderosa Pine,USA,35.8642,-106.5967
-US-VCS,Valles Caldera Sulphur Springs Mixed Conifer,USA,35.9193,-106.6142
+US-VCM,Valles Caldera Mixed Conifer,USA,35.8885,-106.5322
+US-VCP,Valles Caldera Ponderosa Pine,USA,35.8641,-106.5965
+US-VCS,Valles Caldera Sulphur Springs Mixed Conifer,USA,35.9193,-106.6147
 US-VFP,Virginia Coast Reserve Fowling Point,USA,37.4111,-75.8333
 US-VT1,Vermillion Tributary Paired Cropland – Site 1 (Corn/Soy; No Cover Crops),USA,40.4064,-87.5214
 US-VT2,Vermillion Tributary Paired Cropland – Site 2 (Corn/Soy; Cover Crops),USA,40.4018,-87.5213
@@ -770,7 +770,7 @@ US-WI6,Pine barrens #1 (PB1),USA,46.6249,-91.2982
 US-WI7,Red pine clearcut (RPCC),USA,46.6491,-91.0693
 US-WI8,Young hardwood clearcut (YHW),USA,46.7223,-91.2524
 US-WI9,Young Jack pine (YJP),USA,46.7385,-91.0746
-US-WJS,Willard Juniper Savannah,USA,34.4255,-105.8615
+US-WJS,Willard Juniper Savannah,USA,34.4258,-105.8617
 US-WKG,Walnut Gulch Kendall Grasslands,USA,31.7365,-109.9419
 US-WLR,Walnut River Watershed (Smileyburg),USA,37.5208,-96.8550
 US-WPP,Willamette Poplar,USA,44.1369,-123.1824
