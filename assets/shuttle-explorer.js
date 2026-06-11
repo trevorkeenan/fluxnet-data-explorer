@@ -11,6 +11,7 @@
   var DEFAULT_EFD_CSV_URL = "assets/efd_curated_sites_snapshot.csv";
   var AMERIFLUX_SITE_INFO_URL = "assets/ameriflux_site_info.csv";
   var FLUXNET2015_SITE_INFO_URL = "assets/siteinfo_fluxnet2015.csv";
+  var SOURCE_CITATION_METADATA_URL = "assets/source_citation_metadata.csv";
   var SITE_NAME_METADATA_URL = "assets/site_name_metadata.csv";
   var SITE_VEGETATION_METADATA_URL = "assets/site_vegetation_metadata.csv";
   var DEFAULT_ALL_KNOWN_SITES_MAP_JSON_URL = "assets/all_known_flux_sites_map.json";
@@ -174,6 +175,53 @@
   var COPY_TABLE_SUCCESS_LABEL = "Copied!";
   var COPY_TABLE_FAILURE_LABEL = "Copy failed";
   var COPY_TABLE_FEEDBACK_MS = 1800;
+  var DATA_POLICY_MISSING_METADATA_PLACEHOLDER = "Citation/DOI not available in Explorer metadata. Please consult the source data portal.";
+  var DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT = "FLUXNET data products were produced and harmonized by eddy covariance regional networks and data processing centers, including AmeriFlux, ChinaFlux, European Fluxes Database, ICOS, JapanFlux, KoFlux, OzFlux, SAEON, and TERN. These products also include a modified version of ERA5 hourly data provided by the Copernicus Climate Change Service.";
+  var DATA_POLICY_REVIEW_NOTE = "Review this generated text against the requirements of your journal and every source network represented in the selected data.";
+  var DATA_POLICY_REFERENCES = {
+    Yu2006ChinaFlux: {
+      citation: "Yu, G.-R., Wen, X.-F., Sun, X.-M., Tanner, B. D., Lee, X., and Chen, J.-Y. (2006). Overview of ChinaFLUX and evaluation of its eddy covariance measurement. Agricultural and Forest Meteorology, 137, 125–137. https://doi.org/10.1016/j.agrformet.2006.02.011",
+      bibtex: "@article{Yu2006ChinaFlux,\n  author = {Yu, Guirui and Wen, Xuefa and Sun, Xiaomin and Tanner, Bertrand D. and Lee, Xuhui and Chen, Jinyan},\n  title = {Overview of ChinaFLUX and evaluation of its eddy covariance measurement},\n  journal = {Agricultural and Forest Meteorology},\n  year = {2006},\n  volume = {137},\n  pages = {125--137},\n  doi = {10.1016/j.agrformet.2006.02.011}\n}"
+    },
+    Ueyama2025JapanFlux2024: {
+      citation: "Ueyama, M. et al. (2025). The JapanFlux2024 dataset for eddy covariance observations covering Japan and East Asia from 1990 to 2023. Earth System Science Data, 17, 3807–3833. https://doi.org/10.5194/essd-17-3807-2025",
+      bibtex: "@article{Ueyama2025JapanFlux2024,\n  author = {Ueyama, Masahito and others},\n  title = {The JapanFlux2024 dataset for eddy covariance observations covering Japan and East Asia from 1990 to 2023},\n  journal = {Earth System Science Data},\n  year = {2025},\n  volume = {17},\n  pages = {3807--3833},\n  doi = {10.5194/essd-17-3807-2025}\n}"
+    },
+    Beringer2016OzFlux: {
+      citation: "Beringer, J. et al. (2016). An introduction to the Australian and New Zealand flux tower network – OzFlux. Biogeosciences, 13, 5895–5916. https://doi.org/10.5194/bg-13-5895-2016",
+      bibtex: "@article{Beringer2016OzFlux,\n  author = {Beringer, Jason and others},\n  title = {An introduction to the Australian and New Zealand flux tower network -- OzFlux},\n  journal = {Biogeosciences},\n  year = {2016},\n  volume = {13},\n  pages = {5895--5916},\n  doi = {10.5194/bg-13-5895-2016}\n}"
+    },
+    Isaac2017OzFlux: {
+      citation: "Isaac, P., Cleverly, J., McHugh, I., van Gorsel, E., Ewenz, C., and Beringer, J. (2017). OzFlux data: network integration from collection to curation. Biogeosciences, 14, 2903–2928. https://doi.org/10.5194/bg-14-2903-2017",
+      bibtex: "@article{Isaac2017OzFlux,\n  author = {Isaac, Peter and Cleverly, James and McHugh, Ian and van Gorsel, Eva and Ewenz, Cacilia and Beringer, Jason},\n  title = {OzFlux data: network integration from collection to curation},\n  journal = {Biogeosciences},\n  year = {2017},\n  volume = {14},\n  pages = {2903--2928},\n  doi = {10.5194/bg-14-2903-2017}\n}"
+    },
+    Pastorello2020FLUXNET2015: {
+      citation: "Pastorello, G. et al. (2020). The FLUXNET2015 dataset and the ONEFlux processing pipeline for eddy covariance data. Scientific Data, 7, 225. https://doi.org/10.1038/s41597-020-0534-3",
+      bibtex: "@article{Pastorello2020FLUXNET2015,\n  author = {Pastorello, Gilberto and others},\n  title = {The FLUXNET2015 dataset and the ONEFlux processing pipeline for eddy covariance data},\n  journal = {Scientific Data},\n  year = {2020},\n  volume = {7},\n  pages = {225},\n  doi = {10.1038/s41597-020-0534-3}\n}"
+    }
+  };
+  var DATA_POLICY_NETWORK_RULES = {
+    AMF: {
+      acknowledgement: "Funding for the AmeriFlux data service was provided by the U.S. Department of Energy Office of Science.",
+      references: []
+    },
+    CNF: {
+      acknowledgement: "ChinaFlux data are from the National ecosystem science data center https://www.nesdc.org.cn",
+      references: ["Yu2006ChinaFlux"]
+    },
+    JPF: {
+      acknowledgement: "",
+      references: ["Ueyama2025JapanFlux2024"]
+    },
+    OZF: {
+      acknowledgement: "OzFlux data are from the OzFlux Data Portal https://data.ozflux.org.au/home.jspx",
+      references: ["Beringer2016OzFlux", "Isaac2017OzFlux"]
+    },
+    TERN: {
+      acknowledgement: "TERN data are from the TERN Data Discovery Portal https://portal.tern.org.au/browse/theme",
+      references: ["Beringer2016OzFlux", "Isaac2017OzFlux"]
+    }
+  };
   var COUNTRY_CODE_TO_NAME = {
     AR: "Argentina",
     AT: "Austria",
@@ -482,6 +530,39 @@
       latitude: extractRawLatitude(raw),
       longitude: extractRawLongitude(raw)
     };
+  }
+
+  function sourceCitationMetadataKey(siteId, dataProduct, dataPolicy) {
+    return [
+      normalizeSiteId(siteId),
+      normalizeDownloadProduct(dataProduct),
+      String(dataPolicy || "").trim().toUpperCase()
+    ].join("|");
+  }
+
+  function buildSourceCitationMetadataLookup(rawRows) {
+    var lookup = {};
+    (Array.isArray(rawRows) ? rawRows : []).forEach(function (raw) {
+      var siteId = normalizeSiteId(firstDefinedString(raw, ["site_id", "site"]));
+      var rawDataProduct = firstDefinedString(raw, ["data_product", "citation_product"]);
+      var dataProduct = normalizeDownloadProduct(rawDataProduct);
+      var dataPolicy = firstDefinedString(raw, ["data_policy"]).toUpperCase();
+      var key;
+      if (!siteId || !rawDataProduct) {
+        return;
+      }
+      key = sourceCitationMetadataKey(siteId, dataProduct, dataPolicy);
+      lookup[key] = {
+        citation_doi: firstDefinedString(raw, ["citation_doi", "doi"]),
+        citation_url: firstDefinedString(raw, ["citation_url"]),
+        citation_text: firstDefinedString(raw, ["citation_text", "citation"]),
+        citation_source: firstDefinedString(raw, ["citation_source"]),
+        citation_source_url: firstDefinedString(raw, ["citation_source_url", "url"]),
+        citation_product: dataProduct,
+        citation_product_type: dataProduct
+      };
+    });
+    return lookup;
   }
 
   function parseIntOrNull(value) {
@@ -3533,7 +3614,8 @@
         last_year: publishYears[publishYears.length - 1],
         years: exactYearCoverageLabel(publishYears, publishYears[0], publishYears[publishYears.length - 1]),
         country: deriveCountry(siteId, ""),
-        data_policy: policy
+        data_policy: policy,
+        citation_source_url: String(entry && entry.url || "").trim()
       });
     });
 
@@ -3550,7 +3632,7 @@
     });
 
     var canonical = JSON.stringify(sites.map(function (item) {
-      return [item.site_id, item.first_year, item.last_year, item.publish_years.join(",")];
+      return [item.site_id, item.first_year, item.last_year, item.publish_years.join(","), item.citation_source_url];
     }));
 
     return {
@@ -3651,6 +3733,13 @@
       source_origin: AMERIFLUX_API_SOURCE_ORIGIN,
       api_data_product: dataProduct,
       data_policy: dataPolicy,
+      citation_doi: String(site && site.citation_doi || "").trim(),
+      citation_url: String(site && site.citation_url || "").trim(),
+      citation_text: String(site && site.citation_text || "").trim(),
+      citation_source: String(site && site.citation_source || "").trim(),
+      citation_source_url: String(site && site.citation_source_url || "").trim(),
+      citation_product: String(site && site.citation_product || dataProduct).trim(),
+      citation_product_type: String(site && site.citation_product_type || dataProduct).trim(),
       publish_years: publishYears
     };
     return finalizeRowComputedState(row);
@@ -3697,6 +3786,13 @@
     var metadataUrl = String(fields && (fields.metadataUrl || fields.metadata_url) || "").trim();
     var accessUrl = String(fields && (fields.accessUrl || fields.access_url) || "").trim();
     var citation = String(fields && fields.citation || "").trim();
+    var citationDoi = String(fields && (fields.citationDoi || fields.citation_doi) || "").trim();
+    var citationUrl = String(fields && (fields.citationUrl || fields.citation_url) || "").trim();
+    var citationText = String(fields && (fields.citationText || fields.citation_text) || "").trim();
+    var citationSource = String(fields && (fields.citationSource || fields.citation_source) || "").trim();
+    var citationSourceUrl = String(fields && (fields.citationSourceUrl || fields.citation_source_url) || "").trim();
+    var citationProduct = String(fields && (fields.citationProduct || fields.citation_product) || apiDataProduct).trim();
+    var citationProductType = String(fields && (fields.citationProductType || fields.citation_product_type) || citationProduct).trim();
     var isIcos = !!(fields && (fields.isIcos || fields.is_icos));
     var network = String(fields && fields.network || "").trim();
     var sourceNetwork = String(fields && (fields.sourceNetwork || fields.source_network) || "").trim();
@@ -3733,6 +3829,13 @@
       metadataUrl: metadataUrl,
       accessUrl: accessUrl,
       citation: citation,
+      citationDoi: citationDoi,
+      citationUrl: citationUrl,
+      citationText: citationText,
+      citationSource: citationSource,
+      citationSourceUrl: citationSourceUrl,
+      citationProduct: citationProduct,
+      citationProductType: citationProductType,
       network: network,
       sourceNetwork: sourceNetwork,
       networkDisplay: networkDisplay,
@@ -3761,6 +3864,13 @@
       direct_download_url: directDownloadUrl,
       metadata_url: metadataUrl,
       access_url: accessUrl,
+      citation_doi: citationDoi,
+      citation_url: citationUrl,
+      citation_text: citationText,
+      citation_source: citationSource,
+      citation_source_url: citationSourceUrl,
+      citation_product: citationProduct,
+      citation_product_type: citationProductType,
       display_label: surfacedProductDisplayName(fields || {}, true)
     };
   }
@@ -3855,7 +3965,14 @@
       country: site.country,
       vegetationType: site.vegetation_type,
       latitude: site.latitude,
-      longitude: site.longitude
+      longitude: site.longitude,
+      citationDoi: site.citation_doi,
+      citationUrl: site.citation_url,
+      citationText: site.citation_text,
+      citationSource: site.citation_source,
+      citationSourceUrl: site.citation_source_url,
+      citationProduct: site.citation_product,
+      citationProductType: site.citation_product_type
     });
   }
 
@@ -4719,6 +4836,24 @@
     });
   }
 
+  function enrichSitesWithCitationMetadata(sites, citationLookup, dataProduct, dataPolicy) {
+    return (Array.isArray(sites) ? sites : []).map(function (site) {
+      var siteId = normalizeSiteId(site && site.site_id);
+      var policy = String(dataPolicy || site && site.data_policy || "").trim().toUpperCase();
+      var metadata = citationLookup && citationLookup[sourceCitationMetadataKey(siteId, dataProduct, policy)];
+      var enriched = Object.assign({}, site);
+      if (!metadata) {
+        return enriched;
+      }
+      Object.keys(metadata).forEach(function (key) {
+        if (metadata[key] != null && String(metadata[key]).trim()) {
+          enriched[key] = metadata[key];
+        }
+      });
+      return enriched;
+    });
+  }
+
   function enrichAmeriFluxSitesWithMetadata(sites, siteInfoLookup, vegetationLookup) {
     return enrichSitesWithMetadata(sites, siteInfoLookup, vegetationLookup);
   }
@@ -4751,6 +4886,35 @@
         sourceUrl: url,
         lastModified: "",
         warning: "FLUXNET2015 site metadata unavailable; FLUXNET2015 API-only map coverage may be incomplete.",
+        error: error
+      };
+    });
+  }
+
+  function loadSourceCitationMetadata(url) {
+    return fetchText(url).then(function (result) {
+      var lookup = buildSourceCitationMetadataLookup(csvTextToObjects(result.text));
+      var canonical = JSON.stringify(Object.keys(lookup).sort().map(function (key) {
+        return [key, lookup[key]];
+      }));
+      return {
+        lookup: lookup,
+        source: "csv",
+        sourceUrl: url,
+        lastModified: result.lastModified || "",
+        meta: {
+          version: stableHashString(canonical)
+        },
+        warning: ""
+      };
+    }).catch(function (error) {
+      return {
+        lookup: {},
+        source: "csv",
+        sourceUrl: url,
+        lastModified: "",
+        meta: {},
+        warning: "Source citation metadata unavailable; some non-Shuttle citation fields may be incomplete.",
         error: error
       };
     });
@@ -4832,6 +4996,16 @@
     var coverageEnd = String(raw.coverage_end || "").trim();
     var productionEnd = String(raw.production_end || "").trim();
     var citation = String(raw.citation || "").trim();
+    var citationDoi = String(raw.citation_doi || "").trim();
+    var citationUrl = String(raw.citation_url || "").trim();
+    var citationText = String(raw.citation_text || "").trim();
+    var citationSource = String(raw.citation_source || "").trim();
+    var citationSourceUrl = String(raw.citation_source_url || "").trim();
+    var citationProduct = String(raw.citation_product || "").trim();
+    var citationProductType = String(raw.citation_product_type || "").trim();
+    var productCitation = String(raw.product_citation || "").trim();
+    var productId = String(raw.product_id || "").trim();
+    var fluxnetProductName = String(raw.fluxnet_product_name || "").trim();
     var landingPageUrl = String(raw.landing_page_url || "").trim();
     var metadataId = String(raw.metadata_id || "").trim();
     var version = String(raw.version || "").trim();
@@ -4894,6 +5068,16 @@
       coverage_end: coverageEnd,
       production_end: productionEnd,
       citation: citation,
+      citation_doi: citationDoi,
+      citation_url: citationUrl,
+      citation_text: citationText,
+      citation_source: citationSource,
+      citation_source_url: citationSourceUrl,
+      citation_product: citationProduct,
+      citation_product_type: citationProductType,
+      product_citation: productCitation,
+      product_id: productId,
+      fluxnet_product_name: fluxnetProductName,
       landing_page_url: landingPageUrl,
       metadata_id: metadataId,
       version: version,
@@ -5649,6 +5833,458 @@
     return s;
   }
 
+  function policyNetworkSourceText(row) {
+    return [
+      row && row.source_network,
+      row && row.network,
+      row && row.network_display,
+      row && row.data_hub,
+      row && row.source_label
+    ].filter(Boolean).join(";").toLowerCase();
+  }
+
+  function detectNetworks(rows) {
+    var found = {};
+    (Array.isArray(rows) ? rows : []).forEach(function (row) {
+      var text = policyNetworkSourceText(row);
+      if (/ameriflux|(^|[^a-z])amf([^a-z]|$)/.test(text)) {
+        found.AMF = true;
+      }
+      if (/chinaflux|(^|[^a-z])cnf([^a-z]|$)/.test(text)) {
+        found.CNF = true;
+      }
+      if (/japanflux|(^|[^a-z])jpf([^a-z]|$)/.test(text)) {
+        found.JPF = true;
+      }
+      if (/ozflux|(^|[^a-z])ozf([^a-z]|$)/.test(text)) {
+        found.OZF = true;
+      }
+      if (/(^|[^a-z])tern([^a-z]|$)/.test(text)) {
+        found.TERN = true;
+      }
+    });
+    return Object.keys(DATA_POLICY_NETWORK_RULES).filter(function (network) {
+      return !!found[network];
+    });
+  }
+
+  function getSelectedSitesForPolicyTools(rows, selectedKeys) {
+    var selected = selectedKeys && typeof selectedKeys === "object" ? selectedKeys : {};
+    return (Array.isArray(rows) ? rows : []).filter(function (row) {
+      return !!(row && selected[row._selection_key]);
+    });
+  }
+
+  function policyProductIdentifier(row) {
+    if (resolveSourceOrigin(row) === SHUTTLE_SOURCE_ORIGIN) {
+      return String(row && row.product_id || "").trim();
+    }
+    return firstDefinedString(row, ["citation_doi", "citation_pid", "citation_url", "product_id", "doi", "object_id", "metadata_id"]);
+  }
+
+  function policyProductCitation(row) {
+    if (resolveSourceOrigin(row) === SHUTTLE_SOURCE_ORIGIN) {
+      return String(row && row.product_citation || "").trim();
+    }
+    return firstDefinedString(row, ["citation_text", "product_citation", "citation"]);
+  }
+
+  function policyProductSourceNetwork(row) {
+    var sourceNetwork = String(row && row.source_network || "").trim();
+    var networkDisplay = String(row && (row.network_display || row.network) || "").trim();
+    if (sourceNetwork && networkDisplay && sourceNetwork.toLowerCase() !== networkDisplay.toLowerCase()) {
+      return sourceNetwork + " (" + networkDisplay + ")";
+    }
+    return sourceNetwork || networkDisplay || String(row && row.data_hub || "").trim() || "Unknown";
+  }
+
+  function policyDataSourceType(row) {
+    var origin = resolveSourceOrigin(row);
+    var apiProduct = String(row && row.api_data_product || "").trim();
+    if (origin === SHUTTLE_SOURCE_ORIGIN) {
+      return "FLUXNET Shuttle";
+    }
+    if (origin === ICOS_DIRECT_SOURCE_ORIGIN) {
+      return "ICOS-direct";
+    }
+    if (origin === JAPANFLUX_DIRECT_SOURCE_ORIGIN) {
+      return "JapanFlux-direct";
+    }
+    if (origin === EFD_SOURCE_ORIGIN) {
+      return "EFD";
+    }
+    if (origin === AMERIFLUX_API_SOURCE_ORIGIN) {
+      return "AmeriFlux " + (apiProduct || "API");
+    }
+    return String(row && (row.source_label || row.data_hub) || "").trim() || "Other data product";
+  }
+
+  function policyProductsForSelectedSite(site) {
+    var actionProducts = getRowActionProducts(site);
+    var sourceOrigin = resolveSourceOrigin(site);
+    if (!actionProducts.length) {
+      return [site];
+    }
+    if (sourceOrigin === SHUTTLE_SOURCE_ORIGIN) {
+      return [site].concat(actionProducts.filter(function (product) {
+        return String(product && (product.downloadMode || product.download_mode) || "").trim() === "ameriflux_api";
+      }).map(function (product) {
+        return Object.assign({}, site, product);
+      }));
+    }
+    return actionProducts.map(function (product) {
+      return Object.assign({}, site, product);
+    });
+  }
+
+  function buildCitationRows(selectedSites) {
+    var policyProducts = [];
+    (Array.isArray(selectedSites) ? selectedSites : []).forEach(function (site) {
+      policyProducts = policyProducts.concat(policyProductsForSelectedSite(site));
+    });
+    return policyProducts.map(function (site) {
+      var citation = policyProductCitation(site);
+      var identifier = policyProductIdentifier(site);
+      var sourceOrigin = resolveSourceOrigin(site);
+      var status;
+      if (citation && identifier) {
+        status = sourceOrigin === SHUTTLE_SOURCE_ORIGIN
+          ? "Complete: authoritative Shuttle manifest citation and product ID available."
+          : "Complete: citation and PID/DOI available in Explorer metadata.";
+      } else if (citation) {
+        status = "Partial: citation available; PID/DOI is not available in Explorer metadata.";
+      } else if (identifier) {
+        status = extractDoi(identifier)
+          ? "DOI available; full citation text not available in Explorer metadata."
+          : "Partial: PID/product identifier available; required citation is not available in Explorer metadata.";
+      } else {
+        status = "Missing: " + DATA_POLICY_MISSING_METADATA_PLACEHOLDER;
+      }
+      return {
+        siteCode: String(site && site.site_id || "").trim(),
+        siteName: String(site && site.site_name || "").trim(),
+        productSourceNetwork: policyProductSourceNetwork(site),
+        dataSourceType: policyDataSourceType(site),
+        productIdentifier: identifier || DATA_POLICY_MISSING_METADATA_PLACEHOLDER,
+        requiredCitation: citation || DATA_POLICY_MISSING_METADATA_PLACEHOLDER,
+        citationMetadataStatus: status,
+        hasCitation: !!citation,
+        hasIdentifier: !!identifier,
+        sourceOrigin: sourceOrigin,
+        citationProduct: firstDefinedString(site, ["citation_product", "citation_product_type", "api_data_product"]),
+        rawCitation: citation,
+        rawIdentifier: identifier
+      };
+    }).sort(function (left, right) {
+      return left.siteCode.localeCompare(right.siteCode) || left.dataSourceType.localeCompare(right.dataSourceType);
+    });
+  }
+
+  function policyMissingRows(citationRows) {
+    return (Array.isArray(citationRows) ? citationRows : []).filter(function (row) {
+      return !(row && ((row.hasCitation && row.hasIdentifier) || extractDoi(row.rawIdentifier)));
+    });
+  }
+
+  function buildPolicyMissingWarning(citationRows) {
+    var missingRows = policyMissingRows(citationRows);
+    var siteIds;
+    if (!missingRows.length) {
+      return "";
+    }
+    siteIds = missingRows.map(function (row) {
+      return row.siteCode;
+    }).filter(Boolean).filter(function (siteId, index, all) {
+      return all.indexOf(siteId) === index;
+    }).sort();
+    return "Citation/DOI metadata are incomplete for " + siteIds.length + " selected site" +
+      (siteIds.length === 1 ? "" : "s") + ": " + siteIds.join(", ") +
+      ". Please consult the applicable source data portal.";
+  }
+
+  function policyReferenceRecords(citationRows, networks) {
+    var records = [];
+    var seen = {};
+    function addRecord(key, citation, bibtex) {
+      var dedupeKey = (extractDoi(citation) || String(citation || key || "").trim()).toLowerCase();
+      if (!dedupeKey || seen[dedupeKey]) {
+        return;
+      }
+      seen[dedupeKey] = true;
+      records.push({
+        key: key,
+        citation: citation,
+        bibtex: bibtex || ""
+      });
+    }
+    (Array.isArray(citationRows) ? citationRows : []).forEach(function (row) {
+      if (row && row.rawCitation) {
+        addRecord("", row.rawCitation, "");
+      }
+    });
+    (Array.isArray(networks) ? networks : []).forEach(function (network) {
+      var rule = DATA_POLICY_NETWORK_RULES[network];
+      (rule && rule.references || []).forEach(function (referenceKey) {
+        var reference = DATA_POLICY_REFERENCES[referenceKey];
+        if (reference) {
+          addRecord(referenceKey, reference.citation, reference.bibtex);
+        }
+      });
+    });
+    addRecord(
+      "Pastorello2020FLUXNET2015",
+      DATA_POLICY_REFERENCES.Pastorello2020FLUXNET2015.citation,
+      DATA_POLICY_REFERENCES.Pastorello2020FLUXNET2015.bibtex
+    );
+    return records;
+  }
+
+  function formatPolicyDownloadDate(date) {
+    var value = date instanceof Date ? date : new Date();
+    var months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    return months[value.getMonth()] + " " + value.getDate() + ", " + value.getFullYear();
+  }
+
+  function policyDocumentHtml(title, bodyHtml) {
+    return [
+      "<!DOCTYPE html>",
+      "<html><head><meta charset=\"utf-8\"><title>" + escapeHtml(title) + "</title>",
+      "<style>body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.4;color:#222;}h1{font-size:18pt;}h2{font-size:14pt;margin-top:18pt;}table{border-collapse:collapse;width:100%;font-size:9pt;}th,td{border:1px solid #888;padding:5px;vertical-align:top;}th{background:#eee;}p.warning{padding:8px;border:1px solid #c8953e;background:#fff8ea;}ol{padding-left:22px;}</style>",
+      "</head><body>",
+      bodyHtml,
+      "</body></html>"
+    ].join("");
+  }
+
+  function buildAcknowledgementHtml(selectedSites, citationRows, date) {
+    var networks = detectNetworks(selectedSites);
+    var missingWarning = buildPolicyMissingWarning(citationRows);
+    var parts = [
+      "<h1>Acknowledgements and Data Availability</h1>",
+      "<h2>Global FLUXNET acknowledgement</h2>",
+      "<p>" + escapeHtml(DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT) + "</p>"
+    ];
+    var networkAcknowledgements = networks.map(function (network) {
+      return DATA_POLICY_NETWORK_RULES[network].acknowledgement;
+    }).filter(Boolean);
+    if (networkAcknowledgements.length) {
+      parts.push("<h2>Network-specific acknowledgements</h2>");
+      networkAcknowledgements.forEach(function (text) {
+        parts.push("<p>" + escapeHtml(text) + "</p>");
+      });
+    }
+    parts.push(
+      "<h2>Suggested Data Availability statement</h2>",
+      "<p>The FLUXNET data products used in this work were downloaded using the FLUXNET Data Explorer on " + escapeHtml(formatPolicyDownloadDate(date)) + ".</p>",
+      "<p><em>(Edit the source and date if data were downloaded directly from a regional portal or using the Shuttle code.)</em></p>"
+    );
+    if (missingWarning) {
+      parts.push("<p class=\"warning\"><strong>Metadata warning:</strong> " + escapeHtml(missingWarning) + "</p>");
+    }
+    parts.push(
+      "<h2>Review note</h2>",
+      "<p>" + escapeHtml(DATA_POLICY_REVIEW_NOTE) + "</p>",
+      "<p>Each site's data-product citation, including its PID or DOI, should appear in the paper's reference section or another section that supports citation tracking, not only in supplementary material.</p>"
+    );
+    return policyDocumentHtml("Acknowledgements and Data Availability", parts.join(""));
+  }
+
+  function citationTableHeaders() {
+    return [
+      "Site code",
+      "Site name",
+      "Product/source network",
+      "Data source or product type",
+      "Product ID / DOI / PID",
+      "Required citation",
+      "Citation metadata status"
+    ];
+  }
+
+  function citationTableValues(row) {
+    return [
+      row.siteCode,
+      row.siteName,
+      row.productSourceNetwork,
+      row.dataSourceType,
+      row.productIdentifier,
+      row.requiredCitation,
+      row.citationMetadataStatus
+    ];
+  }
+
+  function buildCitationTableHtml(selectedSites, citationRows) {
+    var networks = detectNetworks(selectedSites);
+    var references = policyReferenceRecords(citationRows, networks);
+    var missingWarning = buildPolicyMissingWarning(citationRows);
+    var parts = [
+      "<h1>FLUXNET Site Citation Table</h1>",
+      "<p>This table was generated for the selected/download site set in the FLUXNET Data Explorer. FLUXNET Shuttle citations and product IDs come from the Shuttle manifest.</p>"
+    ];
+    if (missingWarning) {
+      parts.push("<p class=\"warning\"><strong>Metadata warning:</strong> " + escapeHtml(missingWarning) + "</p>");
+    }
+    parts.push("<table><thead><tr>");
+    citationTableHeaders().forEach(function (header) {
+      parts.push("<th>" + escapeHtml(header) + "</th>");
+    });
+    parts.push("</tr></thead><tbody>");
+    citationRows.forEach(function (row) {
+      parts.push("<tr>");
+      citationTableValues(row).forEach(function (value) {
+        parts.push("<td>" + escapeHtml(value) + "</td>");
+      });
+      parts.push("</tr>");
+    });
+    parts.push("</tbody></table>", "<h2>Deduplicated references</h2>", "<ol>");
+    references.forEach(function (reference) {
+      parts.push("<li>" + escapeHtml(reference.citation) + "</li>");
+    });
+    parts.push(
+      "</ol>",
+      "<p><strong>Recommended processing-paper citation:</strong> Pastorello et al. 2020 is included in the deduplicated references above.</p>",
+      "<p>" + escapeHtml(DATA_POLICY_REVIEW_NOTE) + "</p>"
+    );
+    return policyDocumentHtml("FLUXNET Site Citation Table", parts.join(""));
+  }
+
+  function extractDoi(value) {
+    var match = String(value || "").match(/10\.\d{4,9}\/[^\s<>{}\[\]"']+/i);
+    return match ? match[0].replace(/[),.;:]+$/, "") : "";
+  }
+
+  function extractFirstUrl(value) {
+    var match = String(value || "").match(/https?:\/\/[^\s<>{}\[\]"']+/i);
+    return match ? match[0].replace(/[),.;:]+$/, "") : "";
+  }
+
+  function sanitizeBibtexKey(value) {
+    var key = String(value || "").replace(/[^A-Za-z0-9_:-]+/g, "");
+    return /^[A-Za-z]/.test(key) ? key : ("Ref_" + key);
+  }
+
+  function bibtexEscape(value) {
+    return String(value || "").replace(/([{}%&#_$])/g, "\\$1").replace(/\r?\n/g, " ");
+  }
+
+  function citationRowBibtexKey(row) {
+    var yearMatch = String(row.rawCitation || "").match(/\b(19|20)\d{2}\b/);
+    var year = yearMatch ? yearMatch[0] : "Data";
+    var prefix = row.sourceOrigin === SHUTTLE_SOURCE_ORIGIN ? "FLUXNET" : (row.citationProduct || row.dataSourceType);
+    return sanitizeBibtexKey(prefix + "_" + row.siteCode.replace(/[^A-Za-z0-9]+/g, "") + "_" + year);
+  }
+
+  function buildCitationRowBibtex(row, key) {
+    var doi = extractDoi(row.rawIdentifier) || extractDoi(row.rawCitation);
+    var url = doi ? ("https://doi.org/" + doi) : extractFirstUrl(row.rawCitation);
+    var type = row.sourceOrigin === SHUTTLE_SOURCE_ORIGIN || row.sourceOrigin === AMERIFLUX_API_SOURCE_ORIGIN ? "@dataset" : "@misc";
+    var title = row.rawCitation || (row.dataSourceType + " data product for " + row.siteCode);
+    var fields = ["  title = {" + bibtexEscape(title) + "}"];
+    if (doi) {
+      fields.push("  doi = {" + doi + "}");
+    }
+    if (url) {
+      fields.push("  url = {" + bibtexEscape(url) + "}");
+    }
+    fields.push("  note = {" + bibtexEscape(row.dataSourceType + " data product for " + row.siteCode) + "}");
+    return type + "{" + key + ",\n" + fields.map(function (field, index) {
+      return field + (index < fields.length - 1 ? "," : "");
+    }).join("\n") + "\n}";
+  }
+
+  function buildBibtex(selectedSites, citationRows) {
+    var networks = detectNetworks(selectedSites);
+    var entries = [];
+    var seenCitations = {};
+    var usedKeys = {};
+    citationRows.forEach(function (row) {
+      var citationKey;
+      var key;
+      var suffix;
+      if (!row.rawCitation && !row.rawIdentifier) {
+        return;
+      }
+      citationKey = (extractDoi(row.rawIdentifier) || extractDoi(row.rawCitation) || String(row.rawCitation || row.rawIdentifier)).trim().toLowerCase();
+      if (seenCitations[citationKey]) {
+        return;
+      }
+      seenCitations[citationKey] = true;
+      key = citationRowBibtexKey(row);
+      suffix = 2;
+      while (usedKeys[key]) {
+        key = citationRowBibtexKey(row) + "_" + suffix;
+        suffix += 1;
+      }
+      usedKeys[key] = true;
+      entries.push(buildCitationRowBibtex(row, key));
+    });
+    policyReferenceRecords([], networks).forEach(function (reference) {
+      if (reference.bibtex && !usedKeys[reference.key]) {
+        usedKeys[reference.key] = true;
+        entries.push(reference.bibtex);
+      }
+    });
+    var missingIds = policyMissingRows(citationRows).map(function (row) {
+      return row.siteCode;
+    }).filter(Boolean).filter(function (siteId, index, all) {
+      return all.indexOf(siteId) === index;
+    }).sort();
+    if (missingIds.length) {
+      entries.push("% Missing citation metadata for: " + missingIds.join(", "));
+    }
+    return entries.join("\n\n") + "\n";
+  }
+
+  function latexEscape(value) {
+    return String(value == null ? "" : value)
+      .replace(/\\/g, "\u0000")
+      .replace(/([%&#_$])/g, "\\$1")
+      .replace(/\{/g, "\\{")
+      .replace(/\}/g, "\\}")
+      .replace(/~/g, "\\textasciitilde{}")
+      .replace(/\^/g, "\\textasciicircum{}")
+      .replace(/\u0000/g, "\\textbackslash{}");
+  }
+
+  function buildLatexTable(selectedSites, citationRows) {
+    var lines = [
+      "% Generated by the FLUXNET Data Explorer for the selected/download site set.",
+      "% Review formatting, citations, and source-network requirements before journal submission.",
+      "% Requires: \\usepackage{longtable,array}",
+      "\\begingroup",
+      "\\footnotesize",
+      "\\begin{longtable}{p{1.2cm}p{2.0cm}p{2.2cm}p{2.0cm}p{2.3cm}p{5.0cm}p{3.0cm}}",
+      citationTableHeaders().map(function (header) {
+        return "\\textbf{" + latexEscape(header) + "}";
+      }).join(" & ") + " \\\\ \\hline",
+      "\\endfirsthead",
+      citationTableHeaders().map(function (header) {
+        return "\\textbf{" + latexEscape(header) + "}";
+      }).join(" & ") + " \\\\ \\hline",
+      "\\endhead"
+    ];
+    citationRows.forEach(function (row) {
+      lines.push(citationTableValues(row).map(latexEscape).join(" & ") + " \\\\ \\hline");
+    });
+    lines.push("\\end{longtable}", "\\endgroup");
+    var missingWarning = buildPolicyMissingWarning(citationRows);
+    if (missingWarning) {
+      lines.push("% WARNING: " + missingWarning);
+    }
+    return lines.join("\n") + "\n";
+  }
+
+  function buildCitationTableCsv(citationRows) {
+    var lines = [citationTableHeaders().map(csvEscape).join(",")];
+    citationRows.forEach(function (row) {
+      lines.push(citationTableValues(row).map(csvEscape).join(","));
+    });
+    return lines.join("\n") + "\n";
+  }
+
   function combineWarnings() {
     var parts = [];
     var seen = {};
@@ -6013,7 +6649,7 @@
         id: "shuttle-availability",
         role: "availability-filter",
         filterKey: "selectedAvailabilities",
-        label: "Availability",
+        label: "Processing Level",
         allLabel: "All sites",
         pluralLabel: "availability filters",
         trackLabel: "availability"
@@ -6106,7 +6742,7 @@
       "</div>",
       "<details class=\"shuttle-explorer__bulk shuttle-explorer__hidden\" data-role=\"bulk-panel\">",
       "  <summary class=\"shuttle-explorer__bulk-summary\">",
-      "    <span class=\"shuttle-explorer__bulk-summary-label\">Bulk download tools</span>",
+      "    <span class=\"shuttle-explorer__bulk-summary-label\">Bulk Download Tools</span>",
       "    <span class=\"shuttle-explorer__bulk-summary-count\" data-role=\"selection-count\">0 selected sites</span>",
       "  </summary>",
       "  <div class=\"shuttle-explorer__bulk-body\">",
@@ -6181,6 +6817,25 @@
       "  <p class=\"shuttle-explorer__tiny shuttle-explorer__bulk-status\" data-role=\"bulk-status\" aria-live=\"polite\"></p>",
       "  </div>",
       "</details>",
+      "<details class=\"shuttle-explorer__bulk shuttle-explorer__hidden\" data-role=\"policy-panel\">",
+      "  <summary class=\"shuttle-explorer__bulk-summary\">",
+      "    <span class=\"shuttle-explorer__bulk-summary-label\">Data Policy Tools (citation table and acknowledgements)</span>",
+      "    <span class=\"shuttle-explorer__bulk-summary-count\" data-role=\"policy-selection-count\">0 selected sites</span>",
+      "  </summary>",
+      "  <div class=\"shuttle-explorer__bulk-body\">",
+      "    <p class=\"shuttle-explorer__tiny\">It is very important to comply with data use policies, which typically require the inclusion of a table with a list of sites and specific acknowledgement text. Use the links below to access the site table, citations and acknowledgement text required.</p>",
+      "    <p class=\"shuttle-explorer__bulk-warning shuttle-explorer__hidden\" data-role=\"policy-warning\"></p>",
+      "    <p class=\"shuttle-explorer__tiny\" data-role=\"policy-guidance\">Select one or more sites in the table to generate data-policy files.</p>",
+      "    <div class=\"shuttle-explorer__bulk-actions\">",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-acknowledgement-doc\">Download acknowledgement text</button>",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-citation-table-doc\">Download citation table</button>",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-citation-bibtex\">Download BibTeX</button>",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-citation-latex\">Download LaTeX table</button>",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-citation-csv\">Download citation CSV</button>",
+      "    </div>",
+      "    <p class=\"shuttle-explorer__tiny shuttle-explorer__bulk-status\" data-role=\"policy-status\" aria-live=\"polite\"></p>",
+      "  </div>",
+      "</details>",
       "<div class=\"shuttle-explorer__table-wrap shuttle-explorer__hidden\" data-role=\"table-wrap\">",
       "  <table class=\"shuttle-explorer__table\" data-role=\"table\">",
       "    <thead><tr data-role=\"thead-row\"></tr></thead>",
@@ -6236,6 +6891,7 @@
     this.efdCsvUrl = root.getAttribute("data-efd-curated-csv-src") || root.getAttribute("data-efd-csv-src") || DEFAULT_EFD_CSV_URL;
     this.ameriFluxSiteInfoUrl = root.getAttribute("data-ameriflux-site-info-src") || AMERIFLUX_SITE_INFO_URL;
     this.fluxnet2015SiteInfoUrl = root.getAttribute("data-fluxnet2015-site-info-src") || FLUXNET2015_SITE_INFO_URL;
+    this.sourceCitationMetadataUrl = root.getAttribute("data-source-citation-metadata-src") || SOURCE_CITATION_METADATA_URL;
     this.siteNameMetadataUrl = root.getAttribute("data-site-name-metadata-src") || SITE_NAME_METADATA_URL;
     this.vegetationMetadataUrl = root.getAttribute("data-vegetation-metadata-src") || SITE_VEGETATION_METADATA_URL;
     this.allKnownSitesMapJsonUrl = root.getAttribute("data-all-known-sites-map-json-src") || DEFAULT_ALL_KNOWN_SITES_MAP_JSON_URL;
@@ -6423,6 +7079,16 @@
       cliPanel: bySelector(this.root, "[data-role='cli-panel']"),
       cliCommand: bySelector(this.root, "[data-role='cli-command']"),
       bulkStatus: bySelector(this.root, "[data-role='bulk-status']"),
+      policyPanel: bySelector(this.root, "[data-role='policy-panel']"),
+      policySelectionCount: bySelector(this.root, "[data-role='policy-selection-count']"),
+      policyWarning: bySelector(this.root, "[data-role='policy-warning']"),
+      policyGuidance: bySelector(this.root, "[data-role='policy-guidance']"),
+      policyStatus: bySelector(this.root, "[data-role='policy-status']"),
+      downloadAcknowledgementDoc: bySelector(this.root, "[data-role='download-acknowledgement-doc']"),
+      downloadCitationTableDoc: bySelector(this.root, "[data-role='download-citation-table-doc']"),
+      downloadCitationBibtex: bySelector(this.root, "[data-role='download-citation-bibtex']"),
+      downloadCitationLatex: bySelector(this.root, "[data-role='download-citation-latex']"),
+      downloadCitationCsv: bySelector(this.root, "[data-role='download-citation-csv']"),
       mapPanel: bySelector(this.root, "[data-role='map-panel']"),
       mapSummary: bySelector(this.root, "[data-role='map-summary']"),
       knownSitesToggle: bySelector(this.root, "[data-role='known-sites-toggle']"),
@@ -7090,6 +7756,20 @@
       });
     }
 
+    [
+      [b.downloadAcknowledgementDoc, "acknowledgement"],
+      [b.downloadCitationTableDoc, "citation-doc"],
+      [b.downloadCitationBibtex, "bibtex"],
+      [b.downloadCitationLatex, "latex"],
+      [b.downloadCitationCsv, "csv"]
+    ].forEach(function (binding) {
+      if (binding[0]) {
+        binding[0].addEventListener("click", function () {
+          self.handlePolicyDownload(binding[1]);
+        });
+      }
+    });
+
     if (b.knownSitesToggle) {
       b.knownSitesToggle.addEventListener("change", function () {
         self.state.knownSiteOverlayEnabled = !!b.knownSitesToggle.checked;
@@ -7478,6 +8158,10 @@
     return this.state.rows.filter(function (row) {
       return !!selectedKeys[row._selection_key];
     });
+  };
+
+  Explorer.prototype.getSelectedSitesForPolicyTools = function () {
+    return getSelectedSitesForPolicyTools(this.state.rows, this.state.selectedKeys);
   };
 
   Explorer.prototype.getSelectedCount = function () {
@@ -7900,6 +8584,12 @@
   Explorer.prototype.setBulkStatus = function (message) {
     if (this.bindings.bulkStatus) {
       this.bindings.bulkStatus.textContent = message || "";
+    }
+  };
+
+  Explorer.prototype.setPolicyStatus = function (message) {
+    if (this.bindings.policyStatus) {
+      this.bindings.policyStatus.textContent = message || "";
     }
   };
 
@@ -8681,6 +9371,49 @@
     );
   };
 
+  Explorer.prototype.handlePolicyDownload = function (kind) {
+    var selectedSites = this.getSelectedSitesForPolicyTools();
+    var citationRows;
+    var filename;
+    var contents;
+    var mimeType;
+    if (!selectedSites.length) {
+      this.setPolicyStatus("Select one or more sites first.");
+      return;
+    }
+    citationRows = buildCitationRows(selectedSites);
+    if (kind === "acknowledgement") {
+      filename = "fluxnet_acknowledgements_selected_sites.doc";
+      contents = buildAcknowledgementHtml(selectedSites, citationRows);
+      mimeType = "application/msword;charset=utf-8";
+    } else if (kind === "citation-doc") {
+      filename = "fluxnet_site_citation_table_selected_sites.doc";
+      contents = buildCitationTableHtml(selectedSites, citationRows);
+      mimeType = "application/msword;charset=utf-8";
+    } else if (kind === "bibtex") {
+      filename = "fluxnet_selected_site_citations.bib";
+      contents = buildBibtex(selectedSites, citationRows);
+      mimeType = "application/x-bibtex;charset=utf-8";
+    } else if (kind === "latex") {
+      filename = "fluxnet_site_citation_table_selected_sites.tex";
+      contents = buildLatexTable(selectedSites, citationRows);
+      mimeType = "application/x-tex;charset=utf-8";
+    } else if (kind === "csv") {
+      filename = "fluxnet_site_citation_table_selected_sites.csv";
+      contents = buildCitationTableCsv(citationRows);
+      mimeType = "text/csv;charset=utf-8";
+    } else {
+      return;
+    }
+    this.downloadTextFile(filename, contents, mimeType);
+    this.setPolicyStatus("Downloaded " + filename + " for " + formatSelectedSiteCount(selectedSites.length) + ".");
+    gaEvent("fx_policy_export", {
+      export_type: String(kind),
+      count: selectedSites.length,
+      missing_metadata_count: policyMissingRows(citationRows).length
+    });
+  };
+
   Explorer.prototype.handleDownloadAmeriFluxSitesFile = function () {
     var rows = this.getSelectedRowsOrWarn();
     if (!rows) {
@@ -8956,6 +9689,55 @@
       b.cliCommand.textContent = this.buildShuttleCommandText(selectedRows);
     } else if (b.cliCommand) {
       b.cliCommand.textContent = "";
+    }
+  };
+
+  Explorer.prototype.renderPolicyPanel = function () {
+    var b = this.bindings;
+    var hasData = this.state.mode === "ready" && this.state.rows.length > 0;
+    var selectedSites = this.getSelectedSitesForPolicyTools();
+    var citationRows = buildCitationRows(selectedSites);
+    var selectedCount = selectedSites.length;
+    var missingWarning = buildPolicyMissingWarning(citationRows);
+    var buttons = [
+      b.downloadAcknowledgementDoc,
+      b.downloadCitationTableDoc,
+      b.downloadCitationBibtex,
+      b.downloadCitationLatex,
+      b.downloadCitationCsv
+    ];
+    var wasHidden;
+    if (!b.policyPanel) {
+      return;
+    }
+    wasHidden = b.policyPanel.classList.contains("shuttle-explorer__hidden");
+    b.policyPanel.classList.toggle("shuttle-explorer__hidden", !hasData);
+    if (!hasData) {
+      b.policyPanel.open = false;
+      return;
+    }
+    if (wasHidden) {
+      b.policyPanel.open = false;
+    }
+    if (b.policySelectionCount) {
+      b.policySelectionCount.textContent = formatSelectedSiteCount(selectedCount);
+    }
+    if (b.policyWarning) {
+      b.policyWarning.textContent = missingWarning;
+      b.policyWarning.classList.toggle("shuttle-explorer__hidden", !missingWarning);
+    }
+    if (b.policyGuidance) {
+      b.policyGuidance.textContent = selectedCount
+        ? "Exports will use the " + formatSelectedSiteCount(selectedCount) + " shown above."
+        : "Select one or more sites in the table to generate data-policy files.";
+    }
+    buttons.forEach(function (button) {
+      if (button) {
+        button.disabled = selectedCount === 0;
+      }
+    });
+    if (!selectedCount) {
+      this.setPolicyStatus("");
     }
   };
 
@@ -9332,6 +10114,7 @@
       b.mapPanel.classList.toggle("shuttle-explorer__hidden", !hasData);
     }
     this.renderBulkPanel();
+    this.renderPolicyPanel();
     if (b.tableWrap) {
       b.tableWrap.classList.toggle("shuttle-explorer__hidden", !hasMatches);
     }
@@ -9387,31 +10170,32 @@
     this.trackExplorerLoadedOnce();
   };
 
-  function buildMergedSnapshotStateForRoot(jsonUrl, shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult, ameriBaseLegacyResult) {
+  function buildMergedSnapshotStateForRoot(jsonUrl, shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult, ameriBaseLegacyResult, sourceCitationMetadataResult) {
     var ameriFluxSiteInfoLookup = ameriFluxSiteInfoResult && ameriFluxSiteInfoResult.lookup ? ameriFluxSiteInfoResult.lookup : {};
     var fluxnet2015SiteInfoLookup = fluxnet2015SiteInfoResult && fluxnet2015SiteInfoResult.lookup ? fluxnet2015SiteInfoResult.lookup : {};
     var siteNameMetadataLookup = siteNameMetadataResult && siteNameMetadataResult.lookup ? siteNameMetadataResult.lookup : {};
     var vegetationMetadataLookup = vegetationMetadataResult && vegetationMetadataResult.lookup ? vegetationMetadataResult.lookup : {};
-    var enrichedAmeriFluxSites = enrichAmeriFluxSitesWithMetadata(
+    var sourceCitationMetadataLookup = sourceCitationMetadataResult && sourceCitationMetadataResult.lookup ? sourceCitationMetadataResult.lookup : {};
+    var enrichedAmeriFluxSites = enrichSitesWithCitationMetadata(enrichAmeriFluxSitesWithMetadata(
       ameriResult && Array.isArray(ameriResult.sites) ? ameriResult.sites : [],
       ameriFluxSiteInfoLookup,
       vegetationMetadataLookup
-    );
-    var enrichedAmeriFluxBaseSites = enrichAmeriFluxSitesWithMetadata(
+    ), sourceCitationMetadataLookup, AMERIFLUX_FLUXNET_PRODUCT, AMERIFLUX_CCBY_POLICY);
+    var enrichedAmeriFluxBaseSites = enrichSitesWithCitationMetadata(enrichAmeriFluxSitesWithMetadata(
       ameriBaseResult && Array.isArray(ameriBaseResult.sites) ? ameriBaseResult.sites : [],
       ameriFluxSiteInfoLookup,
       vegetationMetadataLookup
-    );
-    var enrichedAmeriFluxBaseLegacySites = enrichAmeriFluxSitesWithMetadata(
+    ), sourceCitationMetadataLookup, AMERIFLUX_BASE_PRODUCT, AMERIFLUX_CCBY_POLICY);
+    var enrichedAmeriFluxBaseLegacySites = enrichSitesWithCitationMetadata(enrichAmeriFluxSitesWithMetadata(
       ameriBaseLegacyResult && Array.isArray(ameriBaseLegacyResult.sites) ? ameriBaseLegacyResult.sites : [],
       ameriFluxSiteInfoLookup,
       vegetationMetadataLookup
-    );
-    var enrichedFluxnet2015Sites = enrichFluxnet2015SitesWithMetadata(
+    ), sourceCitationMetadataLookup, AMERIFLUX_BASE_PRODUCT, AMERIFLUX_LEGACY_POLICY);
+    var enrichedFluxnet2015Sites = enrichSitesWithCitationMetadata(enrichFluxnet2015SitesWithMetadata(
       fluxnet2015Result && Array.isArray(fluxnet2015Result.sites) ? fluxnet2015Result.sites : [],
       fluxnet2015SiteInfoLookup,
       vegetationMetadataLookup
-    );
+    ), sourceCitationMetadataLookup, FLUXNET2015_PRODUCT, AMERIFLUX_CCBY_POLICY);
     var merge = mergeCatalogRows(
       shuttleResult && Array.isArray(shuttleResult.rows) ? shuttleResult.rows : [],
       icosDirectResult && Array.isArray(icosDirectResult.rows) ? icosDirectResult.rows : [],
@@ -9440,7 +10224,8 @@
         ameriFluxSiteInfoResult && ameriFluxSiteInfoResult.warning ? ameriFluxSiteInfoResult.warning : "",
         fluxnet2015SiteInfoResult && fluxnet2015SiteInfoResult.warning ? fluxnet2015SiteInfoResult.warning : "",
         siteNameMetadataResult && siteNameMetadataResult.warning ? siteNameMetadataResult.warning : "",
-        vegetationMetadataResult && vegetationMetadataResult.warning ? vegetationMetadataResult.warning : ""
+        vegetationMetadataResult && vegetationMetadataResult.warning ? vegetationMetadataResult.warning : "",
+        sourceCitationMetadataResult && sourceCitationMetadataResult.warning ? sourceCitationMetadataResult.warning : ""
       ),
       downloadWarning: combineWarnings(
         ameriResult && ameriResult.downloadWarning ? ameriResult.downloadWarning : "",
@@ -9468,7 +10253,7 @@
     };
   };
 
-  Explorer.prototype.buildMergedSnapshotState = function (shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult, ameriBaseLegacyResult) {
+  Explorer.prototype.buildMergedSnapshotState = function (shuttleResult, icosDirectResult, japanFluxResult, efdResult, ameriResult, ameriBaseResult, fluxnet2015Result, ameriFluxSiteInfoResult, fluxnet2015SiteInfoResult, siteNameMetadataResult, vegetationMetadataResult, ameriBaseLegacyResult, sourceCitationMetadataResult) {
     return buildMergedSnapshotStateForRoot(
       this.jsonUrl,
       shuttleResult,
@@ -9482,7 +10267,8 @@
       fluxnet2015SiteInfoResult,
       siteNameMetadataResult,
       vegetationMetadataResult,
-      ameriBaseLegacyResult
+      ameriBaseLegacyResult,
+      sourceCitationMetadataResult
     );
   };
 
@@ -9547,7 +10333,8 @@
       loadAmeriFluxSiteInfo(this.ameriFluxSiteInfoUrl),
       loadFluxnet2015SiteInfo(this.fluxnet2015SiteInfoUrl),
       loadSiteNameMetadata(this.siteNameMetadataUrl),
-      loadVegetationMetadata(this.vegetationMetadataUrl)
+      loadVegetationMetadata(this.vegetationMetadataUrl),
+      loadSourceCitationMetadata(this.sourceCitationMetadataUrl)
     ])
       .then(function (results) {
         var shuttleResult = results[0] || {};
@@ -9558,6 +10345,7 @@
         var fluxnet2015SiteInfoResult = results[5] || {};
         var siteNameMetadataResult = results[6] || {};
         var vegetationMetadataResult = results[7] || {};
+        var sourceCitationMetadataResult = results[8] || {};
         var baseSnapshotState;
 
         localResultsBundle = {
@@ -9568,7 +10356,8 @@
           ameriFluxSiteInfoResult: ameriFluxSiteInfoResult,
           fluxnet2015SiteInfoResult: fluxnet2015SiteInfoResult,
           siteNameMetadataResult: siteNameMetadataResult,
-          vegetationMetadataResult: vegetationMetadataResult
+          vegetationMetadataResult: vegetationMetadataResult,
+          sourceCitationMetadataResult: sourceCitationMetadataResult
         };
         baseSnapshotState = self.buildMergedSnapshotState(
           shuttleResult,
@@ -9582,7 +10371,8 @@
           fluxnet2015SiteInfoResult,
           siteNameMetadataResult,
           vegetationMetadataResult,
-          buildAvailabilityFallbackResult(AMERIFLUX_BASE_LEGACY_SOURCE_LABEL, "ameriflux-base-legacy", "")
+          buildAvailabilityFallbackResult(AMERIFLUX_BASE_LEGACY_SOURCE_LABEL, "ameriflux-base-legacy", ""),
+          sourceCitationMetadataResult
         );
 
         if (!hadCache || self.state.mode !== "ready" || !self.state.rows.length) {
@@ -9609,6 +10399,7 @@
         var fluxnet2015SiteInfoResult = localResultsBundle ? localResultsBundle.fluxnet2015SiteInfoResult : {};
         var siteNameMetadataResult = localResultsBundle ? localResultsBundle.siteNameMetadataResult : {};
         var vegetationMetadataResult = localResultsBundle ? localResultsBundle.vegetationMetadataResult : {};
+        var sourceCitationMetadataResult = localResultsBundle ? localResultsBundle.sourceCitationMetadataResult : {};
         var snapshotState = self.buildMergedSnapshotState(
           shuttleResult,
           icosDirectResult,
@@ -9621,7 +10412,8 @@
           fluxnet2015SiteInfoResult,
           siteNameMetadataResult,
           vegetationMetadataResult,
-          ameriBaseLegacyResult
+          ameriBaseLegacyResult,
+          sourceCitationMetadataResult
         );
         var freshnessKey = [
           "shuttle:" + buildSnapshotFreshnessKey(shuttleResult),
@@ -9635,7 +10427,8 @@
           "ameriflux-site-info:" + buildSnapshotFreshnessKey(ameriFluxSiteInfoResult),
           "fluxnet2015-site-info:" + buildSnapshotFreshnessKey(fluxnet2015SiteInfoResult),
           "site-name-metadata:" + buildSnapshotFreshnessKey(siteNameMetadataResult),
-          "vegetation-metadata:" + buildSnapshotFreshnessKey(vegetationMetadataResult)
+          "vegetation-metadata:" + buildSnapshotFreshnessKey(vegetationMetadataResult),
+          "source-citation-metadata:" + buildSnapshotFreshnessKey(sourceCitationMetadataResult)
         ].join("|");
 
         self.applyLoadedSnapshotState(snapshotState);
@@ -9761,6 +10554,16 @@
     minimumYearsFilterMatches: minimumYearsFilterMatches,
     shouldEnableBulkToolsActions: shouldEnableBulkToolsActions,
     formatSelectedSiteCount: formatSelectedSiteCount,
+    getSelectedSitesForPolicyTools: getSelectedSitesForPolicyTools,
+    buildCitationRows: buildCitationRows,
+    detectNetworks: detectNetworks,
+    buildPolicyMissingWarning: buildPolicyMissingWarning,
+    buildAcknowledgementHtml: buildAcknowledgementHtml,
+    buildCitationTableHtml: buildCitationTableHtml,
+    buildBibtex: buildBibtex,
+    buildLatexTable: buildLatexTable,
+    buildCitationTableCsv: buildCitationTableCsv,
+    formatPolicyDownloadDate: formatPolicyDownloadDate,
     resolveAmeriFluxBulkIdentity: resolveAmeriFluxBulkIdentity,
     normalizeSnapshotUpdatedDate: normalizeSnapshotUpdatedDate,
     extractSnapshotUpdatedDate: extractSnapshotUpdatedDate,
@@ -9813,16 +10616,19 @@
     buildCoordinateLookup: buildCoordinateLookup,
     enrichRowsWithCoordinateLookup: enrichRowsWithCoordinateLookup,
     buildAmeriFluxSiteInfoLookup: buildAmeriFluxSiteInfoLookup,
+    buildSourceCitationMetadataLookup: buildSourceCitationMetadataLookup,
     buildSiteNameMetadataLookup: buildSiteNameMetadataLookup,
     buildVegetationMetadataLookup: buildVegetationMetadataLookup,
     enrichRowsWithSiteNameLookup: enrichRowsWithSiteNameLookup,
     enrichAmeriFluxSitesWithMetadata: enrichAmeriFluxSitesWithMetadata,
+    enrichSitesWithCitationMetadata: enrichSitesWithCitationMetadata,
     buildFluxnet2015SiteLookup: buildFluxnet2015SiteLookup,
     enrichFluxnet2015SitesWithMetadata: enrichFluxnet2015SitesWithMetadata,
     buildMergedSnapshotStateForRoot: buildMergedSnapshotStateForRoot,
     loadKnownSiteMap: loadKnownSiteMap,
     loadAmeriFluxSiteInfo: loadAmeriFluxSiteInfo,
     loadFluxnet2015SiteInfo: loadFluxnet2015SiteInfo,
+    loadSourceCitationMetadata: loadSourceCitationMetadata,
     loadSiteNameMetadata: loadSiteNameMetadata,
     loadVegetationMetadata: loadVegetationMetadata,
     createAmeriFluxSource: function (options) {

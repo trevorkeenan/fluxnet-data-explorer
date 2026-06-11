@@ -181,6 +181,9 @@ def build_record(row: Dict[str, str]) -> Dict[str, object]:
         "first_year": maybe_int(first_present(row, "first_year", "year_start")),
         "last_year": maybe_int(first_present(row, "last_year", "year_end")),
         "download_link": first_present(row, "download_link", "url"),
+        "fluxnet_product_name": first_present(row, "fluxnet_product_name"),
+        "product_citation": first_present(row, "product_citation"),
+        "product_id": first_present(row, "product_id"),
     }
 
     site_name = first_present(row, "site_name")
@@ -224,7 +227,18 @@ def main() -> None:
     columns.extend(["country", "data_hub", "network"])
     if any(record.get("source_network") for record in records):
         columns.append("source_network")
-    columns.extend(["processing_lineage", "vegetation_type", "first_year", "last_year", "download_link"])
+    columns.extend(
+        [
+            "processing_lineage",
+            "vegetation_type",
+            "first_year",
+            "last_year",
+            "download_link",
+            "fluxnet_product_name",
+            "product_citation",
+            "product_id",
+        ]
+    )
 
     payload_rows: List[List[object]] = []
     for record in records:

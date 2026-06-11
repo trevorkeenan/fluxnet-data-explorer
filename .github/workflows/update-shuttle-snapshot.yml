@@ -188,7 +188,7 @@ jobs:
           gha_log "EFD JSON path=${TARGET_EFD_JSON} bytes=$(wc -c < "${TARGET_EFD_JSON}")"
 
       - name: Refresh AmeriFlux site metadata
-        timeout-minutes: 6
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           source .github/scripts/gha_timing.sh
@@ -196,8 +196,11 @@ jobs:
             --output-csv assets/ameriflux_site_info.csv
           gha_run_timed "Refresh site vegetation metadata" python scripts/refresh_site_vegetation_metadata.py \
             assets/site_vegetation_metadata.csv
+          gha_run_timed "Refresh source citation metadata" python scripts/refresh_source_citation_metadata.py \
+            --output-csv assets/source_citation_metadata.csv
           gha_log "AmeriFlux site info path=assets/ameriflux_site_info.csv bytes=$(wc -c < assets/ameriflux_site_info.csv)"
           gha_log "Vegetation metadata path=assets/site_vegetation_metadata.csv bytes=$(wc -c < assets/site_vegetation_metadata.csv)"
+          gha_log "Source citation metadata path=assets/source_citation_metadata.csv bytes=$(wc -c < assets/source_citation_metadata.csv)"
 
       - name: Commit and push snapshot files if changed
         timeout-minutes: 4
@@ -212,6 +215,7 @@ jobs:
           TARGET_EFD_JSON: assets/efd_curated_sites_snapshot.json
           TARGET_AMERIFLUX_SITE_INFO_CSV: assets/ameriflux_site_info.csv
           TARGET_SITE_VEGETATION_CSV: assets/site_vegetation_metadata.csv
+          TARGET_SOURCE_CITATION_METADATA_CSV: assets/source_citation_metadata.csv
         run: |
           set -euo pipefail
           source .github/scripts/gha_timing.sh
@@ -230,7 +234,8 @@ jobs:
             "${TARGET_EFD_CSV}" \
             "${TARGET_EFD_JSON}" \
             "${TARGET_AMERIFLUX_SITE_INFO_CSV}" \
-            "${TARGET_SITE_VEGETATION_CSV}"
+            "${TARGET_SITE_VEGETATION_CSV}" \
+            "${TARGET_SOURCE_CITATION_METADATA_CSV}"
 
           if git diff --cached --quiet; then
             gha_log "No snapshot file changes to commit."

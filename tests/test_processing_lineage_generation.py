@@ -175,6 +175,46 @@ class ProcessingLineageGenerationTests(unittest.TestCase):
             row = payload["rows"][0]
             self.assertEqual(row[columns.index("processing_lineage")], "other_processed")
 
+    def test_shuttle_json_converter_preserves_product_citation_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            temp_dir = Path(tmp_dir)
+            input_csv = temp_dir / "snapshot.csv"
+            output_json = temp_dir / "snapshot.json"
+            input_csv.write_text(
+                "\n".join(
+                    [
+                        "data_hub,site_id,site_name,network,product_source_network,igbp,first_year,last_year,download_link,fluxnet_product_name,product_citation,product_id",
+                        'AmeriFlux,US-Test,Test Site,AmeriFlux,AMF,ENF,2001,2003,https://example.org/test.zip,AMF_US-Test.zip,"Test Team (2026), Test dataset. https://doi.org/10.1234/test",10.1234/test',
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SHUTTLE_JSON_SCRIPT),
+                    "--input",
+                    str(input_csv),
+                    "--output",
+                    str(output_json),
+                    "--snapshot-updated-at",
+                    "2026-03-31T00:00:00Z",
+                    "--snapshot-updated-date",
+                    "2026-03-31",
+                ],
+                check=True,
+                cwd=REPO_ROOT,
+            )
+
+            payload = json.loads(output_json.read_text(encoding="utf-8"))
+            columns = payload["columns"]
+            row = payload["rows"][0]
+            self.assertEqual(row[columns.index("fluxnet_product_name")], "AMF_US-Test.zip")
+            self.assertIn("Test Team (2026)", row[columns.index("product_citation")])
+            self.assertEqual(row[columns.index("product_id")], "10.1234/test")
+
     def test_shuttle_json_converter_includes_source_status_metadata(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             temp_dir = Path(tmp_dir)
@@ -275,6 +315,8 @@ class ProcessingLineageGenerationTests(unittest.TestCase):
 
         shuttle_payload = json.loads((REPO_ROOT / "assets" / "shuttle_snapshot.json").read_text(encoding="utf-8"))
         self.assertIn("source_statuses", shuttle_payload["meta"])
+        self.assertIn("product_citation", shuttle_payload["columns"])
+        self.assertIn("product_id", shuttle_payload["columns"])
 
 
 if __name__ == "__main__":

@@ -379,6 +379,20 @@ test('FLUXNET2015 availability payload uses the same filtering rules', () => {
   assert.match(parsed.freshnessKey, /^fluxnet2015:/);
 });
 
+test('AmeriFlux availability payload preserves its authoritative source citation page URL', () => {
+  const parsed = hooks.parseAmeriFluxAvailabilityPayload({
+    values: [
+      {
+        site_id: 'AR-SLu',
+        publish_years: [2009, 2010, 2011],
+        url: 'https://fluxnet.org/sites/siteinfo/AR-SLu'
+      }
+    ]
+  }, 'fluxnet2015');
+
+  assert.equal(parsed.sites[0].citation_source_url, 'https://fluxnet.org/sites/siteinfo/AR-SLu');
+});
+
 test('AmeriFlux BASE Legacy availability keeps the explicit LEGACY policy', () => {
   const parsed = hooks.parseAmeriFluxAvailabilityPayload({
     values: [
@@ -4653,6 +4667,23 @@ test('Bulk tools layout keeps Shuttle and AmeriFlux action buttons in the intend
   assert.equal(ameriSitesFile > ameriCopyScript, true);
 });
 
+test('Data Policy Tools dropdown renders immediately after Bulk download tools with all export actions', () => {
+  const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
+  const bulkPanel = explorerJs.indexOf('data-role=\\"bulk-panel\\"');
+  const policyPanel = explorerJs.indexOf('data-role=\\"policy-panel\\"');
+  const tableWrap = explorerJs.indexOf('data-role=\\"table-wrap\\"');
+
+  assert.equal(bulkPanel > -1, true);
+  assert.equal(policyPanel > bulkPanel, true);
+  assert.equal(tableWrap > policyPanel, true);
+  assert.equal(explorerJs.includes('Data Policy Tools (citation table and acknowledgements)'), true);
+  assert.equal(explorerJs.includes('data-role=\\"download-acknowledgement-doc\\"'), true);
+  assert.equal(explorerJs.includes('data-role=\\"download-citation-table-doc\\"'), true);
+  assert.equal(explorerJs.includes('data-role=\\"download-citation-bibtex\\"'), true);
+  assert.equal(explorerJs.includes('data-role=\\"download-citation-latex\\"'), true);
+  assert.equal(explorerJs.includes('data-role=\\"download-citation-csv\\"'), true);
+});
+
 test('Explorer page and runtime do not hardcode stale last-updated dates', () => {
   const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
   const explorerHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
@@ -4678,6 +4709,238 @@ test('Committed snapshot layers normalize without dropped rows under the current
     assert.equal(normalized.dropped, 0, relativePath + ' should not drop rows during normalization');
     assert.equal(normalized.rows.length, payload.rows.length, relativePath + ' should keep every committed row');
   });
+});
+
+test('Data policy tools use the exact selected row set and map Shuttle manifest citation metadata into every export', () => {
+  const shuttleRow = makeCatalogRow({
+    _selection_key: 'AmeriFlux|US-Ha1|download',
+    site_id: 'US-Ha1',
+    site_name: 'Harvard Forest',
+    data_hub: 'AmeriFlux',
+    network: 'AmeriFlux',
+    source_network: 'AMF',
+    network_display: 'AmeriFlux',
+    source_origin: 'shuttle',
+    product_id: '10.17190/AMF/1234567',
+    product_citation: 'Example Team (2026), AmeriFlux FLUXNET-1F US-Ha1 Harvard Forest, (Dataset). https://doi.org/10.17190/AMF/1234567'
+  });
+  const unselectedRow = makeCatalogRow({
+    _selection_key: 'ICOS|DE-Test|download',
+    site_id: 'DE-Test'
+  });
+  const selected = hooks.getSelectedSitesForPolicyTools(
+    [shuttleRow, unselectedRow],
+    { 'AmeriFlux|US-Ha1|download': true }
+  );
+  const citationRows = hooks.buildCitationRows(selected);
+  const acknowledgement = hooks.buildAcknowledgementHtml(selected, citationRows, new Date(2026, 5, 11));
+  const citationDoc = hooks.buildCitationTableHtml(selected, citationRows);
+  const bibtex = hooks.buildBibtex(selected, citationRows);
+  const latex = hooks.buildLatexTable(selected, citationRows);
+  const csv = hooks.buildCitationTableCsv(citationRows);
+
+  assert.deepEqual(selected.map((row) => row.site_id), ['US-Ha1']);
+  assert.equal(citationRows[0].productIdentifier, '10.17190/AMF/1234567');
+  assert.match(citationRows[0].requiredCitation, /Example Team \(2026\)/);
+  assert.match(citationRows[0].citationMetadataStatus, /authoritative Shuttle manifest/);
+  assert.match(acknowledgement, /Funding for the AmeriFlux data service/);
+  assert.match(acknowledgement, /June 11, 2026/);
+  assert.match(citationDoc, /10\.17190\/AMF\/1234567/);
+  assert.match(citationDoc, /Pastorello, G\. et al\. \(2020\)/);
+  assert.equal((citationDoc.match(/10\.1038\/s41597-020-0534-3/g) || []).length, 1);
+  assert.match(bibtex, /@dataset\{FLUXNET_USHa1_2026/);
+  assert.match(bibtex, /doi = \{10\.17190\/AMF\/1234567\}/);
+  assert.match(latex, /\\begin\{longtable\}/);
+  assert.match(csv, /Site code,Site name,Product\/source network/);
+});
+
+test('Data policy exports deduplicate citations and add network-specific acknowledgements and references', () => {
+  const sharedCitation = 'Shared dataset citation (2026). https://doi.org/10.1234/shared';
+  const selected = [
+    makeCatalogRow({ site_id: 'US-AMF', source_network: 'AMF', network: 'AmeriFlux', source_origin: 'shuttle', product_id: '10.1234/shared', product_citation: sharedCitation }),
+    makeCatalogRow({ site_id: 'CN-CNF', source_network: 'CNF', network: 'ChinaFlux', source_origin: 'shuttle', product_id: '10.1234/shared', product_citation: sharedCitation }),
+    makeCatalogRow({ site_id: 'JP-JPF', source_network: 'JPF', network: 'JapanFlux', source_origin: 'shuttle', product_id: '10.1234/jpf', product_citation: 'Japan citation (2026). https://doi.org/10.1234/jpf' }),
+    makeCatalogRow({ site_id: 'AU-OZF', source_network: 'TERN', network: 'OzFlux', source_origin: 'shuttle', product_id: '10.1234/ozf', product_citation: 'OzFlux citation (2026). https://doi.org/10.1234/ozf' }),
+    makeCatalogRow({ site_id: 'AU-TERN', source_network: 'TERN', network: 'TERN', source_origin: 'shuttle', product_id: '10.1234/tern', product_citation: 'TERN citation (2026). https://doi.org/10.1234/tern' })
+  ];
+  const citationRows = hooks.buildCitationRows(selected);
+  const acknowledgement = hooks.buildAcknowledgementHtml(selected, citationRows, new Date(2026, 5, 11));
+  const citationDoc = hooks.buildCitationTableHtml(selected, citationRows);
+  const bibtex = hooks.buildBibtex(selected, citationRows);
+
+  assert.deepEqual(hooks.detectNetworks(selected), ['AMF', 'CNF', 'JPF', 'OZF', 'TERN']);
+  assert.match(acknowledgement, /National ecosystem science data center/);
+  assert.match(acknowledgement, /OzFlux Data Portal/);
+  assert.match(acknowledgement, /TERN Data Discovery Portal/);
+  assert.match(citationDoc, /10\.1016\/j\.agrformet\.2006\.02\.011/);
+  assert.match(citationDoc, /10\.5194\/essd-17-3807-2025/);
+  assert.match(citationDoc, /10\.5194\/bg-13-5895-2016/);
+  assert.match(citationDoc, /10\.5194\/bg-14-2903-2017/);
+  assert.equal((bibtex.match(/@dataset/g) || []).length, 4);
+  assert.equal((bibtex.match(/@article\{Beringer2016OzFlux/g) || []).length, 1);
+  assert.equal((bibtex.match(/@article\{Isaac2017OzFlux/g) || []).length, 1);
+});
+
+test('Data policy tools represent missing non-Shuttle citation metadata without failing exports', () => {
+  const selected = [
+    makeCatalogRow({
+      site_id: 'JP-Missing',
+      source_origin: 'japanflux_direct',
+      source_network: 'JapanFlux',
+      network: 'JapanFlux',
+      metadata_id: 'A20240722-001',
+      citation: ''
+    })
+  ];
+  const citationRows = hooks.buildCitationRows(selected);
+  const warning = hooks.buildPolicyMissingWarning(citationRows);
+  const citationDoc = hooks.buildCitationTableHtml(selected, citationRows);
+  const bibtex = hooks.buildBibtex(selected, citationRows);
+  const latex = hooks.buildLatexTable(selected, citationRows);
+
+  assert.equal(citationRows[0].productIdentifier, 'A20240722-001');
+  assert.match(citationRows[0].requiredCitation, /Citation\/DOI not available in Explorer metadata/);
+  assert.match(citationRows[0].citationMetadataStatus, /Partial/);
+  assert.match(warning, /JP-Missing/);
+  assert.match(citationDoc, /JP-Missing/);
+  assert.match(bibtex, /% Missing citation metadata for: JP-Missing/);
+  assert.match(latex, /% WARNING: Citation\/DOI metadata are incomplete/);
+  assert.deepEqual(hooks.getSelectedSitesForPolicyTools(selected, {}), []);
+});
+
+test('AmeriFlux V2 product citation metadata enriches FLUXNET and BASE records', () => {
+  const lookup = hooks.buildSourceCitationMetadataLookup([
+    {
+      site_id: 'AR-Bal',
+      data_product: 'FLUXNET',
+      data_policy: 'CCBY4.0',
+      citation_doi: '10.17190/AMF/2571144',
+      citation_url: 'https://doi.org/10.17190/AMF/2571144',
+      citation_text: 'Example Team (2026), AmeriFlux FLUXNET-1F AR-Bal, (Dataset). https://doi.org/10.17190/AMF/2571144',
+      citation_source: 'AmeriFlux FLUXNET data-citation page'
+    },
+    {
+      site_id: 'AR-Bal',
+      data_product: 'BASE-BADM',
+      data_policy: 'CCBY4.0',
+      citation_doi: '10.17190/AMF/2315764',
+      citation_url: 'https://doi.org/10.17190/AMF/2315764',
+      citation_text: 'Example Team (2024), AmeriFlux BASE AR-Bal, (Dataset). https://doi.org/10.17190/AMF/2315764',
+      citation_source: 'AmeriFlux BASE data-citation page'
+    }
+  ]);
+  const fluxnetSites = hooks.enrichSitesWithCitationMetadata(
+    [makeAvailabilitySite('AR-Bal', [2012, 2013])],
+    lookup,
+    'FLUXNET',
+    'CCBY4.0'
+  );
+  const baseSites = hooks.enrichSitesWithCitationMetadata(
+    [makeAvailabilitySite('AR-Bal', [2012, 2013])],
+    lookup,
+    'BASE-BADM',
+    'CCBY4.0'
+  );
+  const fluxnetRow = hooks.mergeCatalogRows([], [], [], fluxnetSites, [], [], []).rows[0];
+  const baseRow = hooks.mergeCatalogRows([], [], [], [], [], baseSites, []).rows[0];
+
+  assert.equal(hooks.buildCitationRows([fluxnetRow])[0].productIdentifier, '10.17190/AMF/2571144');
+  assert.match(hooks.buildCitationRows([fluxnetRow])[0].requiredCitation, /FLUXNET-1F AR-Bal/);
+  assert.equal(hooks.buildCitationRows([baseRow])[0].productIdentifier, '10.17190/AMF/2315764');
+  assert.match(hooks.buildCitationRows([baseRow])[0].requiredCitation, /AmeriFlux BASE AR-Bal/);
+});
+
+test('Data policy citation rows follow the same surfaced products used by bulk downloads', () => {
+  const lookup = hooks.buildSourceCitationMetadataLookup([
+    {
+      site_id: 'US-Dual',
+      data_product: 'FLUXNET',
+      data_policy: 'CCBY4.0',
+      citation_doi: '10.1234/fluxnet',
+      citation_text: 'FLUXNET citation https://doi.org/10.1234/fluxnet'
+    },
+    {
+      site_id: 'US-Dual',
+      data_product: 'BASE-BADM',
+      data_policy: 'CCBY4.0',
+      citation_doi: '10.1234/base',
+      citation_text: 'BASE citation https://doi.org/10.1234/base'
+    }
+  ]);
+  const fluxnetSites = hooks.enrichSitesWithCitationMetadata(
+    [makeAvailabilitySite('US-Dual', [2020, 2021])],
+    lookup,
+    'FLUXNET',
+    'CCBY4.0'
+  );
+  const baseSites = hooks.enrichSitesWithCitationMetadata(
+    [makeAvailabilitySite('US-Dual', [2020, 2021, 2022])],
+    lookup,
+    'BASE-BADM',
+    'CCBY4.0'
+  );
+  const row = hooks.mergeCatalogRows([], [], [], fluxnetSites, [], baseSites, []).rows[0];
+  const bulkProducts = hooks.partitionRowsByBulkSource([row]).ameriFluxRows;
+  const citationRows = hooks.buildCitationRows([row]);
+
+  assert.equal(bulkProducts.length, 2);
+  assert.equal(citationRows.length, 2);
+  assert.deepEqual(
+    citationRows.map((citationRow) => citationRow.productIdentifier).sort(),
+    ['10.1234/base', '10.1234/fluxnet']
+  );
+});
+
+test('FLUXNET2015 DOI-only metadata produces explicit status and valid BibTeX', () => {
+  const lookup = hooks.buildSourceCitationMetadataLookup([
+    {
+      site_id: 'AR-SLu',
+      data_product: 'FLUXNET2015',
+      data_policy: 'CCBY4.0',
+      citation_doi: '10.18140/FLX/1440191',
+      citation_url: 'https://doi.org/10.18140/FLX/1440191',
+      citation_text: '',
+      citation_source: 'FLUXNET2015 data-citation page'
+    }
+  ]);
+  const sites = hooks.enrichSitesWithCitationMetadata(
+    [makeAvailabilitySite('AR-SLu', [2009, 2010, 2011])],
+    lookup,
+    'FLUXNET2015',
+    'CCBY4.0'
+  );
+  const row = hooks.mergeCatalogRows([], [], [], [], sites, [], []).rows[0];
+  const citationRows = hooks.buildCitationRows([row]);
+  const bibtex = hooks.buildBibtex([row], citationRows);
+
+  assert.equal(citationRows[0].productIdentifier, '10.18140/FLX/1440191');
+  assert.match(citationRows[0].citationMetadataStatus, /DOI available; full citation text not available/);
+  assert.match(citationRows[0].requiredCitation, /Citation\/DOI not available in Explorer metadata/);
+  assert.equal(hooks.buildPolicyMissingWarning(citationRows), '');
+  assert.match(bibtex, /@dataset\{FLUXNET2015_ARSLu_Data/);
+  assert.match(bibtex, /doi = \{10\.18140\/FLX\/1440191\}/);
+});
+
+test('Shuttle row normalization preserves manifest product citation and product ID fields', () => {
+  const normalized = hooks.normalizeRows([
+    {
+      data_hub: 'AmeriFlux',
+      site_id: 'US-Test',
+      site_name: 'Test Site',
+      network: 'AmeriFlux',
+      product_source_network: 'AMF',
+      first_year: '2001',
+      last_year: '2003',
+      download_link: 'https://example.org/test.zip',
+      fluxnet_product_name: 'AMF_US-Test_FLUXNET_2001-2003.zip',
+      product_citation: 'Test citation',
+      product_id: '10.1234/test'
+    }
+  ]);
+
+  assert.equal(normalized.rows[0].product_citation, 'Test citation');
+  assert.equal(normalized.rows[0].product_id, '10.1234/test');
+  assert.equal(normalized.rows[0].fluxnet_product_name, 'AMF_US-Test_FLUXNET_2001-2003.zip');
 });
 
 test('Explorer can build a snapshot-only merged state from committed artifacts when AmeriFlux live availability is unavailable', () => {
