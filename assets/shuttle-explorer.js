@@ -5946,6 +5946,8 @@
       var citation = policyProductCitation(site);
       var identifier = policyProductIdentifier(site);
       var sourceOrigin = resolveSourceOrigin(site);
+      var citationSource = firstDefinedString(site, ["citation_source", "citationSource"]);
+      var doi = extractDoi(identifier);
       var status;
       if (citation && identifier) {
         status = sourceOrigin === SHUTTLE_SOURCE_ORIGIN
@@ -5954,8 +5956,10 @@
       } else if (citation) {
         status = "Partial: citation available; PID/DOI is not available in Explorer metadata.";
       } else if (identifier) {
-        status = extractDoi(identifier)
-          ? "DOI available; full citation text not available in Explorer metadata."
+        status = doi
+          ? (citationSource === "AmeriFlux V2 site_info_display API"
+            ? "DOI metadata available from AmeriFlux V2 API; full citation text not available in Explorer metadata."
+            : "DOI available; full citation text not available in Explorer metadata.")
           : "Partial: PID/product identifier available; required citation is not available in Explorer metadata.";
       } else {
         status = "Missing: " + DATA_POLICY_MISSING_METADATA_PLACEHOLDER;
@@ -5966,7 +5970,9 @@
         productSourceNetwork: policyProductSourceNetwork(site),
         dataSourceType: policyDataSourceType(site),
         productIdentifier: identifier || DATA_POLICY_MISSING_METADATA_PLACEHOLDER,
-        requiredCitation: citation || DATA_POLICY_MISSING_METADATA_PLACEHOLDER,
+        requiredCitation: citation || (doi
+          ? policyDataSourceType(site) + " data product DOI: https://doi.org/" + doi + ". Full citation text not available in Explorer metadata."
+          : DATA_POLICY_MISSING_METADATA_PLACEHOLDER),
         citationMetadataStatus: status,
         hasCitation: !!citation,
         hasIdentifier: !!identifier,
@@ -6089,6 +6095,19 @@
       "<p>" + escapeHtml(DATA_POLICY_REVIEW_NOTE) + "</p>",
       "<p>Each site's data-product citation, including its PID or DOI, should appear in the paper's reference section or another section that supports citation tracking, not only in supplementary material.</p>"
     );
+    if (citationRows.length) {
+      var seenSelectedReferences = {};
+      parts.push("<h2>Selected data-product references</h2>", "<ol>");
+      citationRows.forEach(function (row) {
+        var referenceKey = (extractDoi(row.rawIdentifier) || row.requiredCitation).toLowerCase();
+        if (seenSelectedReferences[referenceKey]) {
+          return;
+        }
+        seenSelectedReferences[referenceKey] = true;
+        parts.push("<li>" + escapeHtml(row.requiredCitation) + "</li>");
+      });
+      parts.push("</ol>");
+    }
     return policyDocumentHtml("Acknowledgements and Data Availability", parts.join(""));
   }
 

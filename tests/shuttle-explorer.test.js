@@ -4808,7 +4808,7 @@ test('Data policy tools represent missing non-Shuttle citation metadata without 
   assert.deepEqual(hooks.getSelectedSitesForPolicyTools(selected, {}), []);
 });
 
-test('AmeriFlux V2 product citation metadata enriches FLUXNET and BASE records', () => {
+test('AmeriFlux V2 product DOI metadata enriches FLUXNET and BASE records', () => {
   const lookup = hooks.buildSourceCitationMetadataLookup([
     {
       site_id: 'AR-Bal',
@@ -4816,8 +4816,8 @@ test('AmeriFlux V2 product citation metadata enriches FLUXNET and BASE records',
       data_policy: 'CCBY4.0',
       citation_doi: '10.17190/AMF/2571144',
       citation_url: 'https://doi.org/10.17190/AMF/2571144',
-      citation_text: 'Example Team (2026), AmeriFlux FLUXNET-1F AR-Bal, (Dataset). https://doi.org/10.17190/AMF/2571144',
-      citation_source: 'AmeriFlux FLUXNET data-citation page'
+      citation_text: '',
+      citation_source: 'AmeriFlux V2 site_info_display API'
     },
     {
       site_id: 'AR-Bal',
@@ -4825,8 +4825,8 @@ test('AmeriFlux V2 product citation metadata enriches FLUXNET and BASE records',
       data_policy: 'CCBY4.0',
       citation_doi: '10.17190/AMF/2315764',
       citation_url: 'https://doi.org/10.17190/AMF/2315764',
-      citation_text: 'Example Team (2024), AmeriFlux BASE AR-Bal, (Dataset). https://doi.org/10.17190/AMF/2315764',
-      citation_source: 'AmeriFlux BASE data-citation page'
+      citation_text: '',
+      citation_source: 'AmeriFlux V2 site_info_display API'
     }
   ]);
   const fluxnetSites = hooks.enrichSitesWithCitationMetadata(
@@ -4844,10 +4844,60 @@ test('AmeriFlux V2 product citation metadata enriches FLUXNET and BASE records',
   const fluxnetRow = hooks.mergeCatalogRows([], [], [], fluxnetSites, [], [], []).rows[0];
   const baseRow = hooks.mergeCatalogRows([], [], [], [], [], baseSites, []).rows[0];
 
-  assert.equal(hooks.buildCitationRows([fluxnetRow])[0].productIdentifier, '10.17190/AMF/2571144');
-  assert.match(hooks.buildCitationRows([fluxnetRow])[0].requiredCitation, /FLUXNET-1F AR-Bal/);
-  assert.equal(hooks.buildCitationRows([baseRow])[0].productIdentifier, '10.17190/AMF/2315764');
-  assert.match(hooks.buildCitationRows([baseRow])[0].requiredCitation, /AmeriFlux BASE AR-Bal/);
+  const fluxnetCitation = hooks.buildCitationRows([fluxnetRow])[0];
+  const baseCitation = hooks.buildCitationRows([baseRow])[0];
+  const acknowledgement = hooks.buildAcknowledgementHtml([baseRow], [baseCitation], new Date(2026, 5, 11));
+  const citationDoc = hooks.buildCitationTableHtml([baseRow], [baseCitation]);
+  const bibtex = hooks.buildBibtex([baseRow], [baseCitation]);
+  const latex = hooks.buildLatexTable([baseRow], [baseCitation]);
+  const csv = hooks.buildCitationTableCsv([baseCitation]);
+
+  assert.equal(fluxnetCitation.productIdentifier, '10.17190/AMF/2571144');
+  assert.match(fluxnetCitation.requiredCitation, /https:\/\/doi\.org\/10\.17190\/AMF\/2571144/);
+  assert.match(fluxnetCitation.citationMetadataStatus, /AmeriFlux V2 API/);
+  assert.equal(baseCitation.productIdentifier, '10.17190/AMF/2315764');
+  assert.match(baseCitation.requiredCitation, /https:\/\/doi\.org\/10\.17190\/AMF\/2315764/);
+  assert.match(baseCitation.citationMetadataStatus, /AmeriFlux V2 API/);
+  assert.doesNotMatch(hooks.buildPolicyMissingWarning([baseCitation]), /AR-Bal/);
+  [acknowledgement, citationDoc, bibtex, latex, csv].forEach((output) => {
+    assert.match(output, /10\.17190\/AMF\/2315764/);
+  });
+  assert.match(bibtex, /@dataset\{BASE-BADM_ARBal_Data/);
+});
+
+test('Mixed Shuttle, AmeriFlux BASE DOI-only, and missing DOI records warn only for missing DOI', () => {
+  const selected = [
+    makeCatalogRow({
+      site_id: 'US-Shuttle',
+      source_origin: 'shuttle',
+      product_id: '10.1234/shuttle',
+      product_citation: 'Shuttle citation https://doi.org/10.1234/shuttle'
+    }),
+    makeCatalogRow({
+      site_id: 'AR-Bal',
+      source_origin: 'ameriflux_api',
+      source_label: 'BASE',
+      api_data_product: 'BASE-BADM',
+      download_mode: 'ameriflux_api',
+      citation_doi: '10.17190/AMF/2315764',
+      citation_source: 'AmeriFlux V2 site_info_display API'
+    }),
+    makeCatalogRow({
+      site_id: 'US-Missing',
+      source_origin: 'ameriflux_api',
+      source_label: 'BASE',
+      api_data_product: 'BASE-BADM',
+      download_mode: 'ameriflux_api'
+    })
+  ];
+  const citationRows = hooks.buildCitationRows(selected);
+  const warning = hooks.buildPolicyMissingWarning(citationRows);
+
+  assert.match(warning, /US-Missing/);
+  assert.doesNotMatch(warning, /AR-Bal/);
+  assert.doesNotMatch(warning, /US-Shuttle/);
+  assert.equal(citationRows.find((row) => row.siteCode === 'US-Shuttle').productIdentifier, '10.1234/shuttle');
+  assert.equal(citationRows.find((row) => row.siteCode === 'AR-Bal').productIdentifier, '10.17190/AMF/2315764');
 });
 
 test('Data policy citation rows follow the same surfaced products used by bulk downloads', () => {
@@ -4915,7 +4965,7 @@ test('FLUXNET2015 DOI-only metadata produces explicit status and valid BibTeX', 
 
   assert.equal(citationRows[0].productIdentifier, '10.18140/FLX/1440191');
   assert.match(citationRows[0].citationMetadataStatus, /DOI available; full citation text not available/);
-  assert.match(citationRows[0].requiredCitation, /Citation\/DOI not available in Explorer metadata/);
+  assert.match(citationRows[0].requiredCitation, /https:\/\/doi\.org\/10\.18140\/FLX\/1440191/);
   assert.equal(hooks.buildPolicyMissingWarning(citationRows), '');
   assert.match(bibtex, /@dataset\{FLUXNET2015_ARSLu_Data/);
   assert.match(bibtex, /doi = \{10\.18140\/FLX\/1440191\}/);

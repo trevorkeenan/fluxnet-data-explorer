@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh product-level citation metadata from authoritative source site pages."""
+"""Refresh product-level citation metadata from authoritative source metadata."""
 
 from __future__ import annotations
 
@@ -28,6 +28,11 @@ DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_RETRIES = 4
 DEFAULT_RETRY_DELAY_SECONDS = 2.0
 MAX_WORKERS = 12
+AMERIFLUX_SITE_INFO_DISPLAY_URL = "https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux"
+AMERIFLUX_DOI_PRODUCT_KEYS = {
+    "BASE-BADM": "AmeriFlux",
+    "FLUXNET": "FLUXNET",
+}
 
 AVAILABILITY_SOURCES = (
     (
@@ -130,10 +135,6 @@ def normalize_site_id(value: object) -> str:
 
 def normalize_product_label(label: str) -> str:
     normalized = re.sub(r"[^A-Z0-9]+", "", str(label or "").upper())
-    if normalized == "AMERIFLUXBASE":
-        return "BASE-BADM"
-    if normalized == "AMERIFLUXFLUXNET":
-        return "FLUXNET"
     if normalized == "FLUXNET2015":
         return "FLUXNET2015"
     return ""
@@ -166,6 +167,25 @@ def parse_source_citations(page_html: str) -> dict[str, dict[str, str]]:
     return records
 
 
+def build_ameriflux_doi_lookup(payload: dict[str, Any]) -> dict[str, dict[str, str]]:
+    lookup: dict[str, dict[str, str]] = {}
+    values = payload.get("values", [])
+    if not isinstance(values, list):
+        raise RuntimeError("AmeriFlux V2 site metadata payload is missing values[].")
+    for entry in values:
+        if not isinstance(entry, dict):
+            continue
+        site_id = normalize_site_id(entry.get("site_id") or entry.get("SITE_ID")).upper()
+        doi_values = entry.get("doi")
+        if not site_id or not isinstance(doi_values, dict):
+            continue
+        lookup[site_id] = {
+            product: str(doi_values.get(api_key) or "").strip()
+            for product, api_key in AMERIFLUX_DOI_PRODUCT_KEYS.items()
+        }
+    return lookup
+
+
 def load_availability_records(timeout: int, retries: int, retry_delay: float) -> list[dict[str, str]]:
     records: list[dict[str, str]] = []
     for label, url, product, policy in AVAILABILITY_SOURCES:
@@ -177,7 +197,8 @@ def load_availability_records(timeout: int, retries: int, retry_delay: float) ->
             if not isinstance(entry, dict):
                 continue
             site_id = normalize_site_id(entry.get("site_id") or entry.get("SITE_ID"))
-            source_url = str(entry.get("url") or "").strip()
+            is_ameriflux_product = product in AMERIFLUX_DOI_PRODUCT_KEYS
+            source_url = AMERIFLUX_SITE_INFO_DISPLAY_URL if is_ameriflux_product else str(entry.get("url") or "").strip()
             if not site_id or not source_url:
                 continue
             records.append(
@@ -185,7 +206,7 @@ def load_availability_records(timeout: int, retries: int, retry_delay: float) ->
                     "site_id": site_id,
                     "data_product": product,
                     "data_policy": policy,
-                    "citation_source": label + " data-citation page",
+                    "citation_source": "AmeriFlux V2 site_info_display API" if is_ameriflux_product else label + " data-citation page",
                     "citation_source_url": source_url,
                 }
             )
@@ -198,8 +219,13 @@ def build_citation_rows(
     retries: int,
     retry_delay: float,
     workers: int,
+    ameriflux_doi_lookup: dict[str, dict[str, str]],
 ) -> list[dict[str, str]]:
-    page_urls = sorted({row["citation_source_url"] for row in availability_records})
+    page_urls = sorted({
+        row["citation_source_url"]
+        for row in availability_records
+        if row["data_product"] not in AMERIFLUX_DOI_PRODUCT_KEYS
+    })
     pages: dict[str, dict[str, dict[str, str]]] = {}
 
     def fetch_page(url: str) -> tuple[str, dict[str, dict[str, str]]]:
@@ -214,7 +240,16 @@ def build_citation_rows(
 
     rows: list[dict[str, str]] = []
     for record in availability_records:
-        citation = pages.get(record["citation_source_url"], {}).get(record["data_product"], {})
+        product = record["data_product"]
+        if product in AMERIFLUX_DOI_PRODUCT_KEYS:
+            doi = ameriflux_doi_lookup.get(record["site_id"].upper(), {}).get(product, "")
+            citation = {
+                "citation_doi": doi,
+                "citation_url": f"https://doi.org/{doi}" if doi else "",
+                "citation_text": "",
+            }
+        else:
+            citation = pages.get(record["citation_source_url"], {}).get(product, {})
         rows.append(
             {
                 **record,
@@ -229,7 +264,7 @@ def build_citation_rows(
 def write_rows(output_path: pathlib.Path, rows: list[dict[str, str]]) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=OUTPUT_COLUMNS)
+        writer = csv.DictWriter(handle, fieldnames=OUTPUT_COLUMNS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -242,12 +277,22 @@ def main(argv: list[str]) -> int:
     with phase("load source availability records"):
         availability_records = load_availability_records(timeout, retries, retry_delay)
         log(f"Source citation availability records: {len(availability_records)}")
+    with phase("load AmeriFlux V2 DOI metadata"):
+        ameriflux_doi_lookup = build_ameriflux_doi_lookup(fetch_json(
+            AMERIFLUX_SITE_INFO_DISPLAY_URL,
+            timeout,
+            retries,
+            retry_delay,
+            "AmeriFlux V2 site metadata",
+        ))
+        log(f"AmeriFlux V2 DOI metadata sites: {len(ameriflux_doi_lookup)}")
     rows = build_citation_rows(
         availability_records,
         timeout,
         retries,
         retry_delay,
         max(1, args.workers),
+        ameriflux_doi_lookup,
     )
     with phase("write source citation metadata"):
         write_rows(pathlib.Path(args.output_csv).resolve(), rows)
