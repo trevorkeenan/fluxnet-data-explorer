@@ -4600,21 +4600,25 @@ test('Explorer GA4 tag is single-use and preserves custom event hooks', () => {
   assert.equal(explorerJs.includes('gaEvent("fx_explorer_loaded"'), true);
 });
 
-test('Data Notes box appears between the map and attribution sections with shared box styling', () => {
+test('Data Notes uses the Bulk Download Tools disclosure pattern below the table', () => {
   const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
   const explorerCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.css'), 'utf8');
   const mapIndex = explorerJs.indexOf('data-role=\\"map-panel\\"');
   const selectionActionsIndex = explorerJs.indexOf('data-role=\\"selection-actions\\"');
   const tableIndex = explorerJs.indexOf('data-role=\\"table-wrap\\"');
-  const notesIndex = explorerJs.indexOf('<h3>Data Notes</h3>');
+  const notesIndex = explorerJs.indexOf('<details class=\\"shuttle-explorer__bulk shuttle-explorer__data-notes\\" data-role=\\"data-notes\\">');
   const attributionIndex = explorerJs.indexOf('<h3>Data Use and Attribution</h3>');
   const citationIndex = explorerJs.indexOf('<h3>Citation and source</h3>');
 
   assert.equal(mapIndex < selectionActionsIndex, true);
   assert.equal(selectionActionsIndex < tableIndex, true);
-  assert.equal(notesIndex > mapIndex, true);
+  assert.equal(notesIndex > tableIndex, true);
   assert.equal(attributionIndex > notesIndex, true);
   assert.equal(citationIndex > attributionIndex, true);
+  assert.equal(explorerJs.includes('<summary class=\\"shuttle-explorer__bulk-summary\\">'), true);
+  assert.equal(explorerJs.includes('<span class=\\"shuttle-explorer__bulk-summary-label\\">Data Notes</span>'), true);
+  assert.equal(explorerJs.includes('<details class=\\"shuttle-explorer__bulk shuttle-explorer__data-notes\\" data-role=\\"data-notes\\" open>'), false);
+  assert.equal(explorerJs.includes('<h3>Data Notes</h3>'), false);
   assert.equal(explorerJs.includes('These notes highlight how the explorer labels datasets and how the bulk tools behave.'), true);
   assert.equal(explorerJs.includes('Use the Availability filter options [FLUXNET processed], [Other processed], and [Sites with both FLUXNET and additional processed years]'), true);
   assert.equal(explorerJs.includes('Choose the Source filter option [FLUXNET-Shuttle]'), true);
@@ -4624,8 +4628,10 @@ test('Data Notes box appears between the map and attribution sections with share
   assert.equal(explorerJs.includes('data-role=\\"citation-source\\"'), true);
   assert.equal(explorerJs.includes('Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo.'), true);
   assert.equal(explorerJs.includes('Live ' + 'app:'), false);
-  assert.equal(explorerCss.includes('.shuttle-explorer__attribution ul {'), true);
-  assert.equal(explorerCss.includes('.shuttle-explorer__attribution li + li {'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__bulk {'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__data-notes {\n  margin-top: 12px;\n}'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__bulk-summary {'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__bulk-body {'), true);
 });
 
 test('Vegetation filter markup includes an IGBP info tooltip and external reference link', () => {

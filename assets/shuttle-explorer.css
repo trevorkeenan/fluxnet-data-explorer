@@ -514,6 +514,10 @@
   background: #ffffff;
 }
 
+.shuttle-explorer__data-notes {
+  margin-top: 12px;
+}
+
 .shuttle-explorer__bulk-summary {
   margin: 0;
   padding: 10px;
