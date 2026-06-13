@@ -6068,45 +6068,32 @@
   function buildAcknowledgementHtml(selectedSites, citationRows, date) {
     var networks = detectNetworks(selectedSites);
     var missingWarning = buildPolicyMissingWarning(citationRows);
+    var acknowledgementSentences = [DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT];
+    var seenAcknowledgements = {};
     var parts = [
-      "<h1>Acknowledgements and Data Availability</h1>",
-      "<h2>Global FLUXNET acknowledgement</h2>",
-      "<p>" + escapeHtml(DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT) + "</p>"
+      "<h1>Acknowledgements</h1>"
     ];
-    var networkAcknowledgements = networks.map(function (network) {
-      return DATA_POLICY_NETWORK_RULES[network].acknowledgement;
-    }).filter(Boolean);
-    if (networkAcknowledgements.length) {
-      parts.push("<h2>Network-specific acknowledgements</h2>");
-      networkAcknowledgements.forEach(function (text) {
-        parts.push("<p>" + escapeHtml(text) + "</p>");
-      });
-    }
+    networks.forEach(function (network) {
+      acknowledgementSentences.push(DATA_POLICY_NETWORK_RULES[network].acknowledgement);
+    });
+    acknowledgementSentences = acknowledgementSentences.map(function (text) {
+      var sentence = String(text || "").trim();
+      return sentence && !/[.!?]$/.test(sentence) ? sentence + "." : sentence;
+    }).filter(function (sentence) {
+      var key = sentence.toLowerCase();
+      if (!sentence || seenAcknowledgements[key]) {
+        return false;
+      }
+      seenAcknowledgements[key] = true;
+      return true;
+    });
     parts.push(
-      "<h2>Suggested Data Availability statement</h2>",
-      "<p>The FLUXNET data products used in this work were downloaded using the FLUXNET Data Explorer on " + escapeHtml(formatPolicyDownloadDate(date)) + ".</p>",
-      "<p><em>(Edit the source and date if data were downloaded directly from a regional portal or using the Shuttle code.)</em></p>"
+      "<p>" + escapeHtml(acknowledgementSentences.join(" ")) + "</p>",
+      "<h2>Data Availability statement</h2>",
+      "<p>The FLUXNET data products used in this work were downloaded on " + escapeHtml(formatPolicyDownloadDate(date)) + " using the FLUXNET Data Explorer (Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.20331228).</p>"
     );
     if (missingWarning) {
       parts.push("<p class=\"warning\"><strong>Metadata warning:</strong> " + escapeHtml(missingWarning) + "</p>");
-    }
-    parts.push(
-      "<h2>Review note</h2>",
-      "<p>" + escapeHtml(DATA_POLICY_REVIEW_NOTE) + "</p>",
-      "<p>Each site's data-product citation, including its PID or DOI, should appear in the paper's reference section or another section that supports citation tracking, not only in supplementary material.</p>"
-    );
-    if (citationRows.length) {
-      var seenSelectedReferences = {};
-      parts.push("<h2>Selected data-product references</h2>", "<ol>");
-      citationRows.forEach(function (row) {
-        var referenceKey = (extractDoi(row.rawIdentifier) || row.requiredCitation).toLowerCase();
-        if (seenSelectedReferences[referenceKey]) {
-          return;
-        }
-        seenSelectedReferences[referenceKey] = true;
-        parts.push("<li>" + escapeHtml(row.requiredCitation) + "</li>");
-      });
-      parts.push("</ol>");
     }
     return policyDocumentHtml("Acknowledgements and Data Availability", parts.join(""));
   }
@@ -6135,10 +6122,31 @@
     ];
   }
 
+  function citationDocTableHeaders() {
+    return [
+      "Site code",
+      "Site name",
+      "Data source or product type",
+      "Product ID / DOI / PID",
+      "Required citation"
+    ];
+  }
+
+  function citationDocTableValues(row) {
+    return [
+      row.siteCode,
+      row.siteName,
+      row.dataSourceType,
+      row.productIdentifier,
+      row.requiredCitation
+    ];
+  }
+
   function buildCitationTableHtml(selectedSites, citationRows) {
     var networks = detectNetworks(selectedSites);
     var references = policyReferenceRecords(citationRows, networks);
     var missingWarning = buildPolicyMissingWarning(citationRows);
+    var cellStyle = "word-wrap:break-word;overflow-wrap:anywhere;white-space:normal;";
     var parts = [
       "<h1>FLUXNET Site Citation Table</h1>",
       "<p>This table was generated for the selected/download site set in the FLUXNET Data Explorer. FLUXNET Shuttle citations and product IDs come from the Shuttle manifest.</p>"
@@ -6146,15 +6154,20 @@
     if (missingWarning) {
       parts.push("<p class=\"warning\"><strong>Metadata warning:</strong> " + escapeHtml(missingWarning) + "</p>");
     }
-    parts.push("<table><thead><tr>");
-    citationTableHeaders().forEach(function (header) {
-      parts.push("<th>" + escapeHtml(header) + "</th>");
+    parts.push(
+      "<table style=\"width:100%;table-layout:fixed;border-collapse:collapse;font-size:8pt;\">",
+      "<colgroup>",
+      "<col style=\"width:10%;\"><col style=\"width:18%;\"><col style=\"width:18%;\"><col style=\"width:19%;\"><col style=\"width:35%;\">",
+      "</colgroup><thead><tr>"
+    );
+    citationDocTableHeaders().forEach(function (header) {
+      parts.push("<th style=\"" + cellStyle + "\">" + escapeHtml(header) + "</th>");
     });
     parts.push("</tr></thead><tbody>");
     citationRows.forEach(function (row) {
       parts.push("<tr>");
-      citationTableValues(row).forEach(function (value) {
-        parts.push("<td>" + escapeHtml(value) + "</td>");
+      citationDocTableValues(row).forEach(function (value) {
+        parts.push("<td style=\"" + cellStyle + "\">" + escapeHtml(value) + "</td>");
       });
       parts.push("</tr>");
     });

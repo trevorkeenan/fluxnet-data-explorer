@@ -4743,15 +4743,44 @@ test('Data policy tools use the exact selected row set and map Shuttle manifest 
   assert.equal(citationRows[0].productIdentifier, '10.17190/AMF/1234567');
   assert.match(citationRows[0].requiredCitation, /Example Team \(2026\)/);
   assert.match(citationRows[0].citationMetadataStatus, /authoritative Shuttle manifest/);
+  assert.match(acknowledgement, /<h1>Acknowledgements<\/h1>/);
+  assert.doesNotMatch(acknowledgement, /Global FLUXNET acknowledgement/);
+  assert.doesNotMatch(acknowledgement, /Network-specific acknowledgements/);
   assert.match(acknowledgement, /Funding for the AmeriFlux data service/);
-  assert.match(acknowledgement, /June 11, 2026/);
+  assert.doesNotMatch(acknowledgement, /National ecosystem science data center/);
+  assert.doesNotMatch(acknowledgement, /OzFlux Data Portal/);
+  assert.doesNotMatch(acknowledgement, /TERN Data Discovery Portal/);
+  assert.match(acknowledgement, /Copernicus Climate Change Service\. Funding for the AmeriFlux data service/);
+  assert.match(acknowledgement, /Data Availability statement/);
+  assert.match(acknowledgement, /downloaded on June 11, 2026 using the FLUXNET Data Explorer/);
+  assert.match(acknowledgement, /Keenan TF, 2026\. FLUXNET Data Explorer \(v1\.0\.0\)\. Zenodo\. https:\/\/doi\.org\/10\.5281\/zenodo\.20331228/);
+  assert.doesNotMatch(acknowledgement, /Edit the source and date/);
+  assert.doesNotMatch(acknowledgement, /Each site&#39;s data-product citation/);
+  assert.doesNotMatch(acknowledgement, /Selected data-product references/);
+  assert.doesNotMatch(acknowledgement, /Example Team \(2026\)/);
   assert.match(citationDoc, /10\.17190\/AMF\/1234567/);
+  assert.match(citationDoc, /Example Team \(2026\)/);
+  assert.match(citationDoc, /Site code/);
+  assert.match(citationDoc, /Site name/);
+  assert.match(citationDoc, /Data source or product type/);
+  assert.match(citationDoc, /Product ID \/ DOI \/ PID/);
+  assert.match(citationDoc, /Required citation/);
+  assert.doesNotMatch(citationDoc, /Product\/source network/);
+  assert.doesNotMatch(citationDoc, /Citation metadata status/);
+  assert.match(citationDoc, /table-layout:fixed/);
+  assert.match(citationDoc, /width:100%/);
+  assert.match(citationDoc, /word-wrap:break-word/);
+  assert.match(citationDoc, /overflow-wrap:anywhere/);
+  assert.equal((citationDoc.match(/<col style=/g) || []).length, 5);
   assert.match(citationDoc, /Pastorello, G\. et al\. \(2020\)/);
   assert.equal((citationDoc.match(/10\.1038\/s41597-020-0534-3/g) || []).length, 1);
   assert.match(bibtex, /@dataset\{FLUXNET_USHa1_2026/);
   assert.match(bibtex, /doi = \{10\.17190\/AMF\/1234567\}/);
   assert.match(latex, /\\begin\{longtable\}/);
+  assert.match(latex, /Product\/source network/);
+  assert.match(latex, /Citation metadata status/);
   assert.match(csv, /Site code,Site name,Product\/source network/);
+  assert.match(csv, /Citation metadata status/);
 });
 
 test('Data policy exports deduplicate citations and add network-specific acknowledgements and references', () => {
@@ -4769,9 +4798,16 @@ test('Data policy exports deduplicate citations and add network-specific acknowl
   const bibtex = hooks.buildBibtex(selected, citationRows);
 
   assert.deepEqual(hooks.detectNetworks(selected), ['AMF', 'CNF', 'JPF', 'OZF', 'TERN']);
-  assert.match(acknowledgement, /National ecosystem science data center/);
-  assert.match(acknowledgement, /OzFlux Data Portal/);
-  assert.match(acknowledgement, /TERN Data Discovery Portal/);
+  assert.equal((acknowledgement.match(/Funding for the AmeriFlux data service/g) || []).length, 1);
+  assert.equal((acknowledgement.match(/National ecosystem science data center/g) || []).length, 1);
+  assert.equal((acknowledgement.match(/OzFlux Data Portal/g) || []).length, 1);
+  assert.equal((acknowledgement.match(/TERN Data Discovery Portal/g) || []).length, 1);
+  assert.match(acknowledgement, /https:\/\/www\.nesdc\.org\.cn\./);
+  assert.match(acknowledgement, /https:\/\/data\.ozflux\.org\.au\/home\.jspx\./);
+  assert.match(acknowledgement, /https:\/\/portal\.tern\.org\.au\/browse\/theme\./);
+  assert.doesNotMatch(acknowledgement, /JapanFlux data are from/);
+  assert.doesNotMatch(acknowledgement, /Shared dataset citation/);
+  assert.match(citationDoc, /Shared dataset citation/);
   assert.match(citationDoc, /10\.1016\/j\.agrformet\.2006\.02\.011/);
   assert.match(citationDoc, /10\.5194\/essd-17-3807-2025/);
   assert.match(citationDoc, /10\.5194\/bg-13-5895-2016/);
@@ -4794,6 +4830,7 @@ test('Data policy tools represent missing non-Shuttle citation metadata without 
   ];
   const citationRows = hooks.buildCitationRows(selected);
   const warning = hooks.buildPolicyMissingWarning(citationRows);
+  const acknowledgement = hooks.buildAcknowledgementHtml(selected, citationRows, new Date(2026, 5, 11));
   const citationDoc = hooks.buildCitationTableHtml(selected, citationRows);
   const bibtex = hooks.buildBibtex(selected, citationRows);
   const latex = hooks.buildLatexTable(selected, citationRows);
@@ -4802,6 +4839,9 @@ test('Data policy tools represent missing non-Shuttle citation metadata without 
   assert.match(citationRows[0].requiredCitation, /Citation\/DOI not available in Explorer metadata/);
   assert.match(citationRows[0].citationMetadataStatus, /Partial/);
   assert.match(warning, /JP-Missing/);
+  assert.match(acknowledgement, /Metadata warning:/);
+  assert.match(acknowledgement, /JP-Missing/);
+  assert.doesNotMatch(acknowledgement, /Selected data-product references/);
   assert.match(citationDoc, /JP-Missing/);
   assert.match(bibtex, /% Missing citation metadata for: JP-Missing/);
   assert.match(latex, /% WARNING: Citation\/DOI metadata are incomplete/);
@@ -4859,9 +4899,10 @@ test('AmeriFlux V2 product DOI metadata enriches FLUXNET and BASE records', () =
   assert.match(baseCitation.requiredCitation, /https:\/\/doi\.org\/10\.17190\/AMF\/2315764/);
   assert.match(baseCitation.citationMetadataStatus, /AmeriFlux V2 API/);
   assert.doesNotMatch(hooks.buildPolicyMissingWarning([baseCitation]), /AR-Bal/);
-  [acknowledgement, citationDoc, bibtex, latex, csv].forEach((output) => {
+  [citationDoc, bibtex, latex, csv].forEach((output) => {
     assert.match(output, /10\.17190\/AMF\/2315764/);
   });
+  assert.doesNotMatch(acknowledgement, /10\.17190\/AMF\/2315764/);
   assert.match(bibtex, /@dataset\{BASE-BADM_ARBal_Data/);
 });
 
