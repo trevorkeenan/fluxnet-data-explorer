@@ -5937,6 +5937,16 @@
     });
   }
 
+  function isFluxnetProcessedPolicyProduct(product) {
+    return processingLineageForProduct(product) === PROCESSING_LINEAGE_ONEFLUX;
+  }
+
+  function selectedSitesIncludeFluxnetProcessedProduct(selectedSites) {
+    return (Array.isArray(selectedSites) ? selectedSites : []).some(function (site) {
+      return policyProductsForSelectedSite(site).some(isFluxnetProcessedPolicyProduct);
+    });
+  }
+
   function buildCitationRows(selectedSites) {
     var policyProducts = [];
     (Array.isArray(selectedSites) ? selectedSites : []).forEach(function (site) {
@@ -6068,7 +6078,9 @@
   function buildAcknowledgementHtml(selectedSites, citationRows, date) {
     var networks = detectNetworks(selectedSites);
     var missingWarning = buildPolicyMissingWarning(citationRows);
-    var acknowledgementSentences = [DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT];
+    var acknowledgementSentences = selectedSitesIncludeFluxnetProcessedProduct(selectedSites)
+      ? [DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT]
+      : [];
     var seenAcknowledgements = {};
     var parts = [
       "<h1>Acknowledgements</h1>"
@@ -6087,8 +6099,10 @@
       seenAcknowledgements[key] = true;
       return true;
     });
+    if (acknowledgementSentences.length) {
+      parts.push("<p>" + escapeHtml(acknowledgementSentences.join(" ")) + "</p>");
+    }
     parts.push(
-      "<p>" + escapeHtml(acknowledgementSentences.join(" ")) + "</p>",
       "<h2>Data Availability statement</h2>",
       "<p>The FLUXNET data products used in this work were downloaded on " + escapeHtml(formatPolicyDownloadDate(date)) + " using the FLUXNET Data Explorer (Keenan TF, 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.20331228).</p>"
     );
@@ -10587,6 +10601,8 @@
     shouldEnableBulkToolsActions: shouldEnableBulkToolsActions,
     formatSelectedSiteCount: formatSelectedSiteCount,
     getSelectedSitesForPolicyTools: getSelectedSitesForPolicyTools,
+    isFluxnetProcessedPolicyProduct: isFluxnetProcessedPolicyProduct,
+    selectedSitesIncludeFluxnetProcessedProduct: selectedSitesIncludeFluxnetProcessedProduct,
     buildCitationRows: buildCitationRows,
     detectNetworks: detectNetworks,
     buildPolicyMissingWarning: buildPolicyMissingWarning,

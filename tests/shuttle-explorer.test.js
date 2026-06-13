@@ -4783,6 +4783,84 @@ test('Data policy tools use the exact selected row set and map Shuttle manifest 
   assert.match(csv, /Citation metadata status/);
 });
 
+test('Global FLUXNET acknowledgement follows the selected products processing lineage', () => {
+  const shuttleRow = makeCatalogRow({
+    site_id: 'US-Shuttle',
+    source_origin: 'shuttle',
+    source_label: 'AmeriFlux-Shuttle',
+    processing_lineage: 'oneflux'
+  });
+  const fluxnet2015Row = makeCatalogRow({
+    site_id: 'AR-F15',
+    source_origin: 'ameriflux_api',
+    source_label: 'FLUXNET2015',
+    api_data_product: 'FLUXNET2015',
+    download_mode: 'ameriflux_api',
+    processing_lineage: 'oneflux'
+  });
+  const amerifluxFluxnetRow = makeCatalogRow({
+    site_id: 'US-FLX',
+    data_hub: 'AmeriFlux',
+    network: 'AmeriFlux',
+    source_network: 'AMF',
+    network_display: 'AmeriFlux',
+    source_origin: 'ameriflux_api',
+    source_label: 'AmeriFlux',
+    api_data_product: 'FLUXNET',
+    download_mode: 'ameriflux_api',
+    processing_lineage: 'oneflux'
+  });
+  const baseRow = makeCatalogRow({
+    site_id: 'US-BASE',
+    data_hub: 'AmeriFlux',
+    network: 'AmeriFlux',
+    source_network: 'AMF',
+    network_display: 'AmeriFlux',
+    source_origin: 'ameriflux_api',
+    source_label: 'BASE',
+    api_data_product: 'BASE-BADM',
+    product_family: 'BASE',
+    download_mode: 'ameriflux_api',
+    processing_lineage: 'other_processed'
+  });
+  const japanFluxRow = makeJapanFluxRow({ site_id: 'JP-Direct' });
+  const date = new Date(2026, 5, 11);
+  const baseAcknowledgement = hooks.buildAcknowledgementHtml(
+    [baseRow],
+    hooks.buildCitationRows([baseRow]),
+    date
+  );
+  const japanAcknowledgement = hooks.buildAcknowledgementHtml(
+    [japanFluxRow],
+    hooks.buildCitationRows([japanFluxRow]),
+    date
+  );
+  const mixedAcknowledgement = hooks.buildAcknowledgementHtml(
+    [baseRow, amerifluxFluxnetRow],
+    hooks.buildCitationRows([baseRow, amerifluxFluxnetRow]),
+    date
+  );
+
+  assert.equal(hooks.isFluxnetProcessedPolicyProduct(shuttleRow), true);
+  assert.equal(hooks.isFluxnetProcessedPolicyProduct(fluxnet2015Row), true);
+  assert.equal(hooks.isFluxnetProcessedPolicyProduct(amerifluxFluxnetRow), true);
+  assert.equal(hooks.isFluxnetProcessedPolicyProduct(baseRow), false);
+  assert.equal(hooks.isFluxnetProcessedPolicyProduct(japanFluxRow), false);
+  assert.equal(hooks.selectedSitesIncludeFluxnetProcessedProduct([baseRow, japanFluxRow]), false);
+  assert.equal(hooks.selectedSitesIncludeFluxnetProcessedProduct([baseRow, fluxnet2015Row]), true);
+
+  assert.doesNotMatch(baseAcknowledgement, /FLUXNET data products were produced and harmonized/);
+  assert.match(baseAcknowledgement, /Funding for the AmeriFlux data service/);
+  assert.match(baseAcknowledgement, /Data Availability statement/);
+  assert.doesNotMatch(japanAcknowledgement, /FLUXNET data products were produced and harmonized/);
+  assert.doesNotMatch(japanAcknowledgement, /<p><\/p>/);
+  assert.match(japanAcknowledgement, /Data Availability statement/);
+  assert.equal((mixedAcknowledgement.match(/FLUXNET data products were produced and harmonized/g) || []).length, 1);
+  assert.equal((mixedAcknowledgement.match(/Funding for the AmeriFlux data service/g) || []).length, 1);
+  assert.match(mixedAcknowledgement, /downloaded on June 11, 2026 using the FLUXNET Data Explorer/);
+  assert.equal(baseRow.processing_lineage, 'other_processed');
+});
+
 test('Data policy exports deduplicate citations and add network-specific acknowledgements and references', () => {
   const sharedCitation = 'Shared dataset citation (2026). https://doi.org/10.1234/shared';
   const selected = [
