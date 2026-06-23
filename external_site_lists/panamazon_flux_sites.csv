@@ -1,0 +1,13 @@
+id,name,acronym,lat,lon,country,state,vegetation,status,year,pi
+2,ATTO Walk-up,WT,-2.1441,-58.999,Brazil,Amazonas,Floresta primária,active,2011,Cleo Quaresma
+3,ATTO Campina Tower,CAM,-2.181,-59.022,Brazil,Amazonas,Campina,active,2023,Cleo Quaresma
+4,ATTO High Tower,TT,-2.1434,-59.0006,Brazil,Amazonas,Floresta primária,active,2012,Cleo Quaresma
+5,Torre da Fazenda Arco-íris,FAI,-15.1166,-56.9833,Brazil,Mato Grosso,Cerrado,active,2020,Marcelo Biudes
+8,Torre Micromet. de Tomé Açu,TMA,-2.4121,-48.2353,Brazil,Pará,SAFs plantio de dendê,active,2022,Alessandro Araújo
+12,BR319 Interflúvio,BR319,-4.999,-61.55,Brazil,Amazonas,Floresta primária (lençol freático prox. à superfície),active,2023,Flavia Costa / Scott Stark
+13,Mamirauá,MAM,-2.834,-65.003,Brazil,Amazonas,Floresta da várzea,active,2024,Ayan Fleischmann
+15,Ducke Platô,DUKP,-2.952,-59.941,Brazil,Amazonas,Floresta primária platô,active,2022,Flavia Costa / Scott Stark
+16,Ducke Baixio,DUKB,-2.944,-59.947,Brazil,Amazonas,Floresta primária baixio,active,2022,Flavia Costa / Scott Stark
+22,Maijuna Kichwa Regional Conservation Area,SUC,-3.1799,-72.9185,Peru,Loreto,Broadleaf evergreen forest,building,2025,David Urquiza
+23,Hato Santa Ana,CASF,5.1811,-71.7403,Colombia,Casanare,Seasonally flooded savanna,building,2026,Santiago Botía / Stijn Hantson
+24,Torre Inírida,INI,3.751,-67.8295,Colombia,Inírida,White sand forest,active,2024,Angela Gallego / Juan Carlos Benavides

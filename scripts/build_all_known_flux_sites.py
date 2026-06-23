@@ -107,6 +107,7 @@ SITE_ID_FIELDS = (
     "siteid",
     "fluxnet_id",
     "fluxnet_site_id",
+    "acronym",
     "mysitename",
     "site_code",
     "sitecode",
@@ -470,6 +471,11 @@ def build_country_lookups() -> tuple[dict[str, str], dict[str, str]]:
 
     aliases = {
         "argentina": "AR",
+        "brazil": "BR",
+        "colombia": "CO",
+        "french guiana": "GF",
+        "panama": "PA",
+        "peru": "PE",
         "usa": "US",
         "u s a": "US",
         "u s": "US",

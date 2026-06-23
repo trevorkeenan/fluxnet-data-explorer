@@ -1,8 +1,25 @@
 import unittest
+import csv
 from pathlib import Path
 from typing import Optional
 
 from scripts import build_all_known_flux_sites as module
+
+
+PANAMAZON_ADDED_SITE_IDS = {
+    "BR319",
+    "CAM",
+    "CASF",
+    "DUKB",
+    "DUKP",
+    "FAI",
+    "INI",
+    "MAM",
+    "SUC",
+    "TMA",
+    "TT",
+    "WT",
+}
 
 
 def make_spec(
@@ -112,6 +129,25 @@ class BuildAllKnownFluxSitesTests(unittest.TestCase):
         self.assertAlmostEqual(record.latitude or 0.0, 38.4133)
         self.assertAlmostEqual(record.longitude or 0.0, -120.9508)
         self.assertEqual(record.source_network, "AmeriFlux")
+
+    def test_acronym_column_normalizes_to_site_id(self):
+        record = make_record(
+            {
+                "acronym": "WT",
+                "name": "ATTO Walk-up",
+                "country": "Brazil",
+                "lat": "-2.1441",
+                "lon": "-58.999",
+            }
+        )
+
+        self.assertEqual(record.site_id, "WT")
+        self.assertEqual(record.site_code, "WT")
+        self.assertEqual(record.site_name, "ATTO Walk-up")
+        self.assertEqual(record.country_code, "BR")
+        self.assertEqual(record.country, "Brazil")
+        self.assertAlmostEqual(record.latitude or 0.0, -2.1441)
+        self.assertAlmostEqual(record.longitude or 0.0, -58.999)
 
     def test_lathuile_style_rows_normalize_to_flux_site_fields(self):
         record = make_record(
@@ -549,6 +585,60 @@ class BuildAllKnownFluxSitesTests(unittest.TestCase):
         for site in canonical_sites:
             if site["known_site_only"]:
                 self.assertFalse(site["has_accessible_data"])
+
+    def test_committed_panamazon_supplemental_sites_are_final_known_sites(self):
+        catalog_path = module.REPO_ROOT / "assets" / "all_known_flux_sites.csv"
+        with catalog_path.open(newline="", encoding="utf-8-sig") as handle:
+            rows = list(csv.DictReader(handle))
+
+        sites_by_key = {
+            module.normalize_site_id_key(row["site_id"]): row
+            for row in rows
+            if row["site_id"]
+        }
+
+        for site_id in PANAMAZON_ADDED_SITE_IDS:
+            with self.subTest(site_id=site_id):
+                self.assertIn(site_id, sites_by_key)
+                self.assertEqual(sites_by_key[site_id]["source_files"], "external_site_lists/panamazon_flux_sites.csv")
+                self.assertEqual(sites_by_key[site_id]["in_explorer"], "false")
+                self.assertEqual(sites_by_key[site_id]["has_accessible_data"], "false")
+                self.assertEqual(sites_by_key[site_id]["known_site_only"], "true")
+
+    def test_committed_known_site_catalog_has_no_duplicate_site_ids(self):
+        catalog_path = module.REPO_ROOT / "assets" / "all_known_flux_sites.csv"
+        with catalog_path.open(newline="", encoding="utf-8-sig") as handle:
+            rows = list(csv.DictReader(handle))
+
+        seen: set[str] = set()
+        duplicates: set[str] = set()
+        for row in rows:
+            site_key = module.normalize_site_id_key(row["site_id"])
+            if not site_key:
+                continue
+            if site_key in seen:
+                duplicates.add(site_key)
+            seen.add(site_key)
+
+        self.assertEqual(duplicates, set())
+
+    def test_panamazon_supplement_does_not_overwrite_existing_authoritative_sites(self):
+        catalog_path = module.REPO_ROOT / "assets" / "all_known_flux_sites.csv"
+        with catalog_path.open(newline="", encoding="utf-8-sig") as handle:
+            rows = list(csv.DictReader(handle))
+
+        sites_by_key = {
+            module.normalize_site_id_key(row["site_id"]): row
+            for row in rows
+            if row["site_id"]
+        }
+
+        self.assertEqual(sites_by_key["BR-MA2"]["site_name"], "Manaus - ZF2 K34")
+        self.assertEqual(sites_by_key["BR-MA2"]["has_accessible_data"], "true")
+        self.assertEqual(sites_by_key["BR-CAX"]["site_name"], "CAX, FLONA Caxiuanã micromet tower")
+        self.assertEqual(sites_by_key["GF-GUY"]["site_name"], "Guyaflux (French Guiana)")
+        self.assertEqual(sites_by_key["CO-GV1"]["site_name"], "Guatavita Station 1")
+        self.assertEqual(sites_by_key["PA-BAS"]["site_name"], "Barro Colorado Island")
 
 
 if __name__ == "__main__":
