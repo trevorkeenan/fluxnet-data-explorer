@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
+const preview = require('../assets/data-preview.js');
 const hooks = require('../assets/shuttle-explorer.js');
 
 const BASH_PATH = childProcess.execFileSync('bash', ['-lc', 'command -v bash'], { encoding: 'utf8' }).trim();
@@ -306,6 +307,89 @@ function mockHeaders(values) {
   };
 }
 
+function makePreviewFetch(payloadsByUrl) {
+  return async function fetchPreview(url) {
+    const key = String(url);
+    const entry = payloadsByUrl[key];
+    if (!entry) {
+      return {
+        ok: false,
+        status: 404,
+        headers: mockHeaders(),
+        json: async () => ({})
+      };
+    }
+    if (entry.reject) {
+      throw new Error(entry.reject);
+    }
+    return {
+      ok: entry.ok !== false,
+      status: entry.status || (entry.ok === false ? 404 : 200),
+      headers: mockHeaders(),
+      json: async () => {
+        if (entry.throwJson) {
+          throw new Error(entry.throwJson);
+        }
+        return entry.payload;
+      }
+    };
+  };
+}
+
+function makePreviewPayloads(overrides) {
+  return Object.assign({
+    'https://preview.example/v1/manifest.json': {
+      payload: {
+        schemaVersion: 1,
+        builtAt: '2026-06-23T00:00:00Z',
+        source: 'FLUXNET Shuttle',
+        sites: {
+          'US-Ha1': {
+            siteId: 'US-Ha1',
+            hasPreview: true,
+            siteManifestPath: 'sites/US-Ha1/manifest.json',
+            resolutions: ['monthly'],
+            variables: ['GPP', 'NEE']
+          },
+          'US-Miss': {
+            siteId: 'US-Miss',
+            hasPreview: false,
+            siteManifestPath: '',
+            resolutions: [],
+            variables: []
+          }
+        }
+      }
+    },
+    'https://preview.example/v1/sites/US-Ha1/manifest.json': {
+      payload: {
+        schemaVersion: 1,
+        siteId: 'US-Ha1',
+        source: 'FLUXNET Shuttle',
+        productLabel: 'FLUXNET Shuttle preview',
+        dateRange: ['2001-01-01', '2001-02-28'],
+        lastPreviewBuild: '2026-06-23T00:00:00Z',
+        resolutions: {
+          monthly: {
+            path: 'monthly.json',
+            variables: {
+              GPP: { label: 'Gross primary productivity', unit: 'g C m-2 d-1' },
+              NEE: { label: 'Net ecosystem exchange', unit: 'g C m-2 d-1' }
+            }
+          }
+        },
+        notice: 'Preview only.'
+      }
+    },
+    'https://preview.example/v1/sites/US-Ha1/monthly.json': {
+      payload: [
+        { date: '2001-01', GPP: 1.2, NEE: -0.4 },
+        { date: '2001-02', GPP: 2.4, NEE: null }
+      ]
+    }
+  }, overrides || {});
+}
+
 function expectedJqGuidancePattern() {
   if (process.platform === 'darwin') {
     return /macOS: brew install jq/;
@@ -340,6 +424,97 @@ function expectedJqGuidancePattern() {
 
   return /See https:\/\/jqlang\.github\.io\/jq\/download\//;
 }
+
+test('preview client builds artifact URLs without hard-coded host assumptions', () => {
+  const client = preview.createPreviewClient({ baseUrl: 'https://preview.example/v1/' });
+
+  assert.equal(client.buildUrl('manifest.json'), 'https://preview.example/v1/manifest.json');
+  assert.equal(client.buildUrl('/sites/US-Ha1/manifest.json'), 'https://preview.example/v1/sites/US-Ha1/manifest.json');
+  assert.equal(client.buildUrl('https://cdn.example/site.json'), 'https://cdn.example/site.json');
+});
+
+test('preview client parses global manifest and site preview availability', async () => {
+  const client = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch(makePreviewPayloads())
+  });
+  const manifest = await client.loadGlobalManifest();
+  const availability = preview.buildSiteAvailabilityLookup(manifest);
+
+  assert.equal(manifest.schemaVersion, 1);
+  assert.equal(availability['US-HA1'].hasPreview, true);
+  assert.equal(await client.hasSitePreview('us-ha1'), true);
+  assert.equal(await client.hasSitePreview('US-Miss'), false);
+});
+
+test('preview client reports missing global manifest cleanly', async () => {
+  const client = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch({})
+  });
+
+  await assert.rejects(
+    () => client.loadGlobalManifest(),
+    (error) => error.code === 'global_manifest_missing' && /Preview manifest/.test(preview.previewErrorMessage(error))
+  );
+});
+
+test('preview client reports missing site and unavailable variables cleanly', async () => {
+  const client = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch(makePreviewPayloads())
+  });
+
+  await assert.rejects(
+    () => client.loadSiteManifest('US-None'),
+    (error) => error.code === 'site_not_found'
+  );
+  await assert.rejects(
+    () => client.loadSeries('US-Ha1', 'monthly', 'TA'),
+    (error) => error.code === 'variable_unavailable'
+  );
+});
+
+test('preview client loads selected series with manifest metadata overrides', async () => {
+  const client = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch(makePreviewPayloads())
+  });
+
+  const result = await client.loadSeries('US-Ha1', 'monthly', 'GPP');
+
+  assert.equal(result.siteManifest.siteId, 'US-Ha1');
+  assert.equal(result.variableMeta.label, 'Gross primary productivity');
+  assert.equal(result.variableMeta.unit, 'g C m-2 d-1');
+  assert.deepEqual(result.records, [
+    { date: '2001-01', value: 1.2 },
+    { date: '2001-02', value: 2.4 }
+  ]);
+});
+
+test('preview client reports missing and malformed preview files cleanly', async () => {
+  const missingClient = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch(makePreviewPayloads({
+      'https://preview.example/v1/sites/US-Ha1/monthly.json': { ok: false, status: 404, payload: {} }
+    }))
+  });
+  const malformedClient = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch(makePreviewPayloads({
+      'https://preview.example/v1/sites/US-Ha1/monthly.json': { payload: { not: 'an array' } }
+    }))
+  });
+
+  await assert.rejects(
+    () => missingClient.loadSeries('US-Ha1', 'monthly', 'GPP'),
+    (error) => error.code === 'data_file_missing'
+  );
+  await assert.rejects(
+    () => malformedClient.loadSeries('US-Ha1', 'monthly', 'GPP'),
+    (error) => error.code === 'data_file_malformed'
+  );
+});
 
 test('AmeriFlux availability parser filters entries with empty publish_years', () => {
   const payload = {

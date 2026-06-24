@@ -1,6 +1,10 @@
 (function () {
   "use strict";
 
+  var DataPreview = (typeof window !== "undefined" && window.FluxnetDataPreview)
+    ? window.FluxnetDataPreview
+    : (typeof require === "function" ? require("./data-preview.js") : null);
+
   var DEFAULT_JSON_URL = "assets/shuttle_snapshot.json";
   var DEFAULT_CSV_URL = "assets/shuttle_snapshot.csv";
   var DEFAULT_ICOS_DIRECT_JSON_URL = "assets/icos_direct_fluxnet.json";
@@ -15,6 +19,7 @@
   var SITE_NAME_METADATA_URL = "assets/site_name_metadata.csv";
   var SITE_VEGETATION_METADATA_URL = "assets/site_vegetation_metadata.csv";
   var DEFAULT_ALL_KNOWN_SITES_MAP_JSON_URL = "assets/all_known_flux_sites_map.json";
+  var DEFAULT_PREVIEW_BASE_URL = DataPreview ? DataPreview.DEFAULT_PREVIEW_BASE_URL : "fluxnet-preview/v1";
   var DEFAULT_GLOBAL_LAND_BOUNDS = [[-60, -180], [85, 180]];
   var LEAFLET_WORLD_TILE_SIZE = 256;
   var DEFAULT_PAGE_SIZE = 10;
@@ -175,6 +180,9 @@
   var COPY_TABLE_SUCCESS_LABEL = "Copied!";
   var COPY_TABLE_FAILURE_LABEL = "Copy failed";
   var COPY_TABLE_FEEDBACK_MS = 1800;
+  var PREVIEW_LOADING_LABEL = "Preview loading";
+  var PREVIEW_AVAILABLE_LABEL = "Preview data";
+  var PREVIEW_UNAVAILABLE_LABEL = "Preview unavailable";
   var DATA_POLICY_MISSING_METADATA_PLACEHOLDER = "Citation/DOI not available in Explorer metadata. Please consult the source data portal.";
   var DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT = "FLUXNET data products were produced and harmonized by eddy covariance regional networks and data processing centers, including AmeriFlux, ChinaFlux, European Fluxes Database, ICOS, JapanFlux, KoFlux, OzFlux, SAEON, and TERN. These products also include a modified version of ERA5 hourly data provided by the Copernicus Climate Change Service.";
   var DATA_POLICY_REVIEW_NOTE = "Review this generated text against the requirements of your journal and every source network represented in the selected data.";
@@ -6533,6 +6541,232 @@
     });
   }
 
+  function isShuttlePreviewRow(row) {
+    return resolveSourceOrigin(row) === SHUTTLE_SOURCE_ORIGIN;
+  }
+
+  function previewSiteKey(siteId) {
+    return DataPreview && DataPreview.normalizeSiteId
+      ? DataPreview.normalizeSiteId(siteId)
+      : normalizeSiteId(siteId);
+  }
+
+  function previewErrorMessage(error) {
+    return DataPreview && DataPreview.previewErrorMessage
+      ? DataPreview.previewErrorMessage(error)
+      : (error && error.message ? String(error.message) : "Preview data could not be loaded.");
+  }
+
+  function previewVariableDefinition(variableKey, siteMeta) {
+    return DataPreview && DataPreview.variableDefinition
+      ? DataPreview.variableDefinition(variableKey, siteMeta)
+      : {
+        key: String(variableKey || ""),
+        label: String(variableKey || ""),
+        unit: "unit unavailable",
+        preferredAxisLabel: String(variableKey || "")
+      };
+  }
+
+  function previewResolutionNames(siteManifest) {
+    return DataPreview && DataPreview.getResolutionNames
+      ? DataPreview.getResolutionNames(siteManifest)
+      : [];
+  }
+
+  function previewVariableKeys(siteManifest, resolution) {
+    return DataPreview && DataPreview.listVariables
+      ? DataPreview.listVariables(siteManifest, resolution)
+      : [];
+  }
+
+  function previewChooseDefaultResolution(siteManifest) {
+    return DataPreview && DataPreview.chooseDefaultResolution
+      ? DataPreview.chooseDefaultResolution(siteManifest)
+      : "monthly";
+  }
+
+  function previewChooseDefaultVariable(siteManifest, resolution) {
+    return DataPreview && DataPreview.chooseDefaultVariable
+      ? DataPreview.chooseDefaultVariable(siteManifest, resolution)
+      : "";
+  }
+
+  function previewResolutionSpec(siteManifest, resolution) {
+    var resolutions = siteManifest && siteManifest.resolutions && typeof siteManifest.resolutions === "object"
+      ? siteManifest.resolutions
+      : {};
+    return resolutions[String(resolution || "").trim()] || null;
+  }
+
+  function previewSiteVariableMeta(siteManifest, resolution, variableKey) {
+    var spec = previewResolutionSpec(siteManifest, resolution);
+    var variables = spec && spec.variables && typeof spec.variables === "object" ? spec.variables : {};
+    return variables[String(variableKey || "").trim().toUpperCase()] || {};
+  }
+
+  function parsePreviewDateTime(value, fallbackIndex) {
+    var raw = String(value || "").trim();
+    var match;
+    if (/^\d{4}-\d{2}$/.test(raw)) {
+      match = raw.split("-");
+      return Date.UTC(parseInt(match[0], 10), parseInt(match[1], 10) - 1, 1);
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      match = raw.split("-");
+      return Date.UTC(parseInt(match[0], 10), parseInt(match[1], 10) - 1, parseInt(match[2], 10));
+    }
+    return Date.UTC(1970, 0, 1 + (fallbackIndex || 0));
+  }
+
+  function formatPreviewNumber(value) {
+    var numeric = Number(value);
+    if (!isFinite(numeric)) {
+      return "";
+    }
+    if (Math.abs(numeric) >= 100) {
+      return numeric.toFixed(0);
+    }
+    if (Math.abs(numeric) >= 10) {
+      return numeric.toFixed(1);
+    }
+    return numeric.toFixed(2);
+  }
+
+  function formatPreviewDateLabel(value) {
+    return String(value || "");
+  }
+
+  function buildPreviewOfficialProductHtml(row) {
+    var links = [];
+    var downloadLink = String(row && row.download_link || "").trim();
+    var productId = String(row && row.product_id || "").trim();
+    if (downloadLink) {
+      links.push("<a href=\"" + escapeHtml(downloadLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open official data product</a>");
+    }
+    if (productId) {
+      var doiUrl = /^10\./.test(productId) ? "https://doi.org/" + productId : productId;
+      if (/^https?:\/\//i.test(doiUrl)) {
+        links.push("<a href=\"" + escapeHtml(doiUrl) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Product citation/DOI</a>");
+      } else {
+        links.push("<span>Product ID: " + escapeHtml(productId) + "</span>");
+      }
+    }
+    if (!links.length) {
+      return "Download and cite the official FLUXNET Shuttle product for analysis workflows.";
+    }
+    return links.join(" <span aria-hidden=\"true\">|</span> ");
+  }
+
+  function buildPreviewChartSvg(seriesResult) {
+    var records = seriesResult && Array.isArray(seriesResult.records) ? seriesResult.records : [];
+    var variableMeta = seriesResult && seriesResult.variableMeta ? seriesResult.variableMeta : previewVariableDefinition(seriesResult && seriesResult.variable);
+    var width = 720;
+    var height = 320;
+    var margin = { top: 24, right: 24, bottom: 48, left: 64 };
+    var plotWidth = width - margin.left - margin.right;
+    var plotHeight = height - margin.top - margin.bottom;
+    var points = records.map(function (record, index) {
+      return {
+        date: record.date,
+        time: parsePreviewDateTime(record.date, index),
+        value: record.value == null ? null : Number(record.value)
+      };
+    });
+    var valid = points.filter(function (point) {
+      return isFinite(point.time) && point.value != null && isFinite(point.value);
+    });
+    var xMin;
+    var xMax;
+    var yMin;
+    var yMax;
+    var yPad;
+    var pathSegments = [];
+    var activeSegment = [];
+    var axisTitle = variableMeta.preferredAxisLabel || variableMeta.label || seriesResult.variable || "Preview value";
+
+    function flushSegment() {
+      if (activeSegment.length) {
+        pathSegments.push(activeSegment);
+        activeSegment = [];
+      }
+    }
+
+    if (!valid.length) {
+      return "<div class=\"shuttle-explorer__preview-empty\">No numeric values are available for this variable in the selected preview file.</div>";
+    }
+
+    xMin = Math.min.apply(null, valid.map(function (point) { return point.time; }));
+    xMax = Math.max.apply(null, valid.map(function (point) { return point.time; }));
+    yMin = Math.min.apply(null, valid.map(function (point) { return point.value; }));
+    yMax = Math.max.apply(null, valid.map(function (point) { return point.value; }));
+    if (xMin === xMax) {
+      xMin -= 86400000;
+      xMax += 86400000;
+    }
+    if (yMin === yMax) {
+      yMin -= 1;
+      yMax += 1;
+    } else {
+      yPad = (yMax - yMin) * 0.08;
+      yMin -= yPad;
+      yMax += yPad;
+    }
+
+    function xScale(time) {
+      return margin.left + ((time - xMin) / (xMax - xMin)) * plotWidth;
+    }
+
+    function yScale(value) {
+      return margin.top + plotHeight - ((value - yMin) / (yMax - yMin)) * plotHeight;
+    }
+
+    points.forEach(function (point) {
+      if (!isFinite(point.time) || point.value == null || !isFinite(point.value)) {
+        flushSegment();
+        return;
+      }
+      activeSegment.push({
+        x: xScale(point.time),
+        y: yScale(point.value),
+        date: point.date,
+        value: point.value
+      });
+    });
+    flushSegment();
+
+    var pathHtml = pathSegments.map(function (segment) {
+      var d = segment.map(function (point, index) {
+        return (index ? "L" : "M") + point.x.toFixed(2) + " " + point.y.toFixed(2);
+      }).join(" ");
+      return "<path class=\"shuttle-explorer__preview-line\" d=\"" + escapeHtml(d) + "\" />";
+    }).join("");
+    var circlesHtml = valid.length <= 160 ? pathSegments.map(function (segment) {
+      return segment.map(function (point) {
+        return "<circle class=\"shuttle-explorer__preview-point\" cx=\"" + point.x.toFixed(2) + "\" cy=\"" + point.y.toFixed(2) + "\" r=\"2.4\"><title>" +
+          escapeHtml(formatPreviewDateLabel(point.date) + ": " + formatPreviewNumber(point.value) + (variableMeta.unit ? " " + variableMeta.unit : "")) +
+          "</title></circle>";
+      }).join("");
+    }).join("") : "";
+    var xStartLabel = formatPreviewDateLabel(records[0] && records[0].date);
+    var xEndLabel = formatPreviewDateLabel(records[records.length - 1] && records[records.length - 1].date);
+
+    return [
+      "<svg class=\"shuttle-explorer__preview-chart\" viewBox=\"0 0 " + width + " " + height + "\" role=\"img\" aria-label=\"Time-series preview for " + escapeHtml(axisTitle) + "\">",
+      "<rect class=\"shuttle-explorer__preview-plot-bg\" x=\"" + margin.left + "\" y=\"" + margin.top + "\" width=\"" + plotWidth + "\" height=\"" + plotHeight + "\" />",
+      "<line class=\"shuttle-explorer__preview-axis\" x1=\"" + margin.left + "\" y1=\"" + (margin.top + plotHeight) + "\" x2=\"" + (margin.left + plotWidth) + "\" y2=\"" + (margin.top + plotHeight) + "\" />",
+      "<line class=\"shuttle-explorer__preview-axis\" x1=\"" + margin.left + "\" y1=\"" + margin.top + "\" x2=\"" + margin.left + "\" y2=\"" + (margin.top + plotHeight) + "\" />",
+      "<text class=\"shuttle-explorer__preview-tick\" x=\"" + margin.left + "\" y=\"" + (margin.top + plotHeight + 24) + "\">" + escapeHtml(xStartLabel) + "</text>",
+      "<text class=\"shuttle-explorer__preview-tick shuttle-explorer__preview-tick--end\" x=\"" + (margin.left + plotWidth) + "\" y=\"" + (margin.top + plotHeight + 24) + "\">" + escapeHtml(xEndLabel) + "</text>",
+      "<text class=\"shuttle-explorer__preview-tick\" x=\"" + (margin.left - 8) + "\" y=\"" + (margin.top + plotHeight) + "\" text-anchor=\"end\">" + escapeHtml(formatPreviewNumber(yMin)) + "</text>",
+      "<text class=\"shuttle-explorer__preview-tick\" x=\"" + (margin.left - 8) + "\" y=\"" + (margin.top + 4) + "\" text-anchor=\"end\">" + escapeHtml(formatPreviewNumber(yMax)) + "</text>",
+      "<text class=\"shuttle-explorer__preview-axis-title\" x=\"" + margin.left + "\" y=\"18\">" + escapeHtml(axisTitle) + "</text>",
+      pathHtml,
+      circlesHtml,
+      "</svg>"
+    ].join("");
+  }
+
   function ensureStyles() {
     if (document.querySelector("link[href*='shuttle-explorer.css']")) {
       return;
@@ -6896,6 +7130,33 @@
       "  <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"next-page\">Next</button>",
       "  <span class=\"shuttle-explorer__tiny shuttle-explorer__page-summary\" data-role=\"page-summary\"></span>",
       "</div>",
+      "<div class=\"shuttle-explorer__preview-modal shuttle-explorer__hidden\" data-role=\"preview-modal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"shuttle-preview-title\">",
+      "  <div class=\"shuttle-explorer__preview-backdrop\" data-role=\"preview-backdrop\"></div>",
+      "  <section class=\"shuttle-explorer__preview-panel\">",
+      "    <header class=\"shuttle-explorer__preview-header\">",
+      "      <div>",
+      "        <p class=\"shuttle-explorer__tiny\" data-role=\"preview-source\">FLUXNET Shuttle</p>",
+      "        <h3 id=\"shuttle-preview-title\" data-role=\"preview-title\">Data Preview</h3>",
+      "      </div>",
+      "      <button type=\"button\" class=\"shuttle-explorer__preview-close\" data-role=\"preview-close\" aria-label=\"Close data preview\">x</button>",
+      "    </header>",
+      "    <p class=\"shuttle-explorer__tiny shuttle-explorer__preview-meta\" data-role=\"preview-meta\"></p>",
+      "    <p class=\"shuttle-explorer__tiny shuttle-explorer__preview-notice\" data-role=\"preview-notice\"></p>",
+      "    <div class=\"shuttle-explorer__preview-controls\" data-role=\"preview-controls\">",
+      "      <div class=\"shuttle-explorer__field\">",
+      "        <label for=\"shuttle-preview-resolution\">Resolution</label>",
+      "        <select id=\"shuttle-preview-resolution\" data-role=\"preview-resolution\"></select>",
+      "      </div>",
+      "      <div class=\"shuttle-explorer__field\">",
+      "        <label for=\"shuttle-preview-variable\">Variable</label>",
+      "        <select id=\"shuttle-preview-variable\" data-role=\"preview-variable\"></select>",
+      "      </div>",
+      "    </div>",
+      "    <p class=\"shuttle-explorer__status shuttle-explorer__preview-status\" data-role=\"preview-status\" role=\"status\" aria-live=\"polite\"></p>",
+      "    <div class=\"shuttle-explorer__preview-chart-wrap\" data-role=\"preview-chart\"></div>",
+      "    <div class=\"shuttle-explorer__preview-footer shuttle-explorer__tiny\" data-role=\"preview-footer\"></div>",
+      "  </section>",
+      "</div>",
       "<details class=\"shuttle-explorer__bulk shuttle-explorer__data-notes\" data-role=\"data-notes\">",
       "  <summary class=\"shuttle-explorer__bulk-summary\">",
       "    <span class=\"shuttle-explorer__bulk-summary-label\">Data Notes</span>",
@@ -6946,6 +7207,9 @@
     this.siteNameMetadataUrl = root.getAttribute("data-site-name-metadata-src") || SITE_NAME_METADATA_URL;
     this.vegetationMetadataUrl = root.getAttribute("data-vegetation-metadata-src") || SITE_VEGETATION_METADATA_URL;
     this.allKnownSitesMapJsonUrl = root.getAttribute("data-all-known-sites-map-json-src") || DEFAULT_ALL_KNOWN_SITES_MAP_JSON_URL;
+    this.previewBaseUrl = DataPreview && DataPreview.resolvePreviewBaseUrl
+      ? DataPreview.resolvePreviewBaseUrl(root, DEFAULT_PREVIEW_BASE_URL)
+      : (root.getAttribute("data-preview-base-url") || DEFAULT_PREVIEW_BASE_URL);
     this.pageSize = Math.max(1, parseInt(root.getAttribute("data-page-size") || String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE);
     var ameriIdentity = resolveAmeriFluxIdentityFromRoot(root);
     this.shuttleSource = new ShuttleSource(this.jsonUrl, this.csvUrl);
@@ -7010,6 +7274,9 @@
     this.ameriFluxApiSources[AMERIFLUX_FLUXNET_PRODUCT] = this.ameriFluxSource;
     this.ameriFluxApiSources[AMERIFLUX_BASE_PRODUCT] = this.ameriFluxBaseSource;
     this.ameriFluxApiSources[FLUXNET2015_PRODUCT] = this.fluxnet2015Source;
+    this.previewClient = DataPreview && DataPreview.createPreviewClient
+      ? DataPreview.createPreviewClient({ baseUrl: this.previewBaseUrl })
+      : null;
 
     this.state = {
       mode: "loading",
@@ -7059,7 +7326,19 @@
       knownSiteMapRows: [],
       mapAccessibleRows: [],
       knownSiteOverlayEnabled: true,
-      knownSiteMapWarning: ""
+      knownSiteMapWarning: "",
+      previewAvailabilityMode: this.previewClient ? "idle" : "unavailable",
+      previewAvailabilityBySiteId: {},
+      previewManifestErrorMessage: "",
+      previewDrawerOpen: false,
+      previewActiveSiteId: "",
+      previewActiveRow: null,
+      previewMode: "idle",
+      previewErrorMessage: "",
+      previewSiteManifest: null,
+      previewResolution: "",
+      previewVariable: "",
+      previewSeriesResult: null
     };
     this.tableRowsBySiteKey = {};
     this.mapMarkerBySiteKey = {};
@@ -7069,6 +7348,7 @@
     this.highlightedMapMarker = null;
     this.activeLinkedRowSiteKey = "";
     this._linkedRowActiveTimer = null;
+    this._previewRequestToken = 0;
 
     createLayout(root);
     this.bindings = this.getBindings();
@@ -7077,6 +7357,7 @@
     this.renderTableHeader();
     this.setAttributionText(buildAttributionText("", ""), buildAttributionHtml("", ""));
     this.render();
+    this.loadPreviewAvailability();
   }
 
   Explorer.prototype.getBindings = function () {
@@ -7159,6 +7440,19 @@
       nextPage: bySelector(this.root, "[data-role='next-page']"),
       pageButtons: bySelector(this.root, "[data-role='page-buttons']"),
       pageSummary: bySelector(this.root, "[data-role='page-summary']"),
+      previewModal: bySelector(this.root, "[data-role='preview-modal']"),
+      previewBackdrop: bySelector(this.root, "[data-role='preview-backdrop']"),
+      previewClose: bySelector(this.root, "[data-role='preview-close']"),
+      previewTitle: bySelector(this.root, "[data-role='preview-title']"),
+      previewSource: bySelector(this.root, "[data-role='preview-source']"),
+      previewMeta: bySelector(this.root, "[data-role='preview-meta']"),
+      previewNotice: bySelector(this.root, "[data-role='preview-notice']"),
+      previewControls: bySelector(this.root, "[data-role='preview-controls']"),
+      previewResolution: bySelector(this.root, "[data-role='preview-resolution']"),
+      previewVariable: bySelector(this.root, "[data-role='preview-variable']"),
+      previewStatus: bySelector(this.root, "[data-role='preview-status']"),
+      previewChart: bySelector(this.root, "[data-role='preview-chart']"),
+      previewFooter: bySelector(this.root, "[data-role='preview-footer']"),
       attributionText: bySelector(this.root, "[data-role='attribution-text']"),
       copyAttribution: bySelector(this.root, "[data-role='copy-attribution']"),
       copyStatus: bySelector(this.root, "[data-role='copy-status']")
@@ -7552,6 +7846,313 @@
     });
   };
 
+  Explorer.prototype.loadPreviewAvailability = function () {
+    var self = this;
+    if (!this.previewClient || !DataPreview) {
+      this.state.previewAvailabilityMode = "unavailable";
+      return;
+    }
+    this.state.previewAvailabilityMode = "loading";
+    this.previewClient.loadGlobalManifest()
+      .then(function (manifest) {
+        self.state.previewAvailabilityBySiteId = DataPreview.buildSiteAvailabilityLookup
+          ? DataPreview.buildSiteAvailabilityLookup(manifest)
+          : {};
+        self.state.previewAvailabilityMode = "ready";
+        self.state.previewManifestErrorMessage = "";
+        if (self.state.mode === "ready") {
+          self.render();
+        }
+      })
+      .catch(function (error) {
+        self.state.previewAvailabilityBySiteId = {};
+        self.state.previewAvailabilityMode = "unavailable";
+        self.state.previewManifestErrorMessage = previewErrorMessage(error);
+        if (self.state.mode === "ready") {
+          self.render();
+        }
+      });
+  };
+
+  Explorer.prototype.previewActionForRow = function (row) {
+    var entry;
+    if (!isShuttlePreviewRow(row)) {
+      return { visible: false };
+    }
+    if (!this.previewClient) {
+      return {
+        visible: true,
+        disabled: true,
+        label: PREVIEW_UNAVAILABLE_LABEL,
+        title: "Data preview is not configured for this Explorer build."
+      };
+    }
+    if (this.state.previewAvailabilityMode === "idle" || this.state.previewAvailabilityMode === "loading") {
+      return {
+        visible: true,
+        disabled: true,
+        label: PREVIEW_LOADING_LABEL,
+        title: "Checking lightweight preview availability."
+      };
+    }
+    if (this.state.previewAvailabilityMode === "unavailable") {
+      return {
+        visible: true,
+        disabled: true,
+        label: PREVIEW_UNAVAILABLE_LABEL,
+        title: this.state.previewManifestErrorMessage || "Preview manifest unavailable; the Explorer table remains usable."
+      };
+    }
+    entry = this.state.previewAvailabilityBySiteId[previewSiteKey(row && row.site_id)];
+    if (entry && entry.hasPreview) {
+      return {
+        visible: true,
+        disabled: false,
+        label: PREVIEW_AVAILABLE_LABEL,
+        title: "Open lightweight FLUXNET Shuttle preview plot."
+      };
+    }
+    return {
+      visible: true,
+      disabled: true,
+      label: PREVIEW_UNAVAILABLE_LABEL,
+      title: "No lightweight preview artifact is listed for this Shuttle site yet."
+    };
+  };
+
+  Explorer.prototype.findPreviewRow = function (siteId) {
+    var wanted = previewSiteKey(siteId);
+    var rows = (Array.isArray(this.state.filteredRows) && this.state.filteredRows.length)
+      ? this.state.filteredRows
+      : this.state.rows;
+    var i;
+    for (i = 0; i < rows.length; i += 1) {
+      if (previewSiteKey(rows[i] && rows[i].site_id) === wanted && isShuttlePreviewRow(rows[i])) {
+        return rows[i];
+      }
+    }
+    return null;
+  };
+
+  Explorer.prototype.handlePreviewButtonClick = function (siteId) {
+    var row = this.findPreviewRow(siteId);
+    if (!row) {
+      return;
+    }
+    this.openDataPreview(row);
+  };
+
+  Explorer.prototype.openDataPreview = function (row) {
+    var self = this;
+    var token = ++this._previewRequestToken;
+    if (!this.previewClient || !row) {
+      return;
+    }
+    this.state.previewDrawerOpen = true;
+    this.state.previewActiveSiteId = String(row.site_id || "");
+    this.state.previewActiveRow = row;
+    this.state.previewMode = "loading-site";
+    this.state.previewErrorMessage = "";
+    this.state.previewSiteManifest = null;
+    this.state.previewResolution = "";
+    this.state.previewVariable = "";
+    this.state.previewSeriesResult = null;
+    this.renderPreviewDrawer();
+    gaEvent("fx_preview_open", { site_id: this.state.previewActiveSiteId });
+
+    this.previewClient.loadSiteManifest(row.site_id)
+      .then(function (siteManifest) {
+        if (token !== self._previewRequestToken) {
+          return null;
+        }
+        self.state.previewSiteManifest = siteManifest;
+        self.state.previewResolution = previewChooseDefaultResolution(siteManifest);
+        self.state.previewVariable = previewChooseDefaultVariable(siteManifest, self.state.previewResolution);
+        return self.loadPreviewSeriesForCurrent(token);
+      })
+      .catch(function (error) {
+        if (token !== self._previewRequestToken) {
+          return;
+        }
+        self.state.previewMode = "error";
+        self.state.previewErrorMessage = previewErrorMessage(error);
+        self.state.previewSeriesResult = null;
+        self.renderPreviewDrawer();
+      });
+  };
+
+  Explorer.prototype.closeDataPreview = function () {
+    this._previewRequestToken += 1;
+    this.state.previewDrawerOpen = false;
+    this.state.previewMode = "idle";
+    this.renderPreviewDrawer();
+  };
+
+  Explorer.prototype.loadPreviewSeriesForCurrent = function (token) {
+    var self = this;
+    var activeToken = token || ++this._previewRequestToken;
+    if (!this.previewClient || !this.state.previewActiveSiteId || !this.state.previewResolution || !this.state.previewVariable) {
+      this.state.previewMode = "error";
+      this.state.previewErrorMessage = "Preview metadata are incomplete for this site.";
+      this.renderPreviewDrawer();
+      return Promise.resolve(null);
+    }
+    this.state.previewMode = "loading-data";
+    this.state.previewErrorMessage = "";
+    this.state.previewSeriesResult = null;
+    this.renderPreviewDrawer();
+    return this.previewClient.loadSeries(
+      this.state.previewActiveSiteId,
+      this.state.previewResolution,
+      this.state.previewVariable
+    ).then(function (result) {
+      if (activeToken !== self._previewRequestToken) {
+        return null;
+      }
+      self.state.previewSeriesResult = result;
+      self.state.previewMode = "ready";
+      self.state.previewErrorMessage = "";
+      self.renderPreviewDrawer();
+      return result;
+    }).catch(function (error) {
+      if (activeToken !== self._previewRequestToken) {
+        return null;
+      }
+      self.state.previewMode = "error";
+      self.state.previewErrorMessage = previewErrorMessage(error);
+      self.state.previewSeriesResult = null;
+      self.renderPreviewDrawer();
+      return null;
+    });
+  };
+
+  Explorer.prototype.handlePreviewResolutionChange = function (resolution) {
+    var variables;
+    if (!this.state.previewSiteManifest) {
+      return;
+    }
+    this.state.previewResolution = String(resolution || "").trim();
+    variables = previewVariableKeys(this.state.previewSiteManifest, this.state.previewResolution);
+    if (variables.indexOf(this.state.previewVariable) === -1) {
+      this.state.previewVariable = variables[0] || "";
+    }
+    this.loadPreviewSeriesForCurrent();
+  };
+
+  Explorer.prototype.handlePreviewVariableChange = function (variable) {
+    if (!this.state.previewSiteManifest) {
+      return;
+    }
+    this.state.previewVariable = String(variable || "").trim().toUpperCase();
+    this.loadPreviewSeriesForCurrent();
+  };
+
+  Explorer.prototype.renderPreviewControls = function () {
+    var b = this.bindings;
+    var siteManifest = this.state.previewSiteManifest;
+    var resolution = this.state.previewResolution;
+    var variable = this.state.previewVariable;
+    var resolutions = siteManifest ? previewResolutionNames(siteManifest) : [];
+    var variables = siteManifest && resolution ? previewVariableKeys(siteManifest, resolution) : [];
+
+    if (b.previewControls) {
+      b.previewControls.classList.toggle("shuttle-explorer__hidden", !siteManifest);
+    }
+    if (b.previewResolution) {
+      b.previewResolution.innerHTML = resolutions.map(function (name) {
+        return "<option value=\"" + escapeHtml(name) + "\"" + (name === resolution ? " selected" : "") + ">" + escapeHtml(name) + "</option>";
+      }).join("");
+      b.previewResolution.disabled = !resolutions.length || this.state.previewMode === "loading-site";
+    }
+    if (b.previewVariable) {
+      b.previewVariable.innerHTML = variables.map(function (key) {
+        var meta = previewVariableDefinition(key, previewSiteVariableMeta(siteManifest, resolution, key));
+        return "<option value=\"" + escapeHtml(key) + "\"" + (key === variable ? " selected" : "") + ">" + escapeHtml(key + " - " + meta.label) + "</option>";
+      }).join("");
+      b.previewVariable.disabled = !variables.length || this.state.previewMode === "loading-site" || this.state.previewMode === "loading-data";
+    }
+  };
+
+  Explorer.prototype.renderPreviewDrawer = function () {
+    var b = this.bindings;
+    var row = this.state.previewActiveRow || {};
+    var siteManifest = this.state.previewSiteManifest;
+    var siteLabel = [String(row.site_id || this.state.previewActiveSiteId || ""), String(row.site_name || "")]
+      .filter(Boolean)
+      .join(" - ");
+    var dateRange;
+    var statusText = "";
+    var statusClass = "";
+    var metaParts = [];
+
+    if (!b.previewModal) {
+      return;
+    }
+    b.previewModal.classList.toggle("shuttle-explorer__hidden", !this.state.previewDrawerOpen);
+    if (!this.state.previewDrawerOpen) {
+      return;
+    }
+
+    if (b.previewTitle) {
+      b.previewTitle.textContent = siteLabel || "Data Preview";
+    }
+    if (b.previewSource) {
+      b.previewSource.textContent = "Source: FLUXNET Shuttle";
+    }
+    if (siteManifest) {
+      dateRange = Array.isArray(siteManifest.dateRange) && siteManifest.dateRange.length
+        ? siteManifest.dateRange.filter(Boolean).join(" to ")
+        : "";
+      if (siteManifest.productLabel) {
+        metaParts.push(siteManifest.productLabel);
+      }
+      if (dateRange) {
+        metaParts.push(dateRange);
+      }
+      if (siteManifest.lastPreviewBuild) {
+        metaParts.push("Preview built " + siteManifest.lastPreviewBuild);
+      }
+    }
+    if (b.previewMeta) {
+      b.previewMeta.textContent = metaParts.join(" | ");
+    }
+    if (b.previewNotice) {
+      b.previewNotice.textContent = siteManifest && siteManifest.notice
+        ? siteManifest.notice
+        : "This lightweight preview is for visual browsing only. Download and cite the official data product for analysis.";
+    }
+    this.renderPreviewControls();
+
+    if (this.state.previewMode === "loading-site") {
+      statusText = "Loading preview manifest...";
+      statusClass = "is-loading";
+    } else if (this.state.previewMode === "loading-data") {
+      statusText = "Loading " + (this.state.previewResolution || "preview") + " " + (this.state.previewVariable || "variable") + " data...";
+      statusClass = "is-loading";
+    } else if (this.state.previewMode === "ready") {
+      statusText = "Showing " + this.state.previewResolution + " " + this.state.previewVariable + " preview (" +
+        ((this.state.previewSeriesResult && this.state.previewSeriesResult.records || []).length) + " records).";
+      statusClass = "is-ok";
+    } else if (this.state.previewMode === "error") {
+      statusText = this.state.previewErrorMessage || "Preview data could not be loaded.";
+      statusClass = "is-error";
+    }
+
+    if (b.previewStatus) {
+      b.previewStatus.className = "shuttle-explorer__status shuttle-explorer__preview-status" + (statusClass ? " " + statusClass : "");
+      b.previewStatus.textContent = statusText;
+      b.previewStatus.classList.toggle("shuttle-explorer__hidden", !statusText);
+    }
+    if (b.previewChart) {
+      b.previewChart.innerHTML = this.state.previewMode === "ready" && this.state.previewSeriesResult
+        ? buildPreviewChartSvg(this.state.previewSeriesResult)
+        : "";
+    }
+    if (b.previewFooter) {
+      b.previewFooter.innerHTML = buildPreviewOfficialProductHtml(row);
+    }
+  };
+
   Explorer.prototype.bindEvents = function () {
     var self = this;
     var b = this.bindings;
@@ -7828,6 +8429,38 @@
       });
     }
 
+    if (b.previewClose) {
+      b.previewClose.addEventListener("click", function () {
+        self.closeDataPreview();
+      });
+    }
+
+    if (b.previewBackdrop) {
+      b.previewBackdrop.addEventListener("click", function () {
+        self.closeDataPreview();
+      });
+    }
+
+    if (b.previewResolution) {
+      b.previewResolution.addEventListener("change", function () {
+        self.handlePreviewResolutionChange(String(b.previewResolution.value || ""));
+      });
+    }
+
+    if (b.previewVariable) {
+      b.previewVariable.addEventListener("change", function () {
+        self.handlePreviewVariableChange(String(b.previewVariable.value || ""));
+      });
+    }
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("keydown", function (event) {
+        if ((event.key === "Escape" || event.key === "Esc") && self.state.previewDrawerOpen) {
+          self.closeDataPreview();
+        }
+      });
+    }
+
     if (b.prevPage) {
       b.prevPage.addEventListener("click", function () {
         if (self.state.page > 1) {
@@ -7928,6 +8561,7 @@
           target !== b.tbody &&
           !(
             (target.tagName === "BUTTON" && target.getAttribute("data-role") === "ameriflux-download") ||
+            (target.tagName === "BUTTON" && target.getAttribute("data-role") === "preview-data") ||
             (target.tagName === "A" && target.getAttribute("data-role") === "row-link-action")
           )
         ) {
@@ -7942,6 +8576,10 @@
             mode: String(target.getAttribute("data-link-mode") || ""),
             source_label: String(target.getAttribute("data-source-label") || "")
           });
+          return;
+        }
+        if (target.tagName === "BUTTON" && target.getAttribute("data-role") === "preview-data") {
+          self.handlePreviewButtonClick(String(target.getAttribute("data-site-id") || ""));
           return;
         }
         var siteId = String(target.getAttribute("data-site-id") || "");
@@ -10067,6 +10705,25 @@
         optionWrap.appendChild(control);
         downloadTd.appendChild(optionWrap);
       });
+
+      var previewAction = this.previewActionForRow(row);
+      if (previewAction.visible) {
+        var previewWrap = document.createElement("div");
+        var previewButton = document.createElement("button");
+        previewWrap.className = "shuttle-explorer__download-option shuttle-explorer__preview-option";
+        previewButton.type = "button";
+        previewButton.className = "shuttle-explorer__btn shuttle-explorer__btn--small shuttle-explorer__preview-btn";
+        previewButton.setAttribute("data-role", "preview-data");
+        previewButton.setAttribute("data-site-id", row.site_id || "");
+        previewButton.textContent = previewAction.label;
+        previewButton.disabled = !!previewAction.disabled;
+        previewButton.setAttribute("aria-label", previewAction.label + " for " + String(row.site_id || "site"));
+        if (previewAction.title) {
+          previewButton.title = previewAction.title;
+        }
+        previewWrap.appendChild(previewButton);
+        downloadTd.appendChild(previewWrap);
+      }
       tr.appendChild(downloadTd);
 
       tbody.appendChild(tr);
@@ -10185,6 +10842,7 @@
     if (hasData) {
       this.renderMap();
     }
+    this.renderPreviewDrawer();
 
   };
 

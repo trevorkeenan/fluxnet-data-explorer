@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "builtAt": "2026-06-23T00:00:00Z",
+  "source": "FLUXNET Shuttle",
+  "sites": {
+    "US-Ha1": {
+      "siteId": "US-Ha1",
+      "hasPreview": true,
+      "siteManifestPath": "sites/US-Ha1/manifest.json",
+      "resolutions": ["monthly"],
+      "variables": ["GPP", "NEE", "RECO", "LE", "H", "TA", "VPD", "SW_IN", "P"]
+    },
+    "CA-DBB": {
+      "siteId": "CA-DBB",
+      "hasPreview": true,
+      "siteManifestPath": "sites/CA-DBB/manifest.json",
+      "resolutions": ["monthly"],
+      "variables": ["GPP", "NEE", "RECO", "LE", "H", "TA", "VPD", "SW_IN", "P"]
+    }
+  }
+}

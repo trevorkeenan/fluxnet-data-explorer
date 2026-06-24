@@ -18,6 +18,65 @@ The Explorer serves committed CSV and JSON metadata snapshots from `assets/`. Th
 
 Live source availability can change between repository releases. Zenodo releases are for versioned Explorer software releases and bundled metadata snapshots, not every daily manifest refresh.
 
+## Data Preview
+
+The Explorer includes a Data Preview for FLUXNET Shuttle rows. It is a catalog/discovery preview only: clicking `Preview data` fetches precomputed lightweight JSON artifacts and never downloads or unzips the full Shuttle product in the browser.
+
+Preview artifacts are static files with this layout:
+
+```text
+fluxnet-preview/
+  v1/
+    manifest.json
+    sites/
+      SITE_ID/
+        manifest.json
+        monthly.json
+```
+
+The current UI supports single-site, single-variable monthly previews for Shuttle-backed rows. The global manifest tells the table which Shuttle sites have previews. The site manifest describes available resolutions, variables, labels, units, date range, and the user-facing notice. The data files are plot-ready wide JSON records such as `{ "date": "2001-01", "GPP": 1.23 }`.
+
+The static app resolves the preview base URL from the Explorer root attribute `data-preview-base-url`, then `window.FLUXNET_EXPLORER_CONFIG.previewBaseUrl` or `window.FLUXNET_EXPLORER_CONFIG.fluxnetPreviewBaseUrl`, then global values such as `window.VITE_FLUXNET_PREVIEW_BASE_URL` or `window.FLUXNET_PREVIEW_BASE_URL`. The committed default is `fluxnet-preview/v1` for local and GitHub Pages relative hosting. Production can point to any static host with CORS enabled, for example `https://fluxnet-preview.keenangroup.info/v1`; the code does not hard-code an R2 or Cloudflare URL.
+
+Tiny synthetic local fixtures are committed under `fluxnet-preview/v1/` for `US-Ha1` and `CA-DBB`. To test locally, run the normal static server, search one of those site IDs, and click `Preview data`.
+
+Build preview artifacts with `scripts/build-shuttle-preview.py`. The builder reads the committed Shuttle snapshot or CSV catalog, downloads selected Shuttle zip products into a local cache, extracts only the monthly `*_FLUXNET_FLUXMET_MM_*.csv` member from each zip, maps a small set of core variables, and writes the static artifact contract consumed by `assets/data-preview.js`. It ignores HH, DD, WW, YY, ERA5, and BIF data for values; `*_BIFVARINFO_MM_*.csv` may be used only for variable labels or units.
+
+Recommended dry run before downloading:
+
+```bash
+python3 scripts/build-shuttle-preview.py \
+  --snapshot assets/shuttle_snapshot.json \
+  --output-dir fluxnet-preview/v1 \
+  --cache-dir /tmp/fluxnet-shuttle-preview-cache \
+  --site AR-Bal \
+  --dry-run
+```
+
+Build one site:
+
+```bash
+python3 scripts/build-shuttle-preview.py \
+  --snapshot assets/shuttle_snapshot.json \
+  --output-dir fluxnet-preview/v1 \
+  --cache-dir /tmp/fluxnet-shuttle-preview-cache \
+  --site AR-Bal
+```
+
+Build a small subset from the eligible catalog:
+
+```bash
+python3 scripts/build-shuttle-preview.py \
+  --snapshot assets/shuttle_snapshot.json \
+  --output-dir fluxnet-preview/v1 \
+  --cache-dir /tmp/fluxnet-shuttle-preview-cache \
+  --limit 25
+```
+
+Use repeated `--site SITE_ID` arguments for an explicit subset, `--force` to rebuild unchanged fingerprints, and `--resolution monthly,daily` when exercising the daily placeholder. Monthly output is the implemented preview path today; daily is accepted by the CLI but not yet emitted as a frontend preview file.
+
+The output directory can be copied to Cloudflare R2 or another static host. Enable CORS for the Explorer origin, preserve the `v1/manifest.json` and `v1/sites/...` paths, and set the preview base URL in the page configuration to the hosted `v1` directory.
+
 ## Repository Structure
 
 - `index.html`: GitHub Pages entry point for the Explorer.

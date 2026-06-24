@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "siteId": "US-Ha1",
+  "source": "FLUXNET Shuttle",
+  "productLabel": "Synthetic local FLUXNET Shuttle preview fixture",
+  "dateRange": ["1991-01-01", "2025-12-31"],
+  "lastPreviewBuild": "2026-06-23T00:00:00Z",
+  "resolutions": {
+    "monthly": {
+      "path": "monthly.json",
+      "variables": {
+        "GPP": { "label": "Gross primary productivity", "unit": "g C m-2 d-1" },
+        "NEE": { "label": "Net ecosystem exchange", "unit": "g C m-2 d-1" },
+        "RECO": { "label": "Ecosystem respiration", "unit": "g C m-2 d-1" },
+        "LE": { "label": "Latent heat flux", "unit": "W m-2" },
+        "H": { "label": "Sensible heat flux", "unit": "W m-2" },
+        "TA": { "label": "Air temperature", "unit": "deg C" },
+        "VPD": { "label": "Vapor pressure deficit", "unit": "kPa" },
+        "SW_IN": { "label": "Incoming shortwave radiation", "unit": "W m-2" },
+        "P": { "label": "Precipitation", "unit": "mm d-1" }
+      }
+    }
+  },
+  "notice": "This is a tiny synthetic local fixture for testing the Data Preview UI. It is not research data. For analysis, download and cite the official FLUXNET Shuttle product."
+}

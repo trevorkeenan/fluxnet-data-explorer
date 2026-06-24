@@ -42,6 +42,7 @@
 		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 		<link rel="stylesheet" type="text/css" media="screen" href="assets/shuttle-explorer.css" />
 		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+		<script type="text/javascript" src="assets/data-preview.js" defer></script>
 		<script type="text/javascript" src="assets/shuttle-explorer.js" defer></script>
 		
 		<!-- User defined styles -->
@@ -159,7 +160,7 @@
 								<p>Search by site ID, name or characteristic, then open hub-hosted <b><it>download links directly from the table</b></it>, or use the <b><it>bulk download tools</b></it> provided. Beyond the sites available through the FLUXNET Shuttle (<a href="https://data.fluxnet.org/" target="_blank" rel="noopener">https://data.fluxnet.org/</a>), this explorer also surfaces additional records hosted on regional network portals worldwide, to provide the maximum amount of flux observations possible.</p>
 								<p><a href="https://fluxnet.org/" target="_blank" rel="noopener">FLUXNET</a> is an international “network of networks” that brings together over 2000 sites worldwide and thousands of scientists, educators, practitioners and policy makers. Using the eddy covariance technique, FLUXNET researchers measure exchanges of carbon, water, and energy between the land surface and the atmosphere. These data support research on ecosystem function, land–atmosphere interactions, and responses to environmental change.</p>
 							</div>
-							<div id="shuttle-explorer" class="shuttle-explorer--hide-header" data-shuttle-explorer data-json-src="assets/shuttle_snapshot.json" data-csv-src="assets/shuttle_snapshot.csv" data-icos-direct-json-src="assets/icos_direct_fluxnet.json" data-icos-direct-csv-src="assets/icos_direct_fluxnet.csv" data-japanflux-direct-json-src="assets/japanflux_direct_snapshot.json" data-japanflux-direct-csv-src="assets/japanflux_direct_snapshot.csv" data-efd-curated-json-src="assets/efd_curated_sites_snapshot.json" data-efd-curated-csv-src="assets/efd_curated_sites_snapshot.csv" data-all-known-sites-map-json-src="assets/all_known_flux_sites_map.json" data-page-size="10"></div>
+								<div id="shuttle-explorer" class="shuttle-explorer--hide-header" data-shuttle-explorer data-json-src="assets/shuttle_snapshot.json" data-csv-src="assets/shuttle_snapshot.csv" data-icos-direct-json-src="assets/icos_direct_fluxnet.json" data-icos-direct-csv-src="assets/icos_direct_fluxnet.csv" data-japanflux-direct-json-src="assets/japanflux_direct_snapshot.json" data-japanflux-direct-csv-src="assets/japanflux_direct_snapshot.csv" data-efd-curated-json-src="assets/efd_curated_sites_snapshot.json" data-efd-curated-csv-src="assets/efd_curated_sites_snapshot.csv" data-all-known-sites-map-json-src="assets/all_known_flux_sites_map.json" data-preview-base-url="fluxnet-preview/v1" data-page-size="10"></div>
 							<div class="fluxpulse-title-block">
 								<p id="shuttle-attribution-note">Contact TF Keenan (<a href="mailto:trevorkeenan@berkeley.edu">trevorkeenan@berkeley.edu</a>) with any questions or suggestions. Funding for the FLUXNET Data Explorer was generously provided by the NSF AccelNet program. Explorer refreshed: unavailable. New data last added: unavailable.</p>
 							</div>
