@@ -35,9 +35,10 @@ def zip_payload(files: dict[str, str]) -> bytes:
 
 
 class FakeUrlopenResponse(io.BytesIO):
-    def __init__(self, body: bytes, url: str):
+    def __init__(self, body: bytes, url: str, content_type: str = "application/octet-stream"):
         super().__init__(body)
         self._url = url
+        self.headers = {"Content-Type": content_type}
 
     def __enter__(self):
         return self
@@ -47,6 +48,14 @@ class FakeUrlopenResponse(io.BytesIO):
 
     def geturl(self):
         return self._url
+
+
+class FakeOpener:
+    def __init__(self, handler):
+        self.handler = handler
+
+    def open(self, request, timeout=None):
+        return self.handler(request, timeout)
 
 
 def monthly_csv(value: str = "1.23", timestamp: str = "202001", extra_columns: str = "") -> str:
@@ -298,7 +307,35 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
         self.assertTrue(module.is_icos_license_acceptance_url(self.ICOS_URL))
         self.assertEqual(module.extract_icos_object_ids(self.ICOS_URL), ["SR8Y7XJE2CuwVkPh9WO7iXKF"])
 
-    def test_icos_licence_accept_without_token_is_classified_as_requires_auth(self):
+    def test_icos_licence_accept_without_token_attempts_unauthenticated_download_and_builds_zip(self):
+        with TemporaryDirectory() as tmp, mock.patch.dict(module.os.environ, {}, clear=True):
+            tmp_path = Path(tmp)
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("AT-Mmg", self.ICOS_URL)])
+            requested = []
+            payload = zip_payload({"AMF_AT-Mmg_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()})
+
+            def fake_open(request, timeout):
+                requested.append((request.full_url, request.get_header("Cookie"), timeout))
+                return FakeUrlopenResponse(payload, request.full_url)
+
+            with mock.patch.object(module.urllib.request, "build_opener", return_value=FakeOpener(fake_open)):
+                summary = module.run_build(
+                    snapshot_path,
+                    tmp_path / "preview" / "v1",
+                    tmp_path / "cache",
+                    force=True,
+                    log=lambda _message: None,
+                )
+                monthly = json.loads((tmp_path / "preview" / "v1" / "sites" / "AT-Mmg" / "monthly.json").read_text())
+
+        self.assertEqual(requested, [(self.ICOS_URL, None, module.DOWNLOAD_TIMEOUT_SECONDS)])
+        self.assertEqual([result.site_id for result in summary.built], ["AT-Mmg"])
+        self.assertIn(module.ICOS_UNAUTHENTICATED_SUCCESS_REASON, summary.built[0].reason)
+        self.assertEqual(monthly[0]["date"], "2020-01")
+        self.assertEqual(monthly[0]["GPP"], 1.23)
+        self.assertFalse(summary.has_errors())
+
+    def test_dry_run_icos_licence_accept_without_token_is_reported_buildable(self):
         with TemporaryDirectory() as tmp, mock.patch.dict(module.os.environ, {}, clear=True):
             tmp_path = Path(tmp)
             snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("AT-Mmg", self.ICOS_URL)])
@@ -307,12 +344,12 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
                 snapshot_path,
                 tmp_path / "preview" / "v1",
                 tmp_path / "cache",
-                force=True,
+                dry_run=True,
                 log=lambda _message: None,
             )
 
-        self.assertEqual([result.site_id for result in summary.requires_icos_license_auth], ["AT-Mmg"])
-        self.assertEqual(summary.requires_icos_license_auth[0].reason, module.REQUIRES_ICOS_LICENSE_REASON)
+        self.assertEqual([result.site_id for result in summary.dry_run_build], ["AT-Mmg"])
+        self.assertEqual(summary.requires_icos_license_auth, [])
         self.assertFalse(summary.has_errors())
 
     def test_redirect_to_icos_licence_page_is_classified_as_requires_auth(self):
@@ -333,24 +370,54 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
 
         self.assertFalse(destination.exists())
 
-    def test_icos_licence_accept_with_token_downloads_object_url_with_cookie(self):
+    def test_icos_licence_accept_with_token_falls_back_to_object_url_after_html(self):
         with TemporaryDirectory() as tmp, mock.patch.dict(module.os.environ, {module.ICOS_CPAUTH_TOKEN_ENV: "secret-token"}, clear=True):
             requested = []
             payload = zip_payload({"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()})
 
-            def fake_urlopen(request, timeout):
+            def fake_open(request, timeout):
                 requested.append((request.full_url, request.get_header("Cookie"), timeout))
+                if request.full_url == self.ICOS_URL:
+                    return FakeUrlopenResponse(b"<html>ICOS Data Licence</html>", "https://data.icos-cp.eu/licence", "text/html")
                 return FakeUrlopenResponse(payload, request.full_url)
 
-            with mock.patch.object(module.urllib.request, "urlopen", fake_urlopen):
+            with mock.patch.object(module.urllib.request, "build_opener", return_value=FakeOpener(fake_open)):
                 destination = Path(tmp) / "download.zip"
                 product = module.ProductRow("AT-Mmg", self.ICOS_URL, {"site_id": "AT-Mmg", "download_link": self.ICOS_URL})
                 module.default_download(product, destination)
                 downloaded_is_zip = zipfile.is_zipfile(destination)
 
-        self.assertEqual(requested[0][0], "https://data.icos-cp.eu/objects/SR8Y7XJE2CuwVkPh9WO7iXKF")
-        self.assertEqual(requested[0][1], "cpauthToken=secret-token")
+        self.assertEqual(requested[0], (self.ICOS_URL, None, module.DOWNLOAD_TIMEOUT_SECONDS))
+        self.assertEqual(requested[1], ("https://data.icos-cp.eu/objects/SR8Y7XJE2CuwVkPh9WO7iXKF", "cpauthToken=secret-token", module.DOWNLOAD_TIMEOUT_SECONDS))
         self.assertTrue(downloaded_is_zip)
+
+    def test_icos_licence_accept_html_is_deleted_and_classified_as_requires_auth(self):
+        with TemporaryDirectory() as tmp, mock.patch.dict(module.os.environ, {}, clear=True):
+            tmp_path = Path(tmp)
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("AT-Mmg", self.ICOS_URL)])
+            requested = []
+
+            def fake_open(request, timeout):
+                requested.append(request.full_url)
+                return FakeUrlopenResponse(b"<html>ICOS Data Licence</html>", "https://data.icos-cp.eu/licence", "text/html")
+
+            with mock.patch.object(module.urllib.request, "build_opener", return_value=FakeOpener(fake_open)):
+                summary = module.run_build(
+                    snapshot_path,
+                    tmp_path / "preview" / "v1",
+                    tmp_path / "cache",
+                    force=True,
+                    log=lambda _message: None,
+                )
+                cached_tmp_files = list((tmp_path / "cache").glob("**/*.tmp"))
+                cached_zip_files = list((tmp_path / "cache").glob("**/*.zip"))
+
+        self.assertEqual(requested, [self.ICOS_URL])
+        self.assertEqual([result.site_id for result in summary.requires_icos_license_auth], ["AT-Mmg"])
+        self.assertIn("HTML response", summary.requires_icos_license_auth[0].reason)
+        self.assertFalse(cached_tmp_files)
+        self.assertFalse(cached_zip_files)
+        self.assertFalse(summary.has_errors())
 
     def test_html_icos_cache_is_deleted_and_not_reused_as_zip(self):
         with TemporaryDirectory() as tmp, mock.patch.dict(module.os.environ, {}, clear=True):
@@ -364,27 +431,46 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
             cache_path.write_text("<html>ICOS licence page</html>", encoding="utf-8")
             logs = []
 
-            summary = module.run_build(
-                snapshot_path,
-                tmp_path / "preview" / "v1",
-                tmp_path / "cache",
-                force=True,
-                log=logs.append,
-            )
+            def fake_open(request, timeout):
+                return FakeUrlopenResponse(b"<html>ICOS licence page</html>", "https://data.icos-cp.eu/licence", "text/html")
 
-        self.assertFalse(cache_path.exists())
+            with mock.patch.object(module.urllib.request, "build_opener", return_value=FakeOpener(fake_open)):
+                summary = module.run_build(
+                    snapshot_path,
+                    tmp_path / "preview" / "v1",
+                    tmp_path / "cache",
+                    force=True,
+                    log=logs.append,
+                )
+                cache_path_exists = cache_path.exists()
+
+        self.assertFalse(cache_path_exists)
         self.assertEqual([result.site_id for result in summary.requires_icos_license_auth], ["AT-Mmg"])
         self.assertTrue(any("not a valid zip" in message for message in logs))
 
-    def test_normal_product_download_validates_zip_and_builds(self):
+    def test_normal_amf_and_tern_product_download_validates_zip_and_builds(self):
         with TemporaryDirectory() as tmp, mock.patch.dict(module.os.environ, {}, clear=True):
             tmp_path = Path(tmp)
-            row = snapshot_row("US-Test", "https://example.test/product.zip")
-            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [row])
-            payload = zip_payload({"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()})
+            rows = [
+                snapshot_row("US-Test", "https://example.test/amf-product.zip"),
+                {
+                    **snapshot_row("AU-Test", "https://example.test/tern-product.zip"),
+                    "data_hub": "TERN",
+                    "network": "TERN",
+                    "source_network": "TERN",
+                    "product_source_network": "TERN",
+                    "fluxnet_product_name": "TERN_AU-Test_FLUXNET_2020-2021_v1.3_r1.zip",
+                },
+            ]
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", rows)
+            payloads = {
+                "US-Test": zip_payload({"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()}),
+                "AU-Test": zip_payload({"TERN_AU-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv("2.34")}),
+            }
 
             def fake_urlopen(request, timeout):
-                return FakeUrlopenResponse(payload, request.full_url)
+                site_id = "AU-Test" if "tern" in request.full_url else "US-Test"
+                return FakeUrlopenResponse(payloads[site_id], request.full_url)
 
             with mock.patch.object(module.urllib.request, "urlopen", fake_urlopen):
                 summary = module.run_build(
@@ -394,10 +480,10 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
                     force=True,
                     log=lambda _message: None,
                 )
-                cached_is_zip = bool(summary.built[0].cache_path and zipfile.is_zipfile(summary.built[0].cache_path))
+                cached_paths_are_zips = [bool(result.cache_path and zipfile.is_zipfile(result.cache_path)) for result in summary.built]
 
-        self.assertEqual([result.site_id for result in summary.built], ["US-Test"])
-        self.assertTrue(cached_is_zip)
+        self.assertEqual([result.site_id for result in summary.built], ["AU-Test", "US-Test"])
+        self.assertEqual(cached_paths_are_zips, [True, True])
 
     def test_summary_grouping_separates_icos_auth_from_non_zip_response(self):
         with TemporaryDirectory() as tmp, mock.patch.dict(module.os.environ, {}, clear=True):
@@ -409,9 +495,14 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
             snapshot_path = snapshot_json(tmp_path / "snapshot.json", rows)
 
             def fake_urlopen(request, timeout):
-                return FakeUrlopenResponse(b"<html>not a zip</html>", request.full_url)
+                return FakeUrlopenResponse(b"<html>not a zip</html>", request.full_url, "text/html")
 
-            with mock.patch.object(module.urllib.request, "urlopen", fake_urlopen):
+            def fake_open(request, timeout):
+                return FakeUrlopenResponse(b"<html>ICOS Data Licence</html>", "https://data.icos-cp.eu/licence", "text/html")
+
+            with mock.patch.object(module.urllib.request, "urlopen", fake_urlopen), mock.patch.object(
+                module.urllib.request, "build_opener", return_value=FakeOpener(fake_open)
+            ):
                 summary = module.run_build(
                     snapshot_path,
                     tmp_path / "preview" / "v1",

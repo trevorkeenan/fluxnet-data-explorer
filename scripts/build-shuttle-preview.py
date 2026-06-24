@@ -20,6 +20,7 @@ import argparse
 import calendar
 import csv
 import hashlib
+import http.cookiejar
 import io
 import json
 import os
@@ -52,6 +53,7 @@ ICOS_HOST = "data.icos-cp.eu"
 ICOS_CPAUTH_TOKEN_ENV = "ICOS_CPAUTH_TOKEN"
 ICOS_OBJECT_URL_PREFIX = "https://data.icos-cp.eu/objects/"
 REQUIRES_ICOS_LICENSE_REASON = "requires_icos_license_acceptance_or_auth"
+ICOS_UNAUTHENTICATED_SUCCESS_REASON = "unauthenticated ICOS licence_accept download succeeded"
 FILL_VALUES = {"", "NA", "NAN", "NULL", "NONE", "-9999", "-9999.0", "-9999.00", "-6999", "-6999.0"}
 NOTICE_TEXT = (
     "This is a lightweight visualization preview generated from FLUXNET Shuttle products. "
@@ -278,7 +280,7 @@ class BuildSummary:
         )
 
 
-DownloadFunc = Callable[[ProductRow, Path], None]
+DownloadFunc = Callable[[ProductRow, Path], Optional[str]]
 LogFunc = Callable[[str], None]
 
 
@@ -498,22 +500,27 @@ def icos_auth_token() -> str:
     return os.environ.get(ICOS_CPAUTH_TOKEN_ENV, "").strip()
 
 
+def request_for_url(url: str, headers: Optional[Dict[str, str]] = None) -> urllib.request.Request:
+    request_headers = {"User-Agent": USER_AGENT}
+    request_headers.update(headers or {})
+    return urllib.request.Request(url, headers=request_headers)
+
+
 def request_for_product(product: ProductRow) -> urllib.request.Request:
-    url = product.download_url
-    headers = {"User-Agent": USER_AGENT}
-    if is_icos_license_acceptance_url(url):
-        token = icos_auth_token()
-        if not token:
-            raise IcosLicenseRequired()
-        object_ids = extract_icos_object_ids(url)
-        if len(object_ids) != 1:
-            raise PreviewBuildError(
-                f"ICOS licence_accept URL contains {len(object_ids)} object IDs; only single-object URLs are supported",
-                category="failed",
-            )
-        url = icos_object_download_url(object_ids[0])
-        headers["Cookie"] = f"cpauthToken={token}"
-    return urllib.request.Request(url, headers=headers)
+    return request_for_url(product.download_url)
+
+
+def icos_authenticated_object_request(product: ProductRow) -> urllib.request.Request:
+    token = icos_auth_token()
+    if not token:
+        raise IcosLicenseRequired()
+    object_ids = extract_icos_object_ids(product.download_url)
+    if len(object_ids) != 1:
+        raise PreviewBuildError(
+            f"ICOS licence_accept URL contains {len(object_ids)} object IDs; only single-object URLs are supported",
+            category="failed",
+        )
+    return request_for_url(icos_object_download_url(object_ids[0]), {"Cookie": f"cpauthToken={token}"})
 
 
 def is_valid_zip_file(path: Path) -> bool:
@@ -533,33 +540,105 @@ def remove_invalid_cached_archive(path: Path, log: LogFunc) -> None:
         raise DownloadFailedError(f"could not delete invalid cached archive {path}: {error}") from error
 
 
-def default_download(product: ProductRow, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = destination.with_suffix(destination.suffix + ".tmp")
-    request = request_for_product(product)
+def response_header(response: Any, name: str) -> str:
+    headers = getattr(response, "headers", None)
+    if headers is None:
+        headers = getattr(response, "info", lambda: None)()
+    if headers is None:
+        return ""
+    getter = getattr(headers, "get", None)
+    if callable(getter):
+        return str(getter(name, "") or "")
+    return ""
+
+
+def downloaded_file_looks_like_html(path: Path) -> bool:
+    try:
+        sample = path.read_bytes()[:512].lstrip().lower()
+    except OSError:
+        return False
+    return sample.startswith(b"<!doctype html") or sample.startswith(b"<html") or sample.startswith(b"<")
+
+
+def delete_download(path: Path) -> None:
+    if path.exists():
+        path.unlink(missing_ok=True)  # type: ignore[arg-type]
+
+
+@dataclass
+class DownloadAttempt:
+    final_url: str
+    content_type: str
+    looks_html: bool
+
+
+def download_request_to_path(
+    request: urllib.request.Request,
+    destination: Path,
+    opener: Optional[urllib.request.OpenerDirector] = None,
+) -> DownloadAttempt:
+    open_func = opener.open if opener is not None else urllib.request.urlopen
+    with open_func(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, destination.open("wb") as output:
+        shutil.copyfileobj(response, output)
+        final_url = response.geturl() if hasattr(response, "geturl") else request.full_url
+        content_type = response_header(response, "Content-Type")
+    return DownloadAttempt(final_url=final_url, content_type=content_type, looks_html=downloaded_file_looks_like_html(destination))
+
+
+def non_zip_message(attempt: DownloadAttempt) -> str:
+    detail = "HTML response" if attempt.looks_html or "html" in attempt.content_type.lower() else "non-zip response"
+    return f"downloaded {detail} instead of a zip archive: {attempt.final_url}"
+
+
+def download_with_retries(
+    request: urllib.request.Request,
+    tmp_path: Path,
+    opener: Optional[urllib.request.OpenerDirector] = None,
+) -> DownloadAttempt:
     last_error: Optional[BaseException] = None
-    for attempt in range(DOWNLOAD_RETRIES + 1):
+    for attempt_index in range(DOWNLOAD_RETRIES + 1):
         try:
-            with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response, tmp_path.open("wb") as output:
-                shutil.copyfileobj(response, output)
-                final_url = response.geturl() if hasattr(response, "geturl") else request.full_url
-            if not is_valid_zip_file(tmp_path):
-                if tmp_path.exists():
-                    tmp_path.unlink(missing_ok=True)  # type: ignore[arg-type]
-                if is_icos_license_page_url(final_url):
-                    raise IcosLicenseRequired()
-                raise NonZipResponseError(f"downloaded response is not a zip archive: {final_url}")
-            tmp_path.replace(destination)
-            return
-        except PreviewBuildError:
-            raise
+            return download_request_to_path(request, tmp_path, opener)
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             last_error = error
-            if tmp_path.exists():
-                tmp_path.unlink(missing_ok=True)  # type: ignore[arg-type]
-            if attempt < DOWNLOAD_RETRIES:
-                time.sleep(RETRY_DELAY_SECONDS * (attempt + 1))
+            delete_download(tmp_path)
+            if attempt_index < DOWNLOAD_RETRIES:
+                time.sleep(RETRY_DELAY_SECONDS * (attempt_index + 1))
     raise DownloadFailedError(f"download failed: {last_error}")
+
+
+def commit_zip_download(tmp_path: Path, destination: Path, attempt: DownloadAttempt) -> bool:
+    if not is_valid_zip_file(tmp_path):
+        delete_download(tmp_path)
+        return False
+    tmp_path.replace(destination)
+    return True
+
+
+def default_download(product: ProductRow, destination: Path) -> Optional[str]:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = destination.with_suffix(destination.suffix + ".tmp")
+    if is_icos_license_acceptance_url(product.download_url):
+        cookie_jar = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
+        unauthenticated_attempt = download_with_retries(request_for_product(product), tmp_path, opener)
+        if commit_zip_download(tmp_path, destination, unauthenticated_attempt):
+            return ICOS_UNAUTHENTICATED_SUCCESS_REASON
+        token = icos_auth_token()
+        if token:
+            authenticated_attempt = download_with_retries(icos_authenticated_object_request(product), tmp_path, opener)
+            if commit_zip_download(tmp_path, destination, authenticated_attempt):
+                return "authenticated ICOS object download succeeded after licence_accept returned non-zip"
+            raise IcosLicenseRequired(non_zip_message(authenticated_attempt))
+        raise IcosLicenseRequired(non_zip_message(unauthenticated_attempt))
+
+    request = request_for_product(product)
+    attempt = download_with_retries(request, tmp_path)
+    if not commit_zip_download(tmp_path, destination, attempt):
+        if is_icos_license_page_url(attempt.final_url):
+            raise IcosLicenseRequired(non_zip_message(attempt))
+        raise NonZipResponseError(non_zip_message(attempt))
+    return None
 
 
 def zip_member_basename(name: str) -> str:
@@ -897,18 +976,17 @@ def build_product_preview(
         entry = global_entry_from_site_manifest(existing_manifest) if existing_manifest else None
         status = "dry-run-skip" if dry_run else "skipped"
         return SiteResult(product.site_id, status, "product fingerprint unchanged", entry, fingerprint=fingerprint)
+    archive_path = cache_archive_path(cache_dir, product, fingerprint)
     if dry_run:
         return SiteResult(product.site_id, "dry-run-build", "would download/build preview", fingerprint=fingerprint)
 
-    archive_path = cache_archive_path(cache_dir, product, fingerprint)
     remove_invalid_cached_archive(archive_path, log)
+    download_note = ""
     if archive_path.exists():
         log(f"[{product.site_id}] using cached archive {archive_path}")
     else:
-        if is_icos_license_acceptance_url(product.download_url) and not icos_auth_token():
-            raise IcosLicenseRequired()
         log(f"[{product.site_id}] downloading Shuttle product")
-        (download_func or default_download)(product, archive_path)
+        download_note = (download_func or default_download)(product, archive_path) or ""
         if not archive_path.exists():
             raise DownloadFailedError("download did not create an archive")
         if not is_valid_zip_file(archive_path):
@@ -919,7 +997,10 @@ def build_product_preview(
             raise NonZipResponseError("downloaded response is not a zip archive")
     monthly = parse_monthly_preview_from_zip(archive_path)
     entry = write_site_artifacts(output_dir, product, fingerprint, monthly, built_at)
-    return SiteResult(product.site_id, "built", f"built {len(monthly.records)} monthly records", entry, monthly, fingerprint, archive_path)
+    reason = f"built {len(monthly.records)} monthly records"
+    if download_note:
+        reason += f"; {download_note}"
+    return SiteResult(product.site_id, "built", reason, entry, monthly, fingerprint, archive_path)
 
 
 def run_build(
