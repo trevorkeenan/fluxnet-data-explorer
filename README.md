@@ -36,7 +36,7 @@ fluxnet-preview/
 
 The current UI supports single-site, single-variable monthly previews for Shuttle-backed rows. The global manifest tells the table which Shuttle sites have previews. The site manifest describes available resolutions, variables, labels, units, date range, and the user-facing notice. The data files are plot-ready wide JSON records such as `{ "date": "2001-01", "GPP": 1.23 }`.
 
-The static app resolves the preview base URL from the Explorer root attribute `data-preview-base-url`, then `window.FLUXNET_EXPLORER_CONFIG.previewBaseUrl` or `window.FLUXNET_EXPLORER_CONFIG.fluxnetPreviewBaseUrl`, then global values such as `window.VITE_FLUXNET_PREVIEW_BASE_URL` or `window.FLUXNET_PREVIEW_BASE_URL`. The committed default is `fluxnet-preview/v1` for local and GitHub Pages relative hosting. Production can point to any static host with CORS enabled, for example `https://fluxnet-preview.keenangroup.info/v1`; the code does not hard-code an R2 or Cloudflare URL.
+The static app resolves the preview base URL from the Explorer root attribute `data-preview-base-url`, then `window.FLUXNET_EXPLORER_CONFIG.previewBaseUrl` or `window.FLUXNET_EXPLORER_CONFIG.fluxnetPreviewBaseUrl`, then global values such as `window.VITE_FLUXNET_PREVIEW_BASE_URL` or `window.FLUXNET_PREVIEW_BASE_URL`. The committed page config uses `fluxnet-preview/v1` on localhost and `https://fluxnet-preview.keenangroup.info/v1` in production, so the deployed Explorer fetches `https://fluxnet-preview.keenangroup.info/v1/manifest.json`.
 
 Tiny synthetic local fixtures are committed under `fluxnet-preview/v1/` for `US-Ha1` and `CA-DBB`. To test locally, run the normal static server, search one of those site IDs, and click `Preview data`.
 
