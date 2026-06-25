@@ -293,6 +293,154 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
         self.assertEqual([result.site_id for result in summary.dry_run_build], ["US-Test"])
         self.assertFalse(output_dir.exists())
 
+    def test_archive_dir_finds_valid_local_archive_by_site_id(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            local_zip = write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2020-2021_downloaded.zip",
+                {"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()},
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+
+            summary = module.run_build(
+                snapshot_path,
+                tmp_path / "preview" / "v1",
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                download_func=lambda _product, _destination: self.fail("offline archive build should not download"),
+                log=lambda _message: None,
+            )
+
+        self.assertEqual([result.site_id for result in summary.built], ["US-Test"])
+        self.assertEqual(summary.built[0].cache_path, local_zip)
+        self.assertEqual(summary.built[0].reason, "built 1 monthly records from local archive")
+
+    def test_archive_dir_ignores_invalid_zip_and_uses_valid_candidate(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            archive_dir.mkdir()
+            (archive_dir / "AMF_US-Test_FLUXNET_2020-2021_bad.zip").write_text("not a zip", encoding="utf-8")
+            valid_zip = write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2020-2021_valid.zip",
+                {"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv("2.0")},
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+            logs = []
+
+            summary = module.run_build(
+                snapshot_path,
+                tmp_path / "preview" / "v1",
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=logs.append,
+            )
+
+        self.assertEqual([result.site_id for result in summary.built], ["US-Test"])
+        self.assertEqual(summary.built[0].cache_path, valid_zip)
+        self.assertTrue(any("invalid_zip" in message for message in logs))
+
+    def test_archive_dir_reports_zip_without_fluxmet_mm(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2020-2021_no_mm.zip",
+                {"AMF_US-Test_FLUXNET_ERA5_MM_1981-2025_v1.3_r1.csv": "TIMESTAMP,GPP\n202001,99\n"},
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+
+            summary = module.run_build(
+                snapshot_path,
+                tmp_path / "preview" / "v1",
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=lambda _message: None,
+            )
+
+        self.assertEqual([result.site_id for result in summary.no_fluxmet_mm], ["US-Test"])
+        self.assertIn("no usable local archive", summary.no_fluxmet_mm[0].reason)
+
+    def test_archive_dir_multiple_candidates_prefers_matching_year_range_deterministically(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2019-2020_downloaded.zip",
+                {"AMF_US-Test_FLUXNET_FLUXMET_MM_2019-2020_v1.3_r1.csv": monthly_csv("1.0", "201901")},
+            )
+            selected_zip = write_zip(
+                archive_dir / "ZZZ_US-Test_FLUXNET_2020-2021_downloaded.zip",
+                {"ZZZ_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv("2.0")},
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+            logs = []
+
+            summary = module.run_build(
+                snapshot_path,
+                tmp_path / "preview" / "v1",
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=logs.append,
+            )
+
+        self.assertEqual(summary.built[0].cache_path, selected_zip)
+        self.assertTrue(any("multiple matching local archives" in message for message in logs))
+
+    def test_offline_prevents_download_when_local_archive_is_missing(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            archive_dir.mkdir()
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+
+            summary = module.run_build(
+                snapshot_path,
+                tmp_path / "preview" / "v1",
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                download_func=lambda _product, _destination: self.fail("offline mode should not download"),
+                log=lambda _message: None,
+            )
+
+        self.assertEqual([result.site_id for result in summary.missing_local_archive], ["US-Test"])
+        self.assertFalse(summary.has_errors())
+
+    def test_missing_local_archive_does_not_abort_other_sites(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            write_zip(
+                archive_dir / "AMF_US-Good_FLUXNET_2020-2021_downloaded.zip",
+                {"AMF_US-Good_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()},
+            )
+            rows = [snapshot_row("US-Good"), snapshot_row("US-Missing")]
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", rows)
+
+            summary = module.run_build(
+                snapshot_path,
+                tmp_path / "preview" / "v1",
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=lambda _message: None,
+            )
+
+        self.assertEqual([result.site_id for result in summary.built], ["US-Good"])
+        self.assertEqual([result.site_id for result in summary.missing_local_archive], ["US-Missing"])
+
     def test_no_target_variables_is_failure(self):
         with TemporaryDirectory() as tmp:
             zip_path = write_zip(

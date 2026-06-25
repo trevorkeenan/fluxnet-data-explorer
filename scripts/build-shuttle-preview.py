@@ -141,6 +141,13 @@ class MalformedZipError(PreviewBuildError):
         super().__init__(message, self.category)
 
 
+class MissingLocalArchiveError(PreviewBuildError):
+    category = "missing_local_archive"
+
+    def __init__(self, message: str = "missing local archive") -> None:
+        super().__init__(message, self.category)
+
+
 @dataclass
 class ProductRow:
     site_id: str
@@ -215,6 +222,7 @@ class BuildSummary:
     download_failed: List[SiteResult] = field(default_factory=list)
     non_zip_response: List[SiteResult] = field(default_factory=list)
     malformed_zip: List[SiteResult] = field(default_factory=list)
+    missing_local_archive: List[SiteResult] = field(default_factory=list)
     no_fluxmet_mm: List[SiteResult] = field(default_factory=list)
     no_target_variables: List[SiteResult] = field(default_factory=list)
     parse_date_failure: List[SiteResult] = field(default_factory=list)
@@ -238,6 +246,8 @@ class BuildSummary:
             self.non_zip_response.append(result)
         elif result.status == "malformed_zip":
             self.malformed_zip.append(result)
+        elif result.status == "missing_local_archive":
+            self.missing_local_archive.append(result)
         elif result.status == "no_fluxmet_mm":
             self.no_fluxmet_mm.append(result)
         elif result.status == "no_target_variables":
@@ -261,6 +271,7 @@ class BuildSummary:
             "download_failed": len(self.download_failed),
             "non_zip_response": len(self.non_zip_response),
             "malformed_zip": len(self.malformed_zip),
+            "missing_local_archive": len(self.missing_local_archive),
             "no_fluxmet_mm": len(self.no_fluxmet_mm),
             "no_target_variables": len(self.no_target_variables),
             "parse_date_failure": len(self.parse_date_failure),
@@ -297,6 +308,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--snapshot", required=True, type=Path, help="Path to the current Shuttle snapshot/catalog JSON or CSV.")
     parser.add_argument("--output-dir", required=True, type=Path, help="Output artifact root, for example fluxnet-preview/v1.")
     parser.add_argument("--cache-dir", required=True, type=Path, help="Local cache directory for downloaded Shuttle product archives.")
+    parser.add_argument("--archive-dir", type=Path, help="Directory of already downloaded Shuttle zip archives to use before network downloads.")
+    parser.add_argument("--offline", action="store_true", help="Only use local archives/cache; do not attempt network downloads.")
     parser.add_argument("--site", action="append", default=[], help="Optional site ID to build. Repeat for multiple sites.")
     parser.add_argument("--limit", type=int, default=0, help="Optional limit on the first N eligible sites after site filtering.")
     parser.add_argument("--force", action="store_true", help="Rebuild even when the product fingerprint appears unchanged.")
@@ -455,6 +468,121 @@ def cache_archive_path(cache_dir: Path, product: ProductRow, fingerprint: Produc
     if not product_name.lower().endswith(".zip"):
         product_name += ".zip"
     return cache_dir / safe_filename(product.site_id, "site") / f"{fingerprint.value[:16]}-{product_name}"
+
+
+@dataclass
+class LocalArchiveIndex:
+    archive_dir: Path
+    archives: List[Path]
+
+
+@dataclass
+class LocalArchiveLookup:
+    archive_path: Optional[Path]
+    rejected: List[Tuple[Path, str]] = field(default_factory=list)
+    candidates: List[Path] = field(default_factory=list)
+
+    @property
+    def has_candidates(self) -> bool:
+        return bool(self.candidates)
+
+    @property
+    def rejected_no_fluxmet(self) -> bool:
+        return any(reason == "no_fluxmet_mm" for _path, reason in self.rejected)
+
+
+def build_local_archive_index(archive_dir: Optional[Path]) -> Optional[LocalArchiveIndex]:
+    if archive_dir is None:
+        return None
+    if not archive_dir.exists() or not archive_dir.is_dir():
+        raise FileNotFoundError(f"Archive directory does not exist or is not a directory: {archive_dir}")
+    archives = sorted(path for path in archive_dir.rglob("*") if path.is_file() and path.suffix.lower() == ".zip")
+    return LocalArchiveIndex(archive_dir=archive_dir, archives=archives)
+
+
+def site_id_filename_pattern(site_id: str) -> re.Pattern[str]:
+    return re.compile(r"(^|[_-])" + re.escape(site_id) + r"($|[_-])", re.IGNORECASE)
+
+
+def local_archive_candidates(product: ProductRow, archive_index: LocalArchiveIndex) -> List[Path]:
+    site_pattern = site_id_filename_pattern(product.site_id)
+    product_name = product.product_name.lower()
+    candidates = []
+    for archive_path in archive_index.archives:
+        name = archive_path.name
+        if product_name and name.lower() == product_name:
+            candidates.append(archive_path)
+        elif site_pattern.search(name):
+            candidates.append(archive_path)
+    return sorted(candidates, key=lambda path: local_archive_sort_key(product, path))
+
+
+def local_archive_sort_key(product: ProductRow, archive_path: Path) -> Tuple[int, int, int, Tuple[int, ...], int, int, str]:
+    name = archive_path.name
+    lower_name = name.lower()
+    lower_product_name = product.product_name.lower()
+    years = f"{product.first_year}-{product.last_year}" if product.first_year and product.last_year else ""
+    product_id = product.product_id.lower()
+    version, revision, end_year, base = parse_version_rank(name)
+    return (
+        0 if lower_product_name and lower_name == lower_product_name else 1,
+        0 if years and years in lower_name else 1,
+        0 if product_id and product_id in lower_name else 1,
+        tuple(-part for part in version),
+        -revision,
+        -end_year,
+        base.lower(),
+    )
+
+
+def local_archive_validation_reason(archive_path: Path) -> str:
+    if not is_valid_zip_file(archive_path):
+        return "invalid_zip"
+    try:
+        with zipfile.ZipFile(archive_path) as zip_file:
+            choose_resolution_member(zip_file, "MM")
+    except PreviewBuildError as error:
+        return error.category
+    except zipfile.BadZipFile:
+        return "malformed_zip"
+    except OSError:
+        return "unreadable"
+    return ""
+
+
+def find_local_archive(product: ProductRow, archive_index: Optional[LocalArchiveIndex], log: LogFunc) -> LocalArchiveLookup:
+    if archive_index is None:
+        return LocalArchiveLookup(None)
+    candidates = local_archive_candidates(product, archive_index)
+    rejected: List[Tuple[Path, str]] = []
+    valid: List[Path] = []
+    for archive_path in candidates:
+        reason = local_archive_validation_reason(archive_path)
+        if reason:
+            rejected.append((archive_path, reason))
+            log(f"[{product.site_id}] rejecting local archive {archive_path}: {reason}")
+            continue
+        valid.append(archive_path)
+    if not valid:
+        return LocalArchiveLookup(None, rejected=rejected, candidates=candidates)
+    selected = valid[0]
+    if len(valid) > 1:
+        log(
+            f"[{product.site_id}] multiple matching local archives found; selected {selected} from "
+            + ", ".join(str(path) for path in valid)
+        )
+    if rejected:
+        log(f"[{product.site_id}] selected local archive {selected} after rejecting {len(rejected)} candidate(s)")
+    return LocalArchiveLookup(selected, rejected=rejected, candidates=candidates)
+
+
+def local_archive_missing_reason(product: ProductRow, lookup: LocalArchiveLookup, archive_index: Optional[LocalArchiveIndex]) -> str:
+    archive_dir = str(archive_index.archive_dir) if archive_index is not None else "archive directory"
+    if not lookup.has_candidates:
+        return f"no matching local archive found in {archive_dir}"
+    rejected = "; ".join(f"{path.name}: {reason}" for path, reason in lookup.rejected[:5])
+    suffix = f"; rejected candidates: {rejected}" if rejected else ""
+    return f"no usable local archive found in {archive_dir} for {product.site_id}{suffix}"
 
 
 def parsed_url(value: str) -> urllib.parse.ParseResult:
@@ -961,6 +1089,8 @@ def build_product_preview(
     product: ProductRow,
     output_dir: Path,
     cache_dir: Path,
+    archive_index: Optional[LocalArchiveIndex],
+    offline: bool,
     resolutions: Sequence[str],
     force: bool,
     dry_run: bool,
@@ -976,7 +1106,64 @@ def build_product_preview(
         entry = global_entry_from_site_manifest(existing_manifest) if existing_manifest else None
         status = "dry-run-skip" if dry_run else "skipped"
         return SiteResult(product.site_id, status, "product fingerprint unchanged", entry, fingerprint=fingerprint)
+
+    local_lookup = find_local_archive(product, archive_index, log)
+    if local_lookup.archive_path is not None:
+        archive_path = local_lookup.archive_path
+        if dry_run:
+            return SiteResult(
+                product.site_id,
+                "dry-run-build",
+                f"would build preview from local archive {archive_path.name}",
+                fingerprint=fingerprint,
+                cache_path=archive_path,
+            )
+        log(f"[{product.site_id}] using local archive {archive_path}")
+        monthly = parse_monthly_preview_from_zip(archive_path)
+        entry = write_site_artifacts(output_dir, product, fingerprint, monthly, built_at)
+        return SiteResult(
+            product.site_id,
+            "built",
+            f"built {len(monthly.records)} monthly records from local archive",
+            entry,
+            monthly,
+            fingerprint,
+            archive_path,
+        )
+
+    if archive_index is not None and offline:
+        reason = local_archive_missing_reason(product, local_lookup, archive_index)
+        if local_lookup.rejected_no_fluxmet:
+            raise PreviewBuildError(reason, category="no_fluxmet_mm")
+        raise MissingLocalArchiveError(reason)
+
     archive_path = cache_archive_path(cache_dir, product, fingerprint)
+    if offline:
+        if dry_run:
+            if is_valid_zip_file(archive_path):
+                return SiteResult(
+                    product.site_id,
+                    "dry-run-build",
+                    f"would build preview from cached archive {archive_path.name}",
+                    fingerprint=fingerprint,
+                    cache_path=archive_path,
+                )
+            raise MissingLocalArchiveError("offline mode found no matching local archive and no cached archive")
+        remove_invalid_cached_archive(archive_path, log)
+        if not archive_path.exists():
+            raise MissingLocalArchiveError("offline mode found no matching local archive and no cached archive")
+        log(f"[{product.site_id}] using cached archive {archive_path}")
+        monthly = parse_monthly_preview_from_zip(archive_path)
+        entry = write_site_artifacts(output_dir, product, fingerprint, monthly, built_at)
+        return SiteResult(
+            product.site_id,
+            "built",
+            f"built {len(monthly.records)} monthly records from cached archive",
+            entry,
+            monthly,
+            fingerprint,
+            archive_path,
+        )
     if dry_run:
         return SiteResult(product.site_id, "dry-run-build", "would download/build preview", fingerprint=fingerprint)
 
@@ -1007,6 +1194,8 @@ def run_build(
     snapshot: Path,
     output_dir: Path,
     cache_dir: Path,
+    archive_dir: Optional[Path] = None,
+    offline: bool = False,
     sites: Sequence[str] = (),
     limit: int = 0,
     force: bool = False,
@@ -1018,6 +1207,7 @@ def run_build(
 ) -> BuildSummary:
     rows = load_snapshot_rows(snapshot)
     products = eligible_products(rows, sites, limit)
+    archive_index = build_local_archive_index(archive_dir)
     summary = BuildSummary()
     built_at_value = built_at or utc_now()
     entries_to_update: Dict[str, Dict[str, Any]] = {}
@@ -1033,6 +1223,8 @@ def run_build(
                 product,
                 output_dir,
                 cache_dir,
+                archive_index,
+                offline,
                 sorted(requested),
                 force=force,
                 dry_run=dry_run,
@@ -1058,7 +1250,8 @@ def print_summary(summary: BuildSummary, log: LogFunc = log_stdout) -> None:
     log(
         "Summary: built={built}, skipped={skipped}, failed={failed}, unavailable={unavailable}, "
         "requires_icos_license_auth={requires_icos_license_auth}, download_failed={download_failed}, "
-        "non_zip_response={non_zip_response}, malformed_zip={malformed_zip}, no_fluxmet_mm={no_fluxmet_mm}, "
+        "non_zip_response={non_zip_response}, malformed_zip={malformed_zip}, "
+        "missing_local_archive={missing_local_archive}, no_fluxmet_mm={no_fluxmet_mm}, "
         "no_target_variables={no_target_variables}, parse_date_failure={parse_date_failure}, "
         "dry_run_build={dry_run_build}, dry_run_skip={dry_run_skip}".format(**counts)
     )
@@ -1069,6 +1262,7 @@ def print_summary(summary: BuildSummary, log: LogFunc = log_stdout) -> None:
         ("download_failed", summary.download_failed),
         ("non_zip_response", summary.non_zip_response),
         ("malformed_zip", summary.malformed_zip),
+        ("missing_local_archive", summary.missing_local_archive),
         ("no_fluxmet_mm", summary.no_fluxmet_mm),
         ("no_target_variables", summary.no_target_variables),
         ("parse_date_failure", summary.parse_date_failure),
@@ -1086,6 +1280,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             snapshot=args.snapshot,
             output_dir=args.output_dir,
             cache_dir=args.cache_dir,
+            archive_dir=args.archive_dir,
+            offline=args.offline,
             sites=args.site,
             limit=args.limit,
             force=args.force,
