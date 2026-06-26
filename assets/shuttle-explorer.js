@@ -176,12 +176,15 @@
   var AMERIFLUX_LIVE_UNAVAILABLE_WARNING = "AmeriFlux live availability is temporarily unavailable; showing committed snapshot data. Some live download actions may be temporarily unavailable.";
   var AMERIFLUX_LIVE_CACHED_WARNING = "AmeriFlux live availability could not be refreshed; showing cached availability with committed snapshot data. Some live download actions may be temporarily unavailable.";
   var AMERIFLUX_LEGACY_SELECTION_WARNING = "This selection includes AmeriFlux data shared under the AmeriFlux Legacy Data Policy. If CC-BY-4.0 and Legacy AmeriFlux data are combined in one project, AmeriFlux requires users to follow the Legacy Data Policy for all AmeriFlux data used.";
+  var ACTIONS_COLUMN_LABEL = "Actions";
   var COPY_TABLE_BUTTON_LABEL = "Copy table to clipboard";
+  var COPY_TABLE_DISPLAY_LABEL = "Copy table";
   var COPY_TABLE_SUCCESS_LABEL = "Copied!";
   var COPY_TABLE_FAILURE_LABEL = "Copy failed";
   var COPY_TABLE_FEEDBACK_MS = 1800;
   var PREVIEW_LOADING_LABEL = "Preview loading";
   var PREVIEW_AVAILABLE_LABEL = "Preview data";
+  var PREVIEW_ACTION_LABEL = "Preview";
   var PREVIEW_UNAVAILABLE_LABEL = "Preview unavailable";
   var DATA_POLICY_MISSING_METADATA_PLACEHOLDER = "Citation/DOI not available in Explorer metadata. Please consult the source data portal.";
   var DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT = "FLUXNET data products were produced and harmonized by eddy covariance regional networks and data processing centers, including AmeriFlux, ChinaFlux, European Fluxes Database, ICOS, JapanFlux, KoFlux, OzFlux, SAEON, and TERN. These products also include a modified version of ERA5 hourly data provided by the Copernicus Climate Change Service.";
@@ -6856,8 +6859,14 @@
       ".shuttle-explorer__table{width:100%;border-collapse:collapse;min-width:880px;font-size:.9em;}",
       ".shuttle-explorer__table th,.shuttle-explorer__table td{padding:8px 10px;border-bottom:1px solid #edf1f5;vertical-align:top;text-align:left;}",
       ".shuttle-explorer__table thead th{position:sticky;top:0;background:#f8fafc;z-index:1;}",
+      ".shuttle-explorer__table th.shuttle-explorer__actions-col,.shuttle-explorer__table td.shuttle-explorer__actions-cell{position:sticky;right:0;width:150px;min-width:150px;max-width:170px;background:#f5fafb;box-shadow:-10px 0 14px -14px rgba(47,83,116,.75),inset 1px 0 0 #d5e1e8;}",
+      ".shuttle-explorer__table th.shuttle-explorer__actions-col{z-index:3;background:#edf6f8;}",
+      ".shuttle-explorer__table td.shuttle-explorer__actions-cell{z-index:2;}",
       ".shuttle-explorer__table tbody tr.shuttle-explorer__row--map-linked>td{background:#f3f7fb;box-shadow:inset 4px 0 0 #9b6a08;}",
       ".shuttle-explorer__table tbody tr.shuttle-explorer__row--map-active>td{background:#eef6ff;box-shadow:inset 4px 0 0 #2f5374;transition:background .18s ease,box-shadow .18s ease;}",
+      ".shuttle-explorer__table tbody tr:hover>td.shuttle-explorer__actions-cell{background:#eef7f9;}",
+      ".shuttle-explorer__table tbody tr.shuttle-explorer__row--map-linked>td.shuttle-explorer__actions-cell{background:#edf5f8;box-shadow:-10px 0 14px -14px rgba(47,83,116,.75),inset 1px 0 0 #d5e1e8;}",
+      ".shuttle-explorer__table tbody tr.shuttle-explorer__row--map-active>td.shuttle-explorer__actions-cell{background:#e8f3fb;box-shadow:-10px 0 14px -14px rgba(47,83,116,.75),inset 1px 0 0 #d5e1e8;}",
       ".shuttle-explorer__table th.shuttle-explorer__coord-col,.shuttle-explorer__table td.shuttle-explorer__coord-col{width:72px;min-width:72px;white-space:nowrap;}",
       ".shuttle-explorer__table td.shuttle-explorer__coord-col{font-variant-numeric:tabular-nums;}",
       ".shuttle-explorer__coord-col .shuttle-explorer__sort{white-space:nowrap;}",
@@ -6875,7 +6884,9 @@
       ".shuttle-explorer__coverage-item{display:inline-flex;align-items:center;gap:4px;}",
       ".shuttle-explorer__coverage-sep{color:#607184;}",
       ".shuttle-explorer__coverage-badge{margin-top:6px;}",
-      ".shuttle-explorer__download-cell{min-width:220px;}",
+      ".shuttle-explorer__actions-heading{display:block;margin:0 0 5px;color:#23364a;font-weight:700;}",
+      ".shuttle-explorer__download-cell{min-width:150px;}",
+      ".shuttle-explorer__actions-cell .shuttle-explorer__btn{display:inline-flex;width:100%;max-width:100%;justify-content:center;white-space:normal;text-align:center;}",
       ".shuttle-explorer__download-option + .shuttle-explorer__download-option{margin-top:8px;}",
       ".shuttle-explorer__download-option-label{margin:0 0 4px;color:#556779;font-size:.8em;font-weight:600;line-height:1.25;}",
       ".shuttle-explorer__sort{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;padding:0;margin:0;color:inherit;font:inherit;cursor:pointer;}",
@@ -6907,7 +6918,8 @@
 	      ".shuttle-explorer__map-legend{display:flex;flex-direction:column;gap:5px;margin:0;max-width:260px;}",
 	      ".shuttle-explorer__map-legend-item{display:inline-flex;align-items:center;gap:6px;line-height:1.3;}",
 	      ".shuttle-explorer__map-legend-swatch{display:inline-block;width:10px;height:10px;border-radius:999px;flex:0 0 auto;}",
-		      "@media (max-width: 860px){.shuttle-explorer__controls{grid-template-columns:1fr;}.shuttle-explorer__years-row{grid-template-columns:1fr;}.shuttle-explorer__row{flex-direction:column;align-items:flex-start;}.shuttle-explorer__bulk-identity-grid{grid-template-columns:1fr;}.shuttle-explorer__map-header{flex-direction:column;align-items:flex-start;}.shuttle-explorer__map-actions{align-items:flex-start;}.shuttle-explorer__map-reset-actions{justify-content:flex-start;}}"
+		      "@media (max-width: 860px){.shuttle-explorer__controls{grid-template-columns:1fr;}.shuttle-explorer__years-row{grid-template-columns:1fr;}.shuttle-explorer__row{flex-direction:column;align-items:flex-start;}.shuttle-explorer__bulk-identity-grid{grid-template-columns:1fr;}.shuttle-explorer__map-header{flex-direction:column;align-items:flex-start;}.shuttle-explorer__map-actions{align-items:flex-start;}.shuttle-explorer__map-reset-actions{justify-content:flex-start;}}",
+		      "@media (max-width: 640px){.shuttle-explorer__table th.shuttle-explorer__actions-col,.shuttle-explorer__table td.shuttle-explorer__actions-cell{width:132px;min-width:132px;max-width:146px;}.shuttle-explorer__actions-cell .shuttle-explorer__btn{padding-right:6px;padding-left:6px;}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -9366,8 +9378,9 @@
     if (!button) {
       return;
     }
-    button.textContent = COPY_TABLE_BUTTON_LABEL;
+    button.textContent = COPY_TABLE_DISPLAY_LABEL;
     button.setAttribute("aria-label", COPY_TABLE_BUTTON_LABEL);
+    button.title = COPY_TABLE_BUTTON_LABEL;
     button.classList.remove("is-success");
     button.classList.remove("is-error");
     if (this._tableCopyFeedbackTimer) {
@@ -10463,16 +10476,22 @@
       row.appendChild(th);
     });
 
-    var downloadTh = document.createElement("th");
-    downloadTh.scope = "col";
+    var actionsTh = document.createElement("th");
+    var actionsLabel = document.createElement("span");
+    actionsTh.scope = "col";
+    actionsTh.className = "shuttle-explorer__actions-col";
+    actionsLabel.className = "shuttle-explorer__actions-heading";
+    actionsLabel.textContent = ACTIONS_COLUMN_LABEL;
+    actionsTh.appendChild(actionsLabel);
     var copyButton = document.createElement("button");
     copyButton.type = "button";
     copyButton.className = "shuttle-explorer__table-copy-btn";
     copyButton.setAttribute("data-role", "copy-table-button");
     copyButton.setAttribute("aria-label", COPY_TABLE_BUTTON_LABEL);
-    copyButton.textContent = COPY_TABLE_BUTTON_LABEL;
-    downloadTh.appendChild(copyButton);
-    row.appendChild(downloadTh);
+    copyButton.title = COPY_TABLE_BUTTON_LABEL;
+    copyButton.textContent = COPY_TABLE_DISPLAY_LABEL;
+    actionsTh.appendChild(copyButton);
+    row.appendChild(actionsTh);
 
     row.addEventListener("mouseover", function () {
       self.updateHeaderSortIndicators();
@@ -10650,7 +10669,8 @@
       this.registerLinkedTableRow(row, tr);
 
       var downloadTd = document.createElement("td");
-      downloadTd.className = "shuttle-explorer__download-cell";
+      downloadTd.className = "shuttle-explorer__download-cell shuttle-explorer__actions-cell";
+      downloadTd.setAttribute("aria-label", ACTIONS_COLUMN_LABEL + " for " + String(row.site_id || "site"));
 
       downloadOptions.forEach(function (option) {
         var optionWrap = document.createElement("div");
@@ -10715,7 +10735,7 @@
         previewButton.className = "shuttle-explorer__btn shuttle-explorer__btn--small shuttle-explorer__preview-btn";
         previewButton.setAttribute("data-role", "preview-data");
         previewButton.setAttribute("data-site-id", row.site_id || "");
-        previewButton.textContent = previewAction.label;
+        previewButton.textContent = previewAction.disabled ? PREVIEW_UNAVAILABLE_LABEL : PREVIEW_ACTION_LABEL;
         previewButton.disabled = !!previewAction.disabled;
         previewButton.setAttribute("aria-label", previewAction.label + " for " + String(row.site_id || "site"));
         if (previewAction.title) {

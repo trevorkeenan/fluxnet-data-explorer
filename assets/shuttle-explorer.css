@@ -874,6 +874,26 @@
   background: #f8fafc;
 }
 
+.shuttle-explorer__table th.shuttle-explorer__actions-col,
+.shuttle-explorer__table td.shuttle-explorer__actions-cell {
+  position: sticky;
+  right: 0;
+  width: 150px;
+  min-width: 150px;
+  max-width: 170px;
+  background: #f5fafb;
+  box-shadow: -10px 0 14px -14px rgba(47, 83, 116, 0.75), inset 1px 0 0 #d5e1e8;
+}
+
+.shuttle-explorer__table th.shuttle-explorer__actions-col {
+  z-index: 3;
+  background: #edf6f8;
+}
+
+.shuttle-explorer__table td.shuttle-explorer__actions-cell {
+  z-index: 2;
+}
+
 .shuttle-explorer__table tbody tr.shuttle-explorer__row--map-linked > td {
   background: #f3f7fb;
   box-shadow: inset 4px 0 0 #9b6a08;
@@ -883,6 +903,20 @@
   background: #eef6ff;
   box-shadow: inset 4px 0 0 #2f5374;
   transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.shuttle-explorer__table tbody tr:hover > td.shuttle-explorer__actions-cell {
+  background: #eef7f9;
+}
+
+.shuttle-explorer__table tbody tr.shuttle-explorer__row--map-linked > td.shuttle-explorer__actions-cell {
+  background: #edf5f8;
+  box-shadow: -10px 0 14px -14px rgba(47, 83, 116, 0.75), inset 1px 0 0 #d5e1e8;
+}
+
+.shuttle-explorer__table tbody tr.shuttle-explorer__row--map-active > td.shuttle-explorer__actions-cell {
+  background: #e8f3fb;
+  box-shadow: -10px 0 14px -14px rgba(47, 83, 116, 0.75), inset 1px 0 0 #d5e1e8;
 }
 
 .shuttle-explorer__table th.shuttle-explorer__coord-col,
@@ -995,8 +1029,24 @@
   margin-top: 6px;
 }
 
+.shuttle-explorer__actions-heading {
+  display: block;
+  margin: 0 0 5px;
+  color: #23364a;
+  font-weight: 700;
+}
+
 .shuttle-explorer__download-cell {
-  min-width: 220px;
+  min-width: 150px;
+}
+
+.shuttle-explorer__actions-cell .shuttle-explorer__btn {
+  display: inline-flex;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
 }
 
 .shuttle-explorer__download-option + .shuttle-explorer__download-option {
@@ -1536,5 +1586,19 @@
 
   .shuttle-explorer__map-reset-actions {
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .shuttle-explorer__table th.shuttle-explorer__actions-col,
+  .shuttle-explorer__table td.shuttle-explorer__actions-cell {
+    width: 132px;
+    min-width: 132px;
+    max-width: 146px;
+  }
+
+  .shuttle-explorer__actions-cell .shuttle-explorer__btn {
+    padding-right: 6px;
+    padding-left: 6px;
   }
 }

@@ -707,6 +707,30 @@ test('Known-sites map copy uses the simplified popup text and visual legend labe
   assert.equal(explorerCss.includes('.shuttle-explorer__table tbody tr.shuttle-explorer__row--map-active > td'), true);
 });
 
+test('Table actions are grouped in a sticky right-side Actions column', () => {
+  const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
+  const explorerCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.css'), 'utf8');
+
+  assert.equal(explorerJs.includes('var ACTIONS_COLUMN_LABEL = "Actions";'), true);
+  assert.equal(explorerJs.includes('actionsTh.className = "shuttle-explorer__actions-col";'), true);
+  assert.equal(explorerJs.includes('downloadTd.className = "shuttle-explorer__download-cell shuttle-explorer__actions-cell";'), true);
+  assert.equal(explorerJs.includes('copyButton.textContent = COPY_TABLE_DISPLAY_LABEL;'), true);
+  assert.equal(explorerJs.includes('control.setAttribute("data-role", "ameriflux-download");'), true);
+  assert.equal(explorerJs.includes('control.setAttribute("data-role", "row-link-action");'), true);
+  assert.equal(explorerJs.includes('previewButton.setAttribute("data-role", "preview-data");'), true);
+  assert.equal(explorerJs.includes('previewButton.textContent = previewAction.disabled ? PREVIEW_UNAVAILABLE_LABEL : PREVIEW_ACTION_LABEL;'), true);
+  assert.equal(explorerJs.includes('previewButton.disabled = !!previewAction.disabled;'), true);
+
+  assert.equal(explorerCss.includes('.shuttle-explorer__table th.shuttle-explorer__actions-col,'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__table td.shuttle-explorer__actions-cell {'), true);
+  assert.equal(explorerCss.includes('position: sticky;'), true);
+  assert.equal(explorerCss.includes('right: 0;'), true);
+  assert.equal(explorerCss.includes('background: #f5fafb;'), true);
+  assert.equal(explorerCss.includes('box-shadow: -10px 0 14px -14px rgba(47, 83, 116, 0.75), inset 1px 0 0 #d5e1e8;'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__actions-cell .shuttle-explorer__btn {'), true);
+  assert.equal(explorerCss.includes('@media (max-width: 640px)'), true);
+});
+
 test('Map marker and legend colors use the shared swapped category mapping', () => {
   assert.deepEqual(hooks.mapCategoryColors('filteredAccessible'), {
     color: '#9b6a08',
