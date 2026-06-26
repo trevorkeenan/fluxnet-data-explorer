@@ -710,24 +710,42 @@ test('Known-sites map copy uses the simplified popup text and visual legend labe
 test('Table actions are grouped in a sticky right-side Actions column', () => {
   const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
   const explorerCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.css'), 'utf8');
+  const tableToolsIndex = explorerJs.indexOf('data-role=\\"table-tools\\"');
+  const tableWrapIndex = explorerJs.indexOf('data-role=\\"table-wrap\\"');
+  const previewRenderIndex = explorerJs.indexOf('var previewAction = this.previewActionForRow(row);');
+  const downloadRenderIndex = explorerJs.indexOf('downloadOptions.forEach(function (option)');
 
   assert.equal(explorerJs.includes('var ACTIONS_COLUMN_LABEL = "Actions";'), true);
   assert.equal(explorerJs.includes('actionsTh.className = "shuttle-explorer__actions-col";'), true);
+  assert.equal(explorerJs.includes('actionsTh.textContent = ACTIONS_COLUMN_LABEL;'), true);
+  assert.equal(explorerJs.includes('actionsTh.appendChild(copyButton);'), false);
+  assert.equal(tableToolsIndex > -1, true);
+  assert.equal(tableToolsIndex < tableWrapIndex, true);
+  assert.equal(explorerJs.includes('tableTools: bySelector(this.root, "[data-role=\'table-tools\']"),'), true);
+  assert.equal(explorerJs.includes('b.tableTools.addEventListener("click"'), true);
+  assert.equal(explorerJs.includes('return bySelector(this.root, "[data-role=\'copy-table-button\']");'), true);
   assert.equal(explorerJs.includes('downloadTd.className = "shuttle-explorer__download-cell shuttle-explorer__actions-cell";'), true);
-  assert.equal(explorerJs.includes('copyButton.textContent = COPY_TABLE_DISPLAY_LABEL;'), true);
+  assert.equal(explorerJs.includes('var PREVIEW_ACTION_LABEL = "Preview plot";'), true);
+  assert.equal(explorerJs.includes('var PREVIEW_UNAVAILABLE_LABEL = "No preview";'), true);
+  assert.equal(explorerJs.includes('var PREVIEW_UNAVAILABLE_TITLE = "Monthly preview is not available for this site.";'), true);
+  assert.equal(previewRenderIndex > -1, true);
+  assert.equal(downloadRenderIndex > previewRenderIndex, true);
   assert.equal(explorerJs.includes('control.setAttribute("data-role", "ameriflux-download");'), true);
   assert.equal(explorerJs.includes('control.setAttribute("data-role", "row-link-action");'), true);
   assert.equal(explorerJs.includes('previewButton.setAttribute("data-role", "preview-data");'), true);
-  assert.equal(explorerJs.includes('previewButton.textContent = previewAction.disabled ? PREVIEW_UNAVAILABLE_LABEL : PREVIEW_ACTION_LABEL;'), true);
+  assert.equal(explorerJs.includes('previewButton.textContent = previewAction.buttonLabel || previewAction.label;'), true);
   assert.equal(explorerJs.includes('previewButton.disabled = !!previewAction.disabled;'), true);
 
+  assert.equal(explorerCss.includes('.shuttle-explorer__table-tools {'), true);
   assert.equal(explorerCss.includes('.shuttle-explorer__table th.shuttle-explorer__actions-col,'), true);
   assert.equal(explorerCss.includes('.shuttle-explorer__table td.shuttle-explorer__actions-cell {'), true);
   assert.equal(explorerCss.includes('position: sticky;'), true);
   assert.equal(explorerCss.includes('right: 0;'), true);
-  assert.equal(explorerCss.includes('background: #f5fafb;'), true);
-  assert.equal(explorerCss.includes('box-shadow: -10px 0 14px -14px rgba(47, 83, 116, 0.75), inset 1px 0 0 #d5e1e8;'), true);
+  assert.equal(explorerCss.includes('background: #f7f7f8;'), true);
+  assert.equal(explorerCss.includes('background: #edf6f8;'), false);
+  assert.equal(explorerCss.includes('box-shadow: -4px 0 8px rgba(15, 23, 42, 0.04), inset 1px 0 0 #d8dee6;'), true);
   assert.equal(explorerCss.includes('.shuttle-explorer__actions-cell .shuttle-explorer__btn {'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__preview-btn[disabled] {'), true);
   assert.equal(explorerCss.includes('@media (max-width: 640px)'), true);
 });
 
