@@ -1194,6 +1194,11 @@
   stroke-width: 1;
 }
 
+.shuttle-explorer__preview-tick-mark {
+  stroke: #7f8da0;
+  stroke-width: 1;
+}
+
 .shuttle-explorer__preview-line {
   fill: none;
   stroke: #2f5374;
@@ -1209,7 +1214,9 @@
 }
 
 .shuttle-explorer__preview-tick,
-.shuttle-explorer__preview-axis-title {
+.shuttle-explorer__preview-axis-title,
+.shuttle-explorer__preview-figure-title,
+.shuttle-explorer__preview-axis-label {
   fill: #4d5b6a;
   font-family: inherit;
   font-size: 13px;
@@ -1219,9 +1226,16 @@
   text-anchor: end;
 }
 
-.shuttle-explorer__preview-axis-title {
+.shuttle-explorer__preview-axis-title,
+.shuttle-explorer__preview-figure-title,
+.shuttle-explorer__preview-axis-label {
   fill: #23364a;
   font-weight: 700;
+}
+
+.shuttle-explorer__preview-axis-label--x,
+.shuttle-explorer__preview-axis-label--y {
+  text-anchor: middle;
 }
 
 .shuttle-explorer__preview-empty {

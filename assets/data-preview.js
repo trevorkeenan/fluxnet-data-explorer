@@ -355,7 +355,7 @@
       schemaVersion: Number(payload.schemaVersion || payload.schema_version || 1),
       siteId: String(payload.siteId || payload.site_id || (entry && entry.siteId) || "").trim(),
       source: String(payload.source || PREVIEW_SOURCE_LABEL),
-      productLabel: String(payload.productLabel || payload.product_label || "FLUXNET Shuttle preview"),
+      productLabel: String(payload.productLabel || payload.product_label || "Site Data Preview"),
       dateRange: Array.isArray(payload.dateRange || payload.date_range) ? (payload.dateRange || payload.date_range).slice(0, 2) : [],
       lastPreviewBuild: String(payload.lastPreviewBuild || payload.last_preview_build || ""),
       resolutions: resolutions,

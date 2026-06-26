@@ -366,7 +366,7 @@ function makePreviewPayloads(overrides) {
         schemaVersion: 1,
         siteId: 'US-Ha1',
         source: 'FLUXNET Shuttle',
-        productLabel: 'FLUXNET Shuttle preview',
+        productLabel: 'Site Data Preview',
         dateRange: ['2001-01-01', '2001-02-28'],
         lastPreviewBuild: '2026-06-23T00:00:00Z',
         resolutions: {
@@ -747,6 +747,35 @@ test('Table actions are grouped in a sticky right-side Actions column', () => {
   assert.equal(explorerCss.includes('.shuttle-explorer__actions-cell .shuttle-explorer__btn {'), true);
   assert.equal(explorerCss.includes('.shuttle-explorer__preview-btn[disabled] {'), true);
   assert.equal(explorerCss.includes('@media (max-width: 640px)'), true);
+});
+
+test('Preview modal wording and chart axes use polished labels', () => {
+  const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
+  const svg = hooks.buildPreviewChartSvg({
+    resolution: 'monthly',
+    variable: 'GPP',
+    variableMeta: { key: 'GPP', label: 'Gross primary productivity', unit: 'g C m-2 d-1' },
+    records: [
+      { date: '2012-01', value: 1.2 },
+      { date: '2012-02', value: 1.4 },
+      { date: '2013-01', value: 2.1 },
+      { date: '2014-01', value: 2.4 }
+    ]
+  });
+
+  assert.equal(explorerJs.includes('Open official data product'), false);
+  assert.equal(explorerJs.includes('Download site data product'), true);
+  assert.equal(explorerJs.includes('var PREVIEW_PRODUCT_HEADING = "Site Data Preview";'), true);
+  assert.equal(hooks.formatPreviewBuildDate('2026-06-25T04:01:24Z'), '2026-06-25');
+  assert.equal(svg.includes('Monthly preview'), true);
+  assert.equal(svg.includes('GPP (g C m-2 d-1)'), true);
+  assert.equal(svg.includes('Monthly preview GPP'), false);
+  assert.equal(svg.includes('Years'), true);
+  assert.equal(svg.includes('>2012<'), true);
+  assert.equal(svg.includes('>2013<'), true);
+  assert.equal(svg.includes('>2014<'), true);
+  assert.equal(svg.includes('shuttle-explorer__preview-axis-label--y'), true);
+  assert.equal(svg.includes('shuttle-explorer__preview-axis-label--x'), true);
 });
 
 test('Map marker and legend colors use the shared swapped category mapping', () => {
@@ -2190,15 +2219,15 @@ test('Table clipboard export includes visible headers, preserves row order, and 
   assert.equal(
     text,
     [
-      'Site ID\tSite Name\tCountry\tLat\tLon\tHub\tVeg Type\tYears\tLength',
-      'AR-Bal\tBalcarce BA\tArgentina\t-37.76\t-58.30\tAmeriFlux\tGrassland\t2012-2013\t2',
-      'US-Blank\t—\tUSA\t—\t—\tShuttle\t—\t2010-2010\t1',
+      'Site ID\tSite Name\tCountry\tLat\tLon\tVeg Type\tYears\tLength\tHub',
+      'AR-Bal\tBalcarce BA\tArgentina\t-37.76\t-58.30\tGrassland\t2012-2013\t2\tAmeriFlux',
+      'US-Blank\t—\tUSA\t—\t—\t—\t2010-2010\t1\tShuttle',
       ''
     ].join('\n')
   );
 });
 
-test('Table sort columns place Lat and Lon immediately after Country', () => {
+test('Table sort columns place Lat/Lon after Country and Hub after Length', () => {
   assert.deepEqual(
     hooks.getSortColumns().map((column) => column.key),
     [
@@ -2207,10 +2236,10 @@ test('Table sort columns place Lat and Lon immediately after Country', () => {
       'country',
       'latitude',
       'longitude',
-      'data_hub',
       'vegetation_type',
       'years',
-      'length_years'
+      'length_years',
+      'data_hub'
     ]
   );
 });

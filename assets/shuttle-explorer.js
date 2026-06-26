@@ -188,6 +188,8 @@
   var PREVIEW_UNAVAILABLE_LABEL = "No preview";
   var PREVIEW_UNAVAILABLE_ARIA_LABEL = "Preview plot unavailable";
   var PREVIEW_UNAVAILABLE_TITLE = "Monthly preview is not available for this site.";
+  var PREVIEW_PRODUCT_HEADING = "Site Data Preview";
+  var PREVIEW_OFFICIAL_PRODUCT_LINK_LABEL = "Download site data product";
   var DATA_POLICY_MISSING_METADATA_PLACEHOLDER = "Citation/DOI not available in Explorer metadata. Please consult the source data portal.";
   var DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT = "FLUXNET data products were produced and harmonized by eddy covariance regional networks and data processing centers, including AmeriFlux, ChinaFlux, European Fluxes Database, ICOS, JapanFlux, KoFlux, OzFlux, SAEON, and TERN. These products also include a modified version of ERA5 hourly data provided by the Copernicus Climate Change Service.";
   var DATA_POLICY_REVIEW_NOTE = "Review this generated text against the requirements of your journal and every source network represented in the selected data.";
@@ -338,10 +340,10 @@
     { key: "country", label: "Country", type: "string" },
     { key: "latitude", label: "Lat", type: "coordinate" },
     { key: "longitude", label: "Lon", type: "coordinate" },
-    { key: "data_hub", label: "Hub", type: "string" },
     { key: "vegetation_type", label: "Veg Type", type: "string" },
     { key: "years", label: "Years", type: "years" },
-    { key: "length_years", label: "Length", type: "number" }
+    { key: "length_years", label: "Length", type: "number" },
+    { key: "data_hub", label: "Hub", type: "string" }
   ];
 
   function bySelector(root, selector) {
@@ -6642,12 +6644,86 @@
     return String(value || "");
   }
 
+  function formatPreviewBuildDate(value) {
+    var raw = String(value || "").trim();
+    var match = raw.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$/);
+    if (match) {
+      return match[1];
+    }
+    return raw;
+  }
+
+  function previewAxisVariableLabel(variableMeta, fallbackVariable) {
+    var meta = variableMeta && typeof variableMeta === "object" ? variableMeta : {};
+    var key = String(meta.key || fallbackVariable || meta.label || "").trim();
+    var unit = String(meta.unit || "").trim();
+    if (!key) {
+      key = "Preview value";
+    }
+    if (!unit || unit.toLowerCase() === "unit unavailable") {
+      return key;
+    }
+    return key + " (" + unit + ")";
+  }
+
+  function previewResolutionTitle(resolution) {
+    var value = String(resolution || "").trim();
+    if (!value) {
+      return "Preview";
+    }
+    return value.charAt(0).toUpperCase() + value.slice(1) + " preview";
+  }
+
+  function buildPreviewYearTicks(points, xMin, xMax, xScale, plotWidth) {
+    var byYear = {};
+    var years;
+    var maxLabels = Math.max(2, Math.floor(plotWidth / 46));
+    var step = 1;
+    points.forEach(function (point) {
+      var year;
+      if (!isFinite(point.time)) {
+        return;
+      }
+      year = new Date(point.time).getUTCFullYear();
+      if (!byYear[year] || point.time < byYear[year]) {
+        byYear[year] = point.time;
+      }
+    });
+    years = Object.keys(byYear).map(function (year) {
+      return parseInt(year, 10);
+    }).filter(function (year) {
+      return isFinite(year);
+    }).sort(function (a, b) {
+      return a - b;
+    });
+    if (years.length > maxLabels) {
+      var rawStep = Math.ceil(years.length / maxLabels);
+      step = rawStep <= 2 ? 2 : (rawStep <= 5 ? 5 : Math.ceil(rawStep / 10) * 10);
+    }
+    return years.filter(function (year, index) {
+      return index === 0 || index === years.length - 1 || ((year - years[0]) % step === 0);
+    }).map(function (year) {
+      var x = xScale(Math.max(xMin, Math.min(xMax, byYear[year])));
+      var anchor = "middle";
+      if (x - xScale(xMin) < 18) {
+        anchor = "start";
+      } else if (xScale(xMax) - x < 18) {
+        anchor = "end";
+      }
+      return {
+        year: String(year),
+        x: x,
+        anchor: anchor
+      };
+    });
+  }
+
   function buildPreviewOfficialProductHtml(row) {
     var links = [];
     var downloadLink = String(row && row.download_link || "").trim();
     var productId = String(row && row.product_id || "").trim();
     if (downloadLink) {
-      links.push("<a href=\"" + escapeHtml(downloadLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open official data product</a>");
+      links.push("<a href=\"" + escapeHtml(downloadLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + escapeHtml(PREVIEW_OFFICIAL_PRODUCT_LINK_LABEL) + "</a>");
     }
     if (productId) {
       var doiUrl = /^10\./.test(productId) ? "https://doi.org/" + productId : productId;
@@ -6667,8 +6743,8 @@
     var records = seriesResult && Array.isArray(seriesResult.records) ? seriesResult.records : [];
     var variableMeta = seriesResult && seriesResult.variableMeta ? seriesResult.variableMeta : previewVariableDefinition(seriesResult && seriesResult.variable);
     var width = 720;
-    var height = 320;
-    var margin = { top: 24, right: 24, bottom: 48, left: 64 };
+    var height = 340;
+    var margin = { top: 32, right: 24, bottom: 70, left: 82 };
     var plotWidth = width - margin.left - margin.right;
     var plotHeight = height - margin.top - margin.bottom;
     var points = records.map(function (record, index) {
@@ -6688,7 +6764,8 @@
     var yPad;
     var pathSegments = [];
     var activeSegment = [];
-    var axisTitle = variableMeta.preferredAxisLabel || variableMeta.label || seriesResult.variable || "Preview value";
+    var yAxisLabel = previewAxisVariableLabel(variableMeta, seriesResult && seriesResult.variable);
+    var figureTitle = previewResolutionTitle(seriesResult && seriesResult.resolution);
 
     function flushSegment() {
       if (activeSegment.length) {
@@ -6753,19 +6830,23 @@
           "</title></circle>";
       }).join("");
     }).join("") : "";
-    var xStartLabel = formatPreviewDateLabel(records[0] && records[0].date);
-    var xEndLabel = formatPreviewDateLabel(records[records.length - 1] && records[records.length - 1].date);
+    var yearTicks = buildPreviewYearTicks(points, xMin, xMax, xScale, plotWidth);
+    var yearTickHtml = yearTicks.map(function (tick) {
+      return "<g class=\"shuttle-explorer__preview-year-tick\"><line class=\"shuttle-explorer__preview-tick-mark\" x1=\"" + tick.x.toFixed(2) + "\" y1=\"" + (margin.top + plotHeight) + "\" x2=\"" + tick.x.toFixed(2) + "\" y2=\"" + (margin.top + plotHeight + 5) + "\" />" +
+        "<text class=\"shuttle-explorer__preview-tick shuttle-explorer__preview-year-label\" x=\"" + tick.x.toFixed(2) + "\" y=\"" + (margin.top + plotHeight + 22) + "\" text-anchor=\"" + tick.anchor + "\">" + escapeHtml(tick.year) + "</text></g>";
+    }).join("");
 
     return [
-      "<svg class=\"shuttle-explorer__preview-chart\" viewBox=\"0 0 " + width + " " + height + "\" role=\"img\" aria-label=\"Time-series preview for " + escapeHtml(axisTitle) + "\">",
+      "<svg class=\"shuttle-explorer__preview-chart\" viewBox=\"0 0 " + width + " " + height + "\" role=\"img\" aria-label=\"" + escapeHtml(figureTitle + " chart for " + yAxisLabel) + "\">",
       "<rect class=\"shuttle-explorer__preview-plot-bg\" x=\"" + margin.left + "\" y=\"" + margin.top + "\" width=\"" + plotWidth + "\" height=\"" + plotHeight + "\" />",
       "<line class=\"shuttle-explorer__preview-axis\" x1=\"" + margin.left + "\" y1=\"" + (margin.top + plotHeight) + "\" x2=\"" + (margin.left + plotWidth) + "\" y2=\"" + (margin.top + plotHeight) + "\" />",
       "<line class=\"shuttle-explorer__preview-axis\" x1=\"" + margin.left + "\" y1=\"" + margin.top + "\" x2=\"" + margin.left + "\" y2=\"" + (margin.top + plotHeight) + "\" />",
-      "<text class=\"shuttle-explorer__preview-tick\" x=\"" + margin.left + "\" y=\"" + (margin.top + plotHeight + 24) + "\">" + escapeHtml(xStartLabel) + "</text>",
-      "<text class=\"shuttle-explorer__preview-tick shuttle-explorer__preview-tick--end\" x=\"" + (margin.left + plotWidth) + "\" y=\"" + (margin.top + plotHeight + 24) + "\">" + escapeHtml(xEndLabel) + "</text>",
+      yearTickHtml,
       "<text class=\"shuttle-explorer__preview-tick\" x=\"" + (margin.left - 8) + "\" y=\"" + (margin.top + plotHeight) + "\" text-anchor=\"end\">" + escapeHtml(formatPreviewNumber(yMin)) + "</text>",
       "<text class=\"shuttle-explorer__preview-tick\" x=\"" + (margin.left - 8) + "\" y=\"" + (margin.top + 4) + "\" text-anchor=\"end\">" + escapeHtml(formatPreviewNumber(yMax)) + "</text>",
-      "<text class=\"shuttle-explorer__preview-axis-title\" x=\"" + margin.left + "\" y=\"18\">" + escapeHtml(axisTitle) + "</text>",
+      "<text class=\"shuttle-explorer__preview-figure-title\" x=\"" + margin.left + "\" y=\"20\">" + escapeHtml(figureTitle) + "</text>",
+      "<text class=\"shuttle-explorer__preview-axis-label shuttle-explorer__preview-axis-label--y\" x=\"18\" y=\"" + (margin.top + plotHeight / 2) + "\" transform=\"rotate(-90 18 " + (margin.top + plotHeight / 2) + ")\">" + escapeHtml(yAxisLabel) + "</text>",
+      "<text class=\"shuttle-explorer__preview-axis-label shuttle-explorer__preview-axis-label--x\" x=\"" + (margin.left + plotWidth / 2) + "\" y=\"" + (margin.top + plotHeight + 52) + "\">Years</text>",
       pathHtml,
       circlesHtml,
       "</svg>"
@@ -6895,6 +6976,10 @@
       ".shuttle-explorer__sort-indicator{color:#6b7a89;font-size:.9em;}",
       ".shuttle-explorer__preview-option{padding-top:0;border-top:0;}",
       ".shuttle-explorer__preview-btn[disabled]{border-color:#d5dbe3;background:#f8f9fa;color:#6b7280;}",
+      ".shuttle-explorer__preview-tick-mark{stroke:#7f8da0;stroke-width:1;}",
+      ".shuttle-explorer__preview-figure-title,.shuttle-explorer__preview-axis-label{fill:#23364a;font-family:inherit;font-size:13px;font-weight:700;}",
+      ".shuttle-explorer__preview-axis-label--x{text-anchor:middle;}",
+      ".shuttle-explorer__preview-axis-label--y{text-anchor:middle;}",
       ".shuttle-explorer__table-copy-btn{display:inline-flex;align-items:center;max-width:12rem;margin:0;font-weight:600;line-height:1.25;white-space:nowrap;}",
       ".shuttle-explorer__table-copy-btn:hover,.shuttle-explorer__table-copy-btn:focus{text-decoration:none;}",
       ".shuttle-explorer__table-copy-btn:focus{outline:2px solid #2f5374;outline-offset:2px;border-radius:4px;}",
@@ -8128,14 +8213,12 @@
       dateRange = Array.isArray(siteManifest.dateRange) && siteManifest.dateRange.length
         ? siteManifest.dateRange.filter(Boolean).join(" to ")
         : "";
-      if (siteManifest.productLabel) {
-        metaParts.push(siteManifest.productLabel);
-      }
+      metaParts.push(PREVIEW_PRODUCT_HEADING);
       if (dateRange) {
         metaParts.push(dateRange);
       }
       if (siteManifest.lastPreviewBuild) {
-        metaParts.push("Preview built " + siteManifest.lastPreviewBuild);
+        metaParts.push("Preview built " + formatPreviewBuildDate(siteManifest.lastPreviewBuild));
       }
     }
     if (b.previewMeta) {
@@ -11338,6 +11421,8 @@
     buildDownloadAllSelectedScriptText: buildDownloadAllSelectedScriptText,
     buildDownloadAllSelectedFileBundle: buildDownloadAllSelectedFileBundle,
     buildTableClipboardText: buildTableClipboardText,
+    buildPreviewChartSvg: buildPreviewChartSvg,
+    formatPreviewBuildDate: formatPreviewBuildDate,
     compareRows: compareRows,
     getSortColumns: function () {
       return SORT_COLUMNS.map(function (column) {
