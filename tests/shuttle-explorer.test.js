@@ -4502,8 +4502,10 @@ test('AmeriFlux bulk script generator supports mixed FLUXNET and FLUXNET2015 pro
   assert.equal(script.includes('\\"is_test\\": false'), false);
   assert.equal(script.includes('while IFS=$\'\\t\' read -r SITE_ID DATA_PRODUCT DATA_POLICY SOURCE_LABEL; do'), true);
   assert.equal(script.includes('URLS=$(extract_urls "$RESPONSE" 2>/dev/null || true)'), true);
-  assert.equal(script.includes('clean_url="${url%%\\?*}"'), true);
-  assert.equal(script.includes('filename="$(basename "$clean_url")"'), true);
+  assert.equal(script.includes('ameriflux_filename_from_url() {'), true);
+  assert.equal(script.includes('filename="$(ameriflux_filename_from_url "$url" "$SITE_ID" "$DATA_PRODUCT" "$DATA_POLICY")"'), true);
+  assert.equal(script.includes('AMERIFLUX_SUCCESS_FILE="${AMERIFLUX_SUCCESS_FILE:-$TRACKING_DIR/successful_downloads_ameriflux.tsv}"'), true);
+  assert.equal(script.includes('AMERIFLUX_FAILED_FILE="${AMERIFLUX_FAILED_FILE:-$TRACKING_DIR/failed_downloads_ameriflux.tsv}"'), true);
   assert.equal(script.includes('jq is required but was not found in PATH.'), false);
 });
 
@@ -4833,10 +4835,19 @@ test('Combined bulk download script is self-contained and embeds both source sec
   assert.equal(script.includes('# Request-only rows excluded from direct downloads: 1'), true);
   assert.equal(script.includes('download_direct_links() {'), true);
   assert.equal(script.includes('download_ameriflux_api_products() {'), true);
+  assert.equal(script.includes('DATA_DIR="$OUTPUT_DIR/siteData"'), true);
+  assert.equal(script.includes('COMBINED_LOGFILE="$LOG_DIR/download.log"'), true);
+  assert.equal(script.includes('DIRECT_SUCCESS_FILE="$LOG_DIR/successful_downloads_direct.tsv"'), true);
+  assert.equal(script.includes('AMERIFLUX_SUCCESS_FILE="$LOG_DIR/successful_downloads_ameriflux.tsv"'), true);
+  assert.equal(script.includes('Bulk download complete.'), true);
+  assert.equal(script.includes('Sites downloaded: $successful_sites'), true);
+  assert.equal(script.includes('Failed downloads: $failed_downloads'), true);
   assert.equal(script.includes('FLUXNET_DIRECT_LINK_SCRIPT'), true);
   assert.equal(script.includes('FLUXNET_AMERIFLUX_SCRIPT'), true);
   assert.equal(script.includes('curl --location --fail -C -'), true);
   assert.equal(script.includes('HTTP_STATUS=$(curl -sS -w "%{http_code}" -o "$RESPONSE_FILE" -X POST "$REQUEST_URL"'), true);
+  assert.equal(script.includes('DIRECT_OUTDIR="$OUTPUT_DIR/direct_links"'), false);
+  assert.equal(script.includes('AMERIFLUX_OUTDIR="$OUTPUT_DIR/ameriflux_api"'), false);
   assert.equal(script.includes('download_shuttle_selected.sh'), false);
   assert.equal(script.includes('download_ameriflux_selected.sh'), false);
   assert.equal(script.includes('download_all_selected.sh'), false);
@@ -4878,12 +4889,19 @@ test('Generated combined bulk script runs direct-link and AmeriFlux sections', (
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.equal(fs.existsSync(path.join(outDir, 'direct_links', 'direct.zip')), true);
-  assert.match(fs.readFileSync(path.join(outDir, 'direct_links', 'direct.zip'), 'utf8'), /downloaded:https:\/\/example\.org\/direct\.zip/);
-  assert.equal(fs.existsSync(path.join(outDir, 'ameriflux_api', 'mock.zip')), true);
-  assert.match(fs.readFileSync(path.join(outDir, 'ameriflux_api', 'mock.zip'), 'utf8'), /downloaded:https:\/\/example\.org\/mock\.zip\?download=1/);
-  assert.match(fs.readFileSync(path.join(outDir, 'ameriflux_selected_sites.txt'), 'utf8'), /^AR-Bal\tFLUXNET\tCCBY4\.0\tAmeriFlux$/m);
-  assert.match(fs.readFileSync(path.join(outDir, 'logs', 'combined.log'), 'utf8'), /Bulk download summary/);
+  assert.equal(fs.existsSync(path.join(outDir, 'siteData', 'ICOS_IC-Test_direct.zip')), true);
+  assert.match(fs.readFileSync(path.join(outDir, 'siteData', 'ICOS_IC-Test_direct.zip'), 'utf8'), /downloaded:https:\/\/example\.org\/direct\.zip/);
+  assert.equal(fs.existsSync(path.join(outDir, 'siteData', 'AR-Bal_FLUXNET_CCBY4.0_mock.zip')), true);
+  assert.match(fs.readFileSync(path.join(outDir, 'siteData', 'AR-Bal_FLUXNET_CCBY4.0_mock.zip'), 'utf8'), /downloaded:https:\/\/example\.org\/mock\.zip\?download=1/);
+  assert.equal(fs.existsSync(path.join(outDir, 'direct_links')), false);
+  assert.equal(fs.existsSync(path.join(outDir, 'ameriflux_api')), false);
+  assert.match(fs.readFileSync(path.join(outDir, 'logs', 'ameriflux_selected_sites.txt'), 'utf8'), /^AR-Bal\tFLUXNET\tCCBY4\.0\tAmeriFlux$/m);
+  assert.match(fs.readFileSync(path.join(outDir, 'logs', 'successful_downloads_direct.tsv'), 'utf8'), /^IC-Test\t/m);
+  assert.match(fs.readFileSync(path.join(outDir, 'logs', 'successful_downloads_ameriflux.tsv'), 'utf8'), /^AR-Bal\tFLUXNET\tCCBY4\.0\tAR-Bal_FLUXNET_CCBY4\.0_mock\.zip$/m);
+  const combinedLog = fs.readFileSync(path.join(outDir, 'logs', 'download.log'), 'utf8');
+  assert.match(combinedLog, /Bulk download complete\./);
+  assert.match(combinedLog, /Sites downloaded: 2/);
+  assert.match(combinedLog, /Failed downloads: 0/);
   assert.deepEqual(fs.readFileSync(postUrlLogFile, 'utf8').trim().split('\n'), [
     'https://amfcdn.lbl.gov/api/v2/data_download',
     'https://amfcdn.lbl.gov/api/v2/log_shuttle_data_request'
@@ -4916,8 +4934,11 @@ test('Generated combined bulk script works for direct-link-only selections', () 
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.equal(fs.existsSync(path.join(outDir, 'direct_links', 'direct-only.zip')), true);
+  assert.equal(fs.existsSync(path.join(outDir, 'siteData', 'ICOS_IC-Test_direct-only.zip')), true);
+  assert.equal(fs.existsSync(path.join(outDir, 'direct_links')), false);
   assert.match(String(result.stdout || ''), /No AmeriFlux API-backed products selected\./);
+  assert.match(String(result.stdout || ''), /Sites downloaded: 1/);
+  assert.match(String(result.stdout || ''), /Failed downloads: 0/);
 });
 
 test('Generated combined bulk script works for AmeriFlux API-only selections', () => {
@@ -4947,8 +4968,11 @@ test('Generated combined bulk script works for AmeriFlux API-only selections', (
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(String(result.stdout || ''), /No direct-link rows selected\./);
-  assert.equal(fs.existsSync(path.join(outDir, 'ameriflux_api', 'mock.zip')), true);
+  assert.equal(fs.existsSync(path.join(outDir, 'siteData', 'AR-Bal_FLUXNET_CCBY4.0_mock.zip')), true);
+  assert.equal(fs.existsSync(path.join(outDir, 'ameriflux_api')), false);
   assert.equal(fs.existsSync(path.join(outDir, 'direct_links')), false);
+  assert.match(String(result.stdout || ''), /Sites downloaded: 1/);
+  assert.match(String(result.stdout || ''), /Failed downloads: 0/);
 });
 
 test('Download-all bundle helper returns one combined user-facing script', () => {
