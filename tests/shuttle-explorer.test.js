@@ -9,7 +9,27 @@ const preview = require('../assets/data-preview.js');
 const hooks = require('../assets/shuttle-explorer.js');
 
 const BASH_PATH = childProcess.execFileSync('bash', ['-lc', 'command -v bash'], { encoding: 'utf8' }).trim();
-const SCRIPT_RUNTIME_COMMANDS = ['basename', 'cat', 'mkdir', 'mktemp', 'rm', 'tee', 'tr', 'uname'];
+const SCRIPT_RUNTIME_COMMANDS = [
+  'awk',
+  'basename',
+  'bash',
+  'cat',
+  'cksum',
+  'date',
+  'dirname',
+  'find',
+  'grep',
+  'mkdir',
+  'mktemp',
+  'mv',
+  'rm',
+  'sed',
+  'sort',
+  'tee',
+  'tr',
+  'uname',
+  'wc'
+];
 
 function resolveCommandPath(command) {
   return childProcess.execFileSync('bash', ['-lc', 'command -v ' + command], { encoding: 'utf8' }).trim();
@@ -153,6 +173,37 @@ function buildScriptRuntimeBin(tempDir, options) {
       '    exit 1',
       '  fi',
       '  printf \'downloaded:%s\\n\' "$url" > "$2"',
+      '  exit 0',
+      'fi',
+      '',
+      'if [ "${1:-}" = "--location" ]; then',
+      '  direct_url=""',
+      '  direct_output_file=""',
+      '  direct_header_file=""',
+      '  while [ "$#" -gt 0 ]; do',
+      '    case "${1:-}" in',
+      '      http://*|https://*)',
+      '        direct_url="$1"',
+      '        ;;',
+      '      --output)',
+      '        shift',
+      '        direct_output_file="${1:-}"',
+      '        ;;',
+      '      --dump-header)',
+      '        shift',
+      '        direct_header_file="${1:-}"',
+      '        ;;',
+      '    esac',
+      '    shift || true',
+      '  done',
+      '  if [ -z "$direct_url" ] || [ -z "$direct_output_file" ]; then',
+      '    echo "unexpected direct curl args" >&2',
+      '    exit 1',
+      '  fi',
+      '  if [ -n "$direct_header_file" ]; then',
+      '    printf \'HTTP/1.1 200 OK\\r\\nContent-Type: application/zip\\r\\n\\r\\n\' > "$direct_header_file"',
+      '  fi',
+      '  printf \'downloaded:%s\\n\' "$direct_url" > "$direct_output_file"',
       '  exit 0',
       'fi',
       '',
@@ -4754,69 +4805,166 @@ test('Generated AmeriFlux bulk script exits with jq install guidance when neithe
   assert.equal(fs.existsSync(sitesFile), false);
 });
 
-test('Download-all wrapper script delegates to both child scripts when both source partitions exist', () => {
+test('Combined bulk download script is self-contained and embeds both source sections', () => {
+  const directScript = hooks.buildCurlScriptText([
+    makeCatalogRow({ site_id: 'IC-Test', download_link: 'https://example.org/direct.zip' })
+  ]);
+  const ameriFluxScript = hooks.buildAmeriFluxBulkScriptText([
+    { site_id: 'AR-Bal', data_product: 'FLUXNET', source_label: 'AmeriFlux' }
+  ]);
   const script = hooks.buildDownloadAllSelectedScriptText({
     includeShuttle: true,
-    includeAmeriFlux: true
+    includeAmeriFlux: true,
+    shuttleText: directScript,
+    ameriFluxText: ameriFluxScript,
+    selectedSiteCount: 2,
+    directLinkCount: 1,
+    ameriFluxEntryCount: 1,
+    landingPageOnlyCount: 1,
+    requestOnlyCount: 1,
+    generatedAt: '2026-01-02T03:04:05.000Z'
   });
 
-  assert.equal(script.includes('# Validated direct links are handled by download_shuttle_selected.sh.'), true);
-  assert.equal(script.includes('# AmeriFlux API-backed surfaced products (FLUXNET, BASE, and FLUXNET2015) are downloaded via the AmeriFlux API.'), true);
-  assert.equal(script.includes('if [ -f "./download_shuttle_selected.sh" ]; then'), true);
-  assert.equal(script.includes('bash "./download_shuttle_selected.sh" || {'), true);
-  assert.equal(script.includes('if [ -f "./download_ameriflux_selected.sh" ]; then'), true);
-  assert.equal(script.includes('bash "./download_ameriflux_selected.sh" || {'), true);
-  assert.equal(script.includes('echo "Bulk download complete."'), true);
+  assert.equal(script.includes('# Self-contained bulk downloader for selected FLUXNET sites'), true);
+  assert.equal(script.includes('#   bash download_fluxnet_selected.sh'), true);
+  assert.equal(script.includes('# Direct-download rows: 1'), true);
+  assert.equal(script.includes('# AmeriFlux API products: 1'), true);
+  assert.equal(script.includes('# Landing-page-only rows excluded from direct downloads: 1'), true);
+  assert.equal(script.includes('# Request-only rows excluded from direct downloads: 1'), true);
+  assert.equal(script.includes('download_direct_links() {'), true);
+  assert.equal(script.includes('download_ameriflux_api_products() {'), true);
+  assert.equal(script.includes('FLUXNET_DIRECT_LINK_SCRIPT'), true);
+  assert.equal(script.includes('FLUXNET_AMERIFLUX_SCRIPT'), true);
+  assert.equal(script.includes('curl --location --fail -C -'), true);
+  assert.equal(script.includes('HTTP_STATUS=$(curl -sS -w "%{http_code}" -o "$RESPONSE_FILE" -X POST "$REQUEST_URL"'), true);
+  assert.equal(script.includes('download_shuttle_selected.sh'), false);
+  assert.equal(script.includes('download_ameriflux_selected.sh'), false);
+  assert.equal(script.includes('download_all_selected.sh'), false);
+  assert.equal(script.includes('bash "./'), false);
 });
 
-test('Download-all wrapper script can be generated for Shuttle-only selections', () => {
+test('Generated combined bulk script runs direct-link and AmeriFlux sections', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'combined-bulk-script-'));
+  const scriptPath = path.join(tempDir, 'download_fluxnet_selected.sh');
+  const outDir = path.join(tempDir, 'fluxnet_selected_downloads');
+  const postUrlLogFile = path.join(tempDir, 'posted_urls.log');
+  const binDir = buildScriptRuntimeBin(tempDir, {
+    includePython3: true,
+    postUrlLogFile: postUrlLogFile
+  });
   const script = hooks.buildDownloadAllSelectedScriptText({
     includeShuttle: true,
-    includeAmeriFlux: false
+    includeAmeriFlux: true,
+    shuttleText: hooks.buildCurlScriptText([
+      makeCatalogRow({ site_id: 'IC-Test', download_link: 'https://example.org/direct.zip' })
+    ]),
+    ameriFluxText: hooks.buildAmeriFluxBulkScriptText([
+      { site_id: 'AR-Bal', data_product: 'FLUXNET', source_label: 'AmeriFlux' }
+    ]),
+    selectedSiteCount: 2,
+    directLinkCount: 1,
+    ameriFluxEntryCount: 1,
+    generatedAt: '2026-01-02T03:04:05.000Z'
   });
 
-  assert.equal(script.includes('bash "./download_shuttle_selected.sh" || {'), true);
-  assert.equal(script.includes('echo "No AmeriFlux API-backed selected sites to download."'), true);
-  assert.equal(script.includes('bash "./download_ameriflux_selected.sh" || {'), false);
+  writeExecutable(scriptPath, script);
+
+  const result = childProcess.spawnSync(BASH_PATH, [scriptPath, outDir], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: binDir
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(fs.existsSync(path.join(outDir, 'direct_links', 'direct.zip')), true);
+  assert.match(fs.readFileSync(path.join(outDir, 'direct_links', 'direct.zip'), 'utf8'), /downloaded:https:\/\/example\.org\/direct\.zip/);
+  assert.equal(fs.existsSync(path.join(outDir, 'ameriflux_api', 'mock.zip')), true);
+  assert.match(fs.readFileSync(path.join(outDir, 'ameriflux_api', 'mock.zip'), 'utf8'), /downloaded:https:\/\/example\.org\/mock\.zip\?download=1/);
+  assert.match(fs.readFileSync(path.join(outDir, 'ameriflux_selected_sites.txt'), 'utf8'), /^AR-Bal\tFLUXNET\tCCBY4\.0\tAmeriFlux$/m);
+  assert.match(fs.readFileSync(path.join(outDir, 'logs', 'combined.log'), 'utf8'), /Bulk download summary/);
+  assert.deepEqual(fs.readFileSync(postUrlLogFile, 'utf8').trim().split('\n'), [
+    'https://amfcdn.lbl.gov/api/v2/data_download',
+    'https://amfcdn.lbl.gov/api/v2/log_shuttle_data_request'
+  ]);
 });
 
-test('Download-all wrapper script can be generated for AmeriFlux API-only selections', () => {
+test('Generated combined bulk script works for direct-link-only selections', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'combined-direct-only-'));
+  const scriptPath = path.join(tempDir, 'download_fluxnet_selected.sh');
+  const outDir = path.join(tempDir, 'downloads');
+  const binDir = buildScriptRuntimeBin(tempDir);
+  const script = hooks.buildDownloadAllSelectedScriptText({
+    includeShuttle: true,
+    includeAmeriFlux: false,
+    shuttleText: hooks.buildCurlScriptText([
+      makeCatalogRow({ site_id: 'IC-Test', download_link: 'https://example.org/direct-only.zip' })
+    ]),
+    directLinkCount: 1,
+    generatedAt: '2026-01-02T03:04:05.000Z'
+  });
+
+  writeExecutable(scriptPath, script);
+
+  const result = childProcess.spawnSync(BASH_PATH, [scriptPath, outDir], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: binDir
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(fs.existsSync(path.join(outDir, 'direct_links', 'direct-only.zip')), true);
+  assert.match(String(result.stdout || ''), /No AmeriFlux API-backed products selected\./);
+});
+
+test('Generated combined bulk script works for AmeriFlux API-only selections', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'combined-ameriflux-only-'));
+  const scriptPath = path.join(tempDir, 'download_fluxnet_selected.sh');
+  const outDir = path.join(tempDir, 'downloads');
+  const binDir = buildScriptRuntimeBin(tempDir, { includePython3: true });
   const script = hooks.buildDownloadAllSelectedScriptText({
     includeShuttle: false,
-    includeAmeriFlux: true
+    includeAmeriFlux: true,
+    ameriFluxText: hooks.buildAmeriFluxBulkScriptText([
+      { site_id: 'AR-Bal', data_product: 'FLUXNET', source_label: 'AmeriFlux' }
+    ]),
+    ameriFluxEntryCount: 1,
+    generatedAt: '2026-01-02T03:04:05.000Z'
   });
 
-  assert.equal(script.includes('echo "No Shuttle-backed selected sites to download."'), true);
-  assert.equal(script.includes('bash "./download_shuttle_selected.sh" || {'), false);
-  assert.equal(script.includes('bash "./download_ameriflux_selected.sh" || {'), true);
+  writeExecutable(scriptPath, script);
+
+  const result = childProcess.spawnSync(BASH_PATH, [scriptPath, outDir], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: binDir
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(String(result.stdout || ''), /No direct-link rows selected\./);
+  assert.equal(fs.existsSync(path.join(outDir, 'ameriflux_api', 'mock.zip')), true);
+  assert.equal(fs.existsSync(path.join(outDir, 'direct_links')), false);
 });
 
-test('Download-all bundle helper returns the wrapper and both child scripts', () => {
+test('Download-all bundle helper returns one combined user-facing script', () => {
   const files = hooks.buildDownloadAllSelectedFileBundle({
-    wrapperText: 'wrapper-script',
-    ameriFluxText: 'ameriflux-script',
-    shuttleText: 'shuttle-script'
+    combinedText: 'combined-script'
   });
 
   assert.deepEqual(
     files.map((file) => file.filename),
-    [
-      'download_all_selected.sh',
-      'download_ameriflux_selected.sh',
-      'download_shuttle_selected.sh'
-    ]
+    ['download_fluxnet_selected.sh']
   );
   assert.deepEqual(
     files.map((file) => file.mimeType),
-    [
-      'text/x-shellscript;charset=utf-8',
-      'text/x-shellscript;charset=utf-8',
-      'text/x-shellscript;charset=utf-8'
-    ]
+    ['text/x-shellscript;charset=utf-8']
   );
-  assert.equal(files[0].text, 'wrapper-script');
-  assert.equal(files[1].text, 'ameriflux-script');
-  assert.equal(files[2].text, 'shuttle-script');
+  assert.equal(files[0].text, 'combined-script');
 });
 
 test('Browser-facing explorer markup does not include hardcoded AmeriFlux identity attributes', () => {
@@ -4901,19 +5049,27 @@ test('Vegetation filter markup includes an IGBP info tooltip and external refere
 
 test('Bulk tools layout keeps Shuttle and AmeriFlux action buttons in the intended order', () => {
   const explorerJs = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.js'), 'utf8');
+  const mainDownloadScript = explorerJs.indexOf('data-role=\\"download-all-selected-script\\">Download bulk download script</button>"');
+  const mainCopyScript = explorerJs.indexOf('data-role=\\"copy-all-selected-script\\">Copy bulk download script</button>"');
+  const advancedFiles = explorerJs.indexOf('<summary>Advanced files</summary>');
+  const shuttleDebugScript = explorerJs.indexOf('data-role=\\"download-script\\">Download optional debug script: download_shuttle_selected.sh</button>"');
   const shuttleRowStart = explorerJs.indexOf('data-role=\\"show-cli-command\\">Show Shuttle CLI command</button>"');
   const shuttleCopyCommand = explorerJs.indexOf('data-role=\\"copy-command\\">Copy Shuttle CLI command</button>"');
   const shuttleCopyLinks = explorerJs.indexOf('data-role=\\"copy-links\\">Copy Shuttle links</button>"');
-  const ameriDownloadScript = explorerJs.indexOf('data-role=\\"download-ameriflux-script\\">Download download_ameriflux_selected.sh</button>"');
+  const ameriDownloadScript = explorerJs.indexOf('data-role=\\"download-ameriflux-script\\">Download optional debug script: download_ameriflux_selected.sh</button>"');
   const ameriSecondRowStart = explorerJs.indexOf('"    <div class=\\"shuttle-explorer__bulk-actions\\">",', ameriDownloadScript);
-  const ameriCopyScript = explorerJs.indexOf('data-role=\\"copy-ameriflux-script\\">Copy AmeriFlux API shell script</button>"');
+  const ameriCopyScript = explorerJs.indexOf('data-role=\\"copy-ameriflux-script\\">Copy optional AmeriFlux debug script</button>"');
   const ameriSitesFile = explorerJs.indexOf('data-role=\\"download-ameriflux-sites-file\\">Download ameriflux_selected_sites.txt</button>"');
 
+  assert.equal(mainDownloadScript > -1, true);
+  assert.equal(mainCopyScript > mainDownloadScript, true);
+  assert.equal(advancedFiles > mainCopyScript, true);
+  assert.equal(shuttleDebugScript > advancedFiles, true);
   assert.equal(shuttleRowStart > -1, true);
   assert.equal(shuttleCopyCommand > shuttleRowStart, true);
   assert.equal(shuttleCopyLinks > shuttleCopyCommand, true);
 
-  assert.equal(ameriDownloadScript > -1, true);
+  assert.equal(ameriDownloadScript > advancedFiles, true);
   assert.equal(ameriSecondRowStart > ameriDownloadScript, true);
   assert.equal(ameriCopyScript > ameriSecondRowStart, true);
   assert.equal(ameriSitesFile > ameriCopyScript, true);

@@ -70,6 +70,7 @@
   var AMERIFLUX_BULK_FALLBACK_USER_EMAIL = AMERIFLUX_DEFAULT_USER_EMAIL;
   var AMERIFLUX_BULK_IDENTITY_STORAGE_KEY = "shuttle-explorer:ameriflux-bulk-identity:v1";
   var AMERIFLUX_TRUSTED_RUNTIME_FLAG = "amerifluxTrustedRuntime";
+  var BULK_DOWNLOAD_SCRIPT_FILENAME = "download_fluxnet_selected.sh";
   var ICOS_DIRECT_SOURCE_ONLY = "ICOS";
   var AMERIFLUX_SOURCE_ONLY = "AmeriFlux";
   var BASE_SOURCE_ONLY = "BASE";
@@ -3253,61 +3254,224 @@
 
   function buildDownloadAllSelectedScriptText(options) {
     var opts = options || {};
-    var includeShuttle = opts.includeShuttle !== false;
-    var includeAmeriFlux = opts.includeAmeriFlux !== false;
-    var shuttleScript = String(opts.shuttleScript || "./download_shuttle_selected.sh");
-    var ameriFluxScript = String(opts.ameriFluxScript || "./download_ameriflux_selected.sh");
+    var directScriptText = String(opts.shuttleText || opts.directScriptText || "");
+    var ameriFluxScriptText = String(opts.ameriFluxText || opts.ameriFluxScriptText || "");
+    var includeShuttle = opts.includeShuttle !== false && !!directScriptText.trim();
+    var includeAmeriFlux = opts.includeAmeriFlux !== false && !!ameriFluxScriptText.trim();
+    var selectedSiteCount = Math.max(0, parseInt(opts.selectedSiteCount, 10) || 0);
+    var directLinkCount = Math.max(0, parseInt(opts.directLinkCount, 10) || 0);
+    var ameriFluxEntryCount = Math.max(0, parseInt(opts.ameriFluxEntryCount, 10) || 0);
+    var landingPageOnlyCount = Math.max(0, parseInt(opts.landingPageOnlyCount, 10) || 0);
+    var requestOnlyCount = Math.max(0, parseInt(opts.requestOnlyCount, 10) || 0);
+    var generatedAt = String(opts.generatedAt || (new Date()).toISOString());
     var lines = [
       "#!/usr/bin/env bash",
       "set -euo pipefail",
       "",
-      "# Bulk download wrapper for surfaced products from selected FLUXNET sites",
-      "# Validated direct links are handled by download_shuttle_selected.sh.",
-      "# AmeriFlux API-backed surfaced products (FLUXNET, BASE, and FLUXNET2015) are downloaded via the AmeriFlux API.",
+      "# Self-contained bulk downloader for selected FLUXNET sites",
+      "# Generated: " + generatedAt,
+      "# Selected sites: " + selectedSiteCount,
+      "# Direct-download rows: " + directLinkCount,
+      "# AmeriFlux API products: " + ameriFluxEntryCount,
+      "# Landing-page-only rows excluded from direct downloads: " + landingPageOnlyCount,
+      "# Request-only rows excluded from direct downloads: " + requestOnlyCount,
+      "#",
+      "# Usage:",
+      "#   bash " + BULK_DOWNLOAD_SCRIPT_FILENAME,
+      "# Optional:",
+      "#   OUTPUT_DIR=fluxnet_selected_downloads bash " + BULK_DOWNLOAD_SCRIPT_FILENAME,
+      "#   AMERIFLUX_USER_ID=your_username AMERIFLUX_USER_EMAIL=you@example.org bash " + BULK_DOWNLOAD_SCRIPT_FILENAME,
+      "#",
+      "# The script embeds direct-link downloads and AmeriFlux API requests.",
+      "# ICOS links may require interactive license acceptance in a browser before download.",
+      "# JapanFlux rows without validated ZIP URLs, landing-page-only rows, and request-only rows are excluded from direct-download attempts.",
+      "# AmeriFlux API-backed products preserve their selected data policy, including CC-BY-4.0 and Legacy Data Policy selections.",
       "",
       "SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"",
       "cd \"$SCRIPT_DIR\"",
       "",
-      "echo \"Starting bulk download for selected FLUXNET sites...\""
+      "OUTPUT_DIR=\"${OUTPUT_DIR:-${1:-fluxnet_selected_downloads}}\"",
+      "case \"$OUTPUT_DIR\" in",
+      "  /*) ;;",
+      "  *) OUTPUT_DIR=\"$SCRIPT_DIR/$OUTPUT_DIR\" ;;",
+      "esac",
+      "",
+      "LOG_DIR=\"$OUTPUT_DIR/logs\"",
+      "COMBINED_LOGFILE=\"$LOG_DIR/combined.log\"",
+      "DIRECT_OUTDIR=\"$OUTPUT_DIR/direct_links\"",
+      "DIRECT_LOGFILE=\"$LOG_DIR/direct_links.log\"",
+      "AMERIFLUX_OUTDIR=\"$OUTPUT_DIR/ameriflux_api\"",
+      "AMERIFLUX_SITES_FILE=\"$OUTPUT_DIR/ameriflux_selected_sites.txt\"",
+      "AMERIFLUX_LOGFILE=\"$LOG_DIR/ameriflux_api.log\"",
+      "DIRECT_LINK_COUNT=\"" + directLinkCount + "\"",
+      "AMERIFLUX_ENTRY_COUNT=\"" + ameriFluxEntryCount + "\"",
+      "LANDING_PAGE_ONLY_COUNT=\"" + landingPageOnlyCount + "\"",
+      "REQUEST_ONLY_COUNT=\"" + requestOnlyCount + "\"",
+      "FAILED_SECTIONS=\"\"",
+      "",
+      "mkdir -p \"$OUTPUT_DIR\" \"$LOG_DIR\"",
+      ": > \"$COMBINED_LOGFILE\"",
+      "",
+      "log_combined() {",
+      "  printf '%s\\n' \"$*\" | tee -a \"$COMBINED_LOGFILE\"",
+      "}",
+      "",
+      "count_lines() {",
+      "  if [ -s \"$1\" ]; then",
+      "    wc -l < \"$1\" | tr -d ' '",
+      "  else",
+      "    printf '0'",
+      "  fi",
+      "}",
+      "",
+      "count_payload_files() {",
+      "  if [ -d \"$1\" ]; then",
+      "    find \"$1\" -type f ! -path '*/.queue/*' ! -name 'download_success.txt' ! -name 'download_failed.txt' ! -name '.*.tmp' ! -name '.cookies.*.txt' | wc -l | tr -d ' '",
+      "  else",
+      "    printf '0'",
+      "  fi",
+      "}",
+      "",
+      "mark_section_failed() {",
+      "  FAILED_SECTIONS=\"${FAILED_SECTIONS}${FAILED_SECTIONS:+ }$1\"",
+      "}",
+      "",
+      "check_dependencies() {",
+      "  local missing=0",
+      "  local cmd",
+      "  for cmd in bash curl basename cat date find mkdir rm tee tr wc; do",
+      "    if ! command -v \"$cmd\" >/dev/null 2>&1; then",
+      "      echo \"$cmd is required but was not found in PATH.\" >&2",
+      "      missing=1",
+      "    fi",
+      "  done",
+      "  if [ \"$DIRECT_LINK_COUNT\" -gt 0 ]; then",
+      "    for cmd in awk cksum grep mktemp mv sed sort; do",
+      "      if ! command -v \"$cmd\" >/dev/null 2>&1; then",
+      "        echo \"$cmd is required for direct-link downloads but was not found in PATH.\" >&2",
+      "        missing=1",
+      "      fi",
+      "    done",
+      "  fi",
+      "  if [ \"$AMERIFLUX_ENTRY_COUNT\" -gt 0 ] && ! command -v mktemp >/dev/null 2>&1; then",
+      "    echo \"mktemp is required for AmeriFlux API downloads but was not found in PATH.\" >&2",
+      "    missing=1",
+      "  fi",
+      "  if [ \"$AMERIFLUX_ENTRY_COUNT\" -gt 0 ] && ! command -v jq >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then",
+      "    echo \"AmeriFlux API downloads require jq or python3 to parse API responses.\" >&2",
+      "    missing=1",
+      "  fi",
+      "  if [ \"$AMERIFLUX_ENTRY_COUNT\" -gt 0 ] && ! command -v base64 >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then",
+      "    echo \"AmeriFlux FLUXNET2015 downloads require base64 or python3 to resolve the request URL.\" >&2",
+      "    missing=1",
+      "  fi",
+      "  if [ \"$missing\" -ne 0 ]; then",
+      "    exit 1",
+      "  fi",
+      "}",
+      "",
+      "download_direct_links() {",
+      "  if [ \"$DIRECT_LINK_COUNT\" -eq 0 ]; then",
+      "    log_combined \"No direct-link rows selected.\"",
+      "    return 0",
+      "  fi",
+      "  log_combined \"Starting direct-link downloads into $DIRECT_OUTDIR\"",
+      "  if bash -s -- \"$DIRECT_OUTDIR\" \"$DIRECT_LOGFILE\" <<'FLUXNET_DIRECT_LINK_SCRIPT'"
     ];
 
     if (includeShuttle) {
-      lines.push(
-        "",
-        "if [ -f \"" + shuttleScript + "\" ]; then",
-        "  echo \"Running Shuttle bulk download...\"",
-        "  bash \"" + shuttleScript + "\" || {",
-        "    echo \"Shuttle bulk download failed.\" >&2",
-        "    exit 1",
-        "  }",
-        "else",
-        "  echo \"Expected " + shuttleScript + " but it was not found.\" >&2",
-        "  exit 1",
-        "fi"
-      );
+      lines = lines.concat(directScriptText.split("\n"));
     } else {
-      lines.push("", "echo \"No Shuttle-backed selected sites to download.\"");
+      lines.push(
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        "echo \"No direct-link rows selected.\""
+      );
     }
+
+    lines = lines.concat([
+      "FLUXNET_DIRECT_LINK_SCRIPT",
+      "  then",
+      "    log_combined \"Direct-link downloads finished.\"",
+      "  else",
+      "    log_combined \"Direct-link downloads finished with failures; see $DIRECT_LOGFILE\"",
+      "    mark_section_failed \"direct-links\"",
+      "  fi",
+      "}",
+      "",
+      "download_ameriflux_api_products() {",
+      "  if [ \"$AMERIFLUX_ENTRY_COUNT\" -eq 0 ]; then",
+      "    log_combined \"No AmeriFlux API-backed products selected.\"",
+      "    return 0",
+      "  fi",
+      "  rm -f \"$AMERIFLUX_SITES_FILE\"",
+      "  log_combined \"Starting AmeriFlux API downloads into $AMERIFLUX_OUTDIR\"",
+      "  if bash -s -- \"$AMERIFLUX_OUTDIR\" \"$AMERIFLUX_SITES_FILE\" \"$AMERIFLUX_LOGFILE\" <<'FLUXNET_AMERIFLUX_SCRIPT'"
+    ]);
 
     if (includeAmeriFlux) {
-      lines.push(
-        "",
-        "if [ -f \"" + ameriFluxScript + "\" ]; then",
-        "  echo \"Running AmeriFlux bulk download...\"",
-        "  bash \"" + ameriFluxScript + "\" || {",
-        "    echo \"AmeriFlux bulk download failed.\" >&2",
-        "    exit 1",
-        "  }",
-        "else",
-        "  echo \"Expected " + ameriFluxScript + " but it was not found.\" >&2",
-        "  exit 1",
-        "fi"
-      );
+      lines = lines.concat(ameriFluxScriptText.split("\n"));
     } else {
-      lines.push("", "echo \"No AmeriFlux API-backed selected sites to download.\"");
+      lines.push(
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        "echo \"No AmeriFlux API-backed products selected.\""
+      );
     }
 
-    lines.push("", "echo \"Bulk download complete.\"");
+    lines = lines.concat([
+      "FLUXNET_AMERIFLUX_SCRIPT",
+      "  then",
+      "    log_combined \"AmeriFlux API downloads finished.\"",
+      "  else",
+      "    log_combined \"AmeriFlux API downloads finished with failures; see $AMERIFLUX_LOGFILE\"",
+      "    mark_section_failed \"ameriflux-api\"",
+      "  fi",
+      "}",
+      "",
+      "print_final_summary() {",
+      "  local direct_success=0",
+      "  local direct_failed=0",
+      "  local direct_files=0",
+      "  local ameriflux_files=0",
+      "  direct_success=\"$(count_lines \"$DIRECT_OUTDIR/download_success.txt\")\"",
+      "  direct_failed=\"$(count_lines \"$DIRECT_OUTDIR/download_failed.txt\")\"",
+      "  direct_files=\"$(count_payload_files \"$DIRECT_OUTDIR\")\"",
+      "  ameriflux_files=\"$(count_payload_files \"$AMERIFLUX_OUTDIR\")\"",
+      "  echo \"\"",
+      "  log_combined \"Bulk download summary\"",
+      "  log_combined \"  Output directory: $OUTPUT_DIR\"",
+      "  log_combined \"  Downloaded files:\"",
+      "  log_combined \"    Direct links: $direct_files file(s), $direct_success successful URL(s), $direct_failed failed URL(s)\"",
+      "  log_combined \"    AmeriFlux API: $ameriflux_files file(s)\"",
+      "  log_combined \"  Skipped rows:\"",
+      "  log_combined \"    Landing-page-only: $LANDING_PAGE_ONLY_COUNT\"",
+      "  log_combined \"    Request-only: $REQUEST_ONLY_COUNT\"",
+      "  if [ -n \"$FAILED_SECTIONS\" ]; then",
+      "    log_combined \"  Sections with failures: $FAILED_SECTIONS\"",
+      "  else",
+      "    log_combined \"  Sections with failures: none\"",
+      "  fi",
+      "  log_combined \"  Logs:\"",
+      "  log_combined \"    Combined: $COMBINED_LOGFILE\"",
+      "  log_combined \"    Direct links: $DIRECT_LOGFILE\"",
+      "  log_combined \"    AmeriFlux API: $AMERIFLUX_LOGFILE\"",
+      "}",
+      "",
+      "main() {",
+      "  log_combined \"Starting bulk download for selected FLUXNET sites...\"",
+      "  check_dependencies",
+      "  download_direct_links",
+      "  download_ameriflux_api_products",
+      "  print_final_summary",
+      "  if [ -n \"$FAILED_SECTIONS\" ]; then",
+      "    exit 1",
+      "  fi",
+      "}",
+      "",
+      "main \"$@\"",
+      ""
+    ]);
     return lines.join("\n");
   }
 
@@ -3315,19 +3479,9 @@
     var opts = options || {};
     return [
       {
-        filename: "download_all_selected.sh",
+        filename: BULK_DOWNLOAD_SCRIPT_FILENAME,
         mimeType: "text/x-shellscript;charset=utf-8",
-        text: String(opts.wrapperText || "")
-      },
-      {
-        filename: "download_ameriflux_selected.sh",
-        mimeType: "text/x-shellscript;charset=utf-8",
-        text: String(opts.ameriFluxText || "")
-      },
-      {
-        filename: "download_shuttle_selected.sh",
-        mimeType: "text/x-shellscript;charset=utf-8",
-        text: String(opts.shuttleText || "")
+        text: String(opts.combinedText || opts.wrapperText || "")
       }
     ];
   }
@@ -7130,9 +7284,12 @@
       "  <div class=\"shuttle-explorer__bulk-body\">",
       "  <p class=\"shuttle-explorer__bulk-warning shuttle-explorer__hidden\" data-role=\"bulk-warning\"></p>",
       "  <div class=\"shuttle-explorer__bulk-actions shuttle-explorer__hidden\" data-role=\"all-selected-actions\">",
-      "    <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-all-selected-script\">Download all selected scripts</button>",
-      "    <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"copy-all-selected-script\">Copy download all selected script</button>",
+      "    <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-all-selected-script\">Download bulk download script</button>",
+      "    <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"copy-all-selected-script\">Copy bulk download script</button>",
       "  </div>",
+      "  <details class=\"shuttle-explorer__bulk-guide shuttle-explorer__bulk-advanced\">",
+      "    <summary>Advanced files</summary>",
+      "    <p class=\"shuttle-explorer__tiny\">Optional files for inspection, debugging, or custom workflows. The primary workflow only needs <code>download_fluxnet_selected.sh</code>.</p>",
       "  <section class=\"shuttle-explorer__bulk-source shuttle-explorer__hidden\" data-role=\"shuttle-bulk-section\" aria-labelledby=\"shuttle-bulk-source-heading\">",
       "    <div class=\"shuttle-explorer__bulk-header\">",
       "      <h4 id=\"shuttle-bulk-source-heading\">Bulk download for direct-link and Shuttle catalog rows</h4>",
@@ -7140,7 +7297,7 @@
       "    </div>",
       "    <p class=\"shuttle-explorer__tiny\">Applies to validated direct-download rows from the FLUXNET Shuttle, ICOS direct links, and JapanFlux direct links. Landing-page-only rows remain in the manifest but are excluded from the links and shell-script outputs.</p>",
       "    <div class=\"shuttle-explorer__bulk-actions\">",
-      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-script\">Download download_shuttle_selected.sh</button>",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-script\">Download optional debug script: download_shuttle_selected.sh</button>",
       "    </div>",
       "    <div class=\"shuttle-explorer__bulk-actions\">",
       "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-manifest\">Download shuttle_selected_manifest.csv</button>",
@@ -7171,25 +7328,28 @@
       "      </div>",
       "    </div>",
       "    <div class=\"shuttle-explorer__bulk-actions\">",
-      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-ameriflux-script\">Download download_ameriflux_selected.sh</button>",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-ameriflux-script\">Download optional debug script: download_ameriflux_selected.sh</button>",
       "    </div>",
       "    <div class=\"shuttle-explorer__bulk-actions\">",
-      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"copy-ameriflux-script\">Copy AmeriFlux API shell script</button>",
+      "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"copy-ameriflux-script\">Copy optional AmeriFlux debug script</button>",
       "      <button type=\"button\" class=\"shuttle-explorer__btn shuttle-explorer__btn--small\" data-role=\"download-ameriflux-sites-file\">Download ameriflux_selected_sites.txt</button>",
       "    </div>",
       "  </section>",
+      "  </details>",
       "  <details class=\"shuttle-explorer__bulk-guide\">",
       "    <summary>How to use these bulk tools</summary>",
       "    <ul>",
-      "      <li><strong>download_all_selected.sh</strong>: wrapper script that runs the direct-link and AmeriFlux API bulk scripts in sequence when the three generated scripts are kept in the same directory.</li>",
-      "      <li><strong>Shuttle script</strong>: uses validated direct URLs plus retries/resume support for non-AmeriFlux rows that expose direct downloads.</li>",
-      "      <li><strong>AmeriFlux API script</strong>: requests URLs dynamically for the surfaced AmeriFlux API products selected in the table, resolves the appropriate request URL for each selected product, and then downloads each returned file.</li>",
+      "      <li>Select sites in the table.</li>",
+      "      <li>Click <strong>Download bulk download script</strong>.</li>",
+      "      <li>Run <code>bash download_fluxnet_selected.sh</code>.</li>",
+      "      <li><strong>download_fluxnet_selected.sh</strong>: one self-contained script that handles direct-link downloads and AmeriFlux API-backed products for the selected sites.</li>",
       "      <li><strong>Show Shuttle CLI command</strong>: reveals a command template that uses <code>shuttle_selected_sites.txt</code> and your local snapshot file.</li>",
       "      <li><strong>Copy Shuttle CLI command</strong>: copies the Shuttle CLI helper command shown in the panel.</li>",
       "      <li><strong>shuttle_selected_sites.txt</strong>: one <code>site_id</code> per line for Shuttle CLI workflows.</li>",
       "      <li><strong>ameriflux_selected_sites.txt</strong>: tab-delimited <code>site_id</code>, <code>data_product</code>, <code>data_policy</code>, and <code>source_label</code> for AmeriFlux API-backed workflows.</li>",
       "      <li><strong>shuttle_selected_manifest.csv</strong>: selected non-AmeriFlux rows with source metadata, download modes, and links.</li>",
       "      <li><strong>shuttle_links.txt / Copy Shuttle links</strong>: validated direct URLs only (AmeriFlux rows, landing-page-only rows, and request-only rows are excluded).</li>",
+      "      <li>Advanced manifest, link, sites, and optional debug script files are mostly useful for inspection, troubleshooting, or custom workflows.</li>",
       "    </ul>",
       "  </details>",
       "  <div class=\"shuttle-explorer__cli-panel shuttle-explorer__hidden\" data-role=\"cli-panel\">",
@@ -9643,21 +9803,28 @@
   };
 
   Explorer.prototype.buildDownloadAllSelectedScript = function (rows) {
-    var selectionSummary = this.getBulkSelectionSummary(rows);
+    var selectedRows = Array.isArray(rows) ? rows : [];
+    var selectionSummary = this.getBulkSelectionSummary(selectedRows);
+    var shuttleDownloadRows = selectionSummary.shuttleDownloadRows;
+    var ameriFluxRows = selectionSummary.ameriFluxRows;
+    var ameriFluxEntries = this.getAmeriFluxBulkEntries(ameriFluxRows);
     return buildDownloadAllSelectedScriptText({
       includeShuttle: selectionSummary.shuttleDownloadCount > 0,
       includeAmeriFlux: selectionSummary.ameriFluxCount > 0,
-      shuttleScript: "./download_shuttle_selected.sh",
-      ameriFluxScript: "./download_ameriflux_selected.sh"
+      shuttleText: this.buildCurlScript(shuttleDownloadRows),
+      ameriFluxText: this.buildAmeriFluxBulkScript(ameriFluxRows),
+      selectedSiteCount: uniqueSiteIdsFromRows(selectedRows).length,
+      directLinkCount: shuttleDownloadRows.length,
+      ameriFluxEntryCount: ameriFluxEntries.length,
+      landingPageOnlyCount: selectionSummary.manualLandingPageCount,
+      requestOnlyCount: selectionSummary.requestOnlyCount
     });
   };
 
   Explorer.prototype.buildDownloadAllSelectedFiles = function (rows) {
     var selectedRows = Array.isArray(rows) ? rows : [];
     return buildDownloadAllSelectedFileBundle({
-      wrapperText: this.buildDownloadAllSelectedScript(selectedRows),
-      ameriFluxText: this.buildAmeriFluxBulkScript(this.getAmeriFluxRows(selectedRows)),
-      shuttleText: this.buildCurlScript(this.getShuttleDownloadRows(selectedRows))
+      combinedText: this.buildDownloadAllSelectedScript(selectedRows)
     });
   };
 
@@ -10040,7 +10207,7 @@
     if (!shuttleRows.length) {
       return [
         "# No Shuttle snapshot rows are selected.",
-        "# ICOS-direct and JapanFlux-direct rows are available through direct links / download_shuttle_selected.sh,",
+        "# ICOS-direct and JapanFlux-direct rows are available through direct links / the bulk download script,",
         "# but they are not present in shuttle_snapshot.csv for Shuttle CLI site-id downloads."
       ].join("\n");
     }
@@ -10085,7 +10252,7 @@
     this.buildDownloadAllSelectedFiles(rows).forEach(function (file) {
       this.downloadTextFile(file.filename, file.text, file.mimeType);
     }, this);
-    this.setBulkStatus("Downloaded download_all_selected.sh, download_ameriflux_selected.sh, and download_shuttle_selected.sh.");
+    this.setBulkStatus("Downloaded " + BULK_DOWNLOAD_SCRIPT_FILENAME + ".");
     gaEvent("fx_download_all_script_download", { count: rows.length });
   };
 
@@ -10094,7 +10261,7 @@
     if (!rows) {
       return;
     }
-    this.copyText(this.buildDownloadAllSelectedScript(rows), "Copied download_all_selected.sh wrapper script. Keep it with the generated source-specific scripts.");
+    this.copyText(this.buildDownloadAllSelectedScript(rows), "Copied " + BULK_DOWNLOAD_SCRIPT_FILENAME + ".");
     gaEvent("fx_download_all_script_copy", { count: rows.length });
   };
 
@@ -10139,12 +10306,12 @@
     var shuttleRows = this.getShuttleDownloadRows(rows);
     var landingPageWarning = this.buildManualLandingPageWarning(rows);
     if (!shuttleRows.length) {
-      this.setBulkStatus(landingPageWarning || "No direct-download rows are selected. Use the Otherwise-available shell script tools for AmeriFlux API-backed sites.");
+      this.setBulkStatus(landingPageWarning || "No direct-download rows are selected. Use the bulk download script for AmeriFlux API-backed sites.");
       return;
     }
     this.downloadTextFile("download_shuttle_selected.sh", this.buildCurlScript(shuttleRows), "text/x-shellscript;charset=utf-8");
     var warning = this.buildShuttleExclusionWarning(rows);
-    this.setBulkStatus("Downloaded download_shuttle_selected.sh for " + shuttleRows.length + " direct-download row(s)." + (warning || landingPageWarning ? (" " + [warning, landingPageWarning].filter(Boolean).join(" ")) : ""));
+    this.setBulkStatus("Downloaded optional debug script download_shuttle_selected.sh for " + shuttleRows.length + " direct-download row(s)." + (warning || landingPageWarning ? (" " + [warning, landingPageWarning].filter(Boolean).join(" ")) : ""));
     gaEvent("fx_script_download", { count: shuttleRows.length });
   };
 
@@ -10155,7 +10322,7 @@
     }
     var shuttleRows = this.getShuttleCliRows(rows);
     if (!shuttleRows.length) {
-      this.setBulkStatus("No Shuttle snapshot rows are selected. ICOS-direct and JapanFlux-direct rows can still use download_shuttle_selected.sh or per-row links.");
+      this.setBulkStatus("No Shuttle snapshot rows are selected. ICOS-direct and JapanFlux-direct rows can still use the bulk download script or per-row links.");
       return;
     }
     this.downloadTextFile("shuttle_selected_sites.txt", this.buildSelectedSitesText(shuttleRows), "text/plain;charset=utf-8");
@@ -10246,7 +10413,7 @@
       return;
     }
     this.downloadTextFile("download_ameriflux_selected.sh", this.buildAmeriFluxBulkScript(ameriFluxRows), "text/x-shellscript;charset=utf-8");
-    this.setBulkStatus("Downloaded download_ameriflux_selected.sh for " + uniqueSiteIdsFromRows(ameriFluxRows).length + " AmeriFlux API-backed site(s).");
+    this.setBulkStatus("Downloaded optional debug script download_ameriflux_selected.sh for " + uniqueSiteIdsFromRows(ameriFluxRows).length + " AmeriFlux API-backed site(s).");
   };
 
   Explorer.prototype.handleCopyAmeriFluxScript = function () {
@@ -10259,7 +10426,7 @@
       this.setBulkStatus("No Otherwise-available rows are selected.");
       return;
     }
-    this.copyText(this.buildAmeriFluxBulkScript(ameriFluxRows), "Copied AmeriFlux API bulk shell script.");
+    this.copyText(this.buildAmeriFluxBulkScript(ameriFluxRows), "Copied optional AmeriFlux debug script.");
     gaEvent("fx_ameriflux_script_copy", { count: uniqueSiteIdsFromRows(ameriFluxRows).length });
   };
 
@@ -11418,6 +11585,9 @@
     buildAmeriFluxCurlCommand: buildAmeriFluxCurlCommand,
     buildAmeriFluxSelectedSitesText: buildAmeriFluxSelectedSitesText,
     buildAmeriFluxBulkScriptText: buildAmeriFluxBulkScriptText,
+    buildCurlScriptText: function (rows) {
+      return Explorer.prototype.buildCurlScript.call({}, rows || []);
+    },
     buildDownloadAllSelectedScriptText: buildDownloadAllSelectedScriptText,
     buildDownloadAllSelectedFileBundle: buildDownloadAllSelectedFileBundle,
     buildTableClipboardText: buildTableClipboardText,
