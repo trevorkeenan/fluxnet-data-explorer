@@ -543,6 +543,67 @@ test('preview client loads selected series with manifest metadata overrides', as
   ]);
 });
 
+test('preview client orders explicit partitioning products and loads weekly data', async () => {
+  const payloads = makePreviewPayloads({
+    'https://preview.example/v1/sites/US-Ha1/manifest.json': {
+      payload: {
+        schemaVersion: 1,
+        siteId: 'US-Ha1',
+        resolutions: {
+          monthly: {
+            path: 'monthly.json',
+            variables: {
+              RECO_DT_REF: { label: 'RECO_DT_REF', unit: 'g C m-2 d-1' },
+              GPP_NT_REF: { label: 'GPP_NT_REF', unit: 'g C m-2 d-1' }
+            }
+          },
+          weekly: {
+            path: 'weekly.json',
+            variables: {
+              RECO_DT_REF: { label: 'RECO_DT_REF', unit: 'g C m-2 d-1' },
+              GPP_DT_REF: { label: 'GPP_DT_REF', unit: 'g C m-2 d-1' },
+              GPP_NT_REF: { label: 'GPP_NT_REF', unit: 'g C m-2 d-1' },
+              RECO_NT_REF: { label: 'RECO_NT_REF', unit: 'g C m-2 d-1' }
+            }
+          }
+        }
+      }
+    },
+    'https://preview.example/v1/sites/US-Ha1/weekly.json': {
+      payload: [
+        { date: '2001-01-01', GPP_NT_REF: 1.2, GPP_DT_REF: 1.3, RECO_NT_REF: 2.1, RECO_DT_REF: 2.0 },
+        { date: '2001-01-08', GPP_NT_REF: 1.4, GPP_DT_REF: 1.5, RECO_NT_REF: 2.2, RECO_DT_REF: 2.1 }
+      ]
+    }
+  });
+  const client = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch(payloads)
+  });
+  const manifest = await client.loadSiteManifest('US-Ha1');
+  const result = await client.loadSeries('US-Ha1', 'weekly', 'RECO_DT_REF');
+
+  assert.deepEqual(preview.getResolutionNames(manifest), ['monthly', 'weekly']);
+  assert.deepEqual(preview.listVariables(manifest, 'weekly'), ['GPP_NT_REF', 'GPP_DT_REF', 'RECO_NT_REF', 'RECO_DT_REF']);
+  assert.equal(preview.chooseDefaultVariable(manifest, 'weekly'), 'GPP_NT_REF');
+  assert.equal(result.resolution, 'weekly');
+  assert.equal(result.variableMeta.key, 'RECO_DT_REF');
+  assert.deepEqual(result.records, [
+    { date: '2001-01-01', value: 2.0 },
+    { date: '2001-01-08', value: 2.1 }
+  ]);
+});
+
+test('preview registry retains generic GPP and RECO for old monthly artifacts', () => {
+  assert.deepEqual(preview.VARIABLE_ORDER.slice(0, 5), [
+    'GPP_NT_REF', 'GPP_DT_REF', 'NEE', 'RECO_NT_REF', 'RECO_DT_REF'
+  ]);
+  assert.equal(preview.VARIABLE_REGISTRY.GPP.key, 'GPP');
+  assert.equal(preview.VARIABLE_REGISTRY.RECO.key, 'RECO');
+  assert.equal(preview.VARIABLE_REGISTRY.GPP_NT_REF.preferredAxisLabel, 'GPP_NT_REF');
+  assert.equal(preview.VARIABLE_REGISTRY.RECO_DT_REF.preferredAxisLabel, 'RECO_DT_REF');
+});
+
 test('preview client reports missing and malformed preview files cleanly', async () => {
   const missingClient = preview.createPreviewClient({
     baseUrl: 'https://preview.example/v1',
@@ -778,7 +839,7 @@ test('Table actions are grouped in a sticky right-side Actions column', () => {
   assert.equal(explorerJs.includes('downloadTd.className = "shuttle-explorer__download-cell shuttle-explorer__actions-cell";'), true);
   assert.equal(explorerJs.includes('var PREVIEW_ACTION_LABEL = "Preview plot";'), true);
   assert.equal(explorerJs.includes('var PREVIEW_UNAVAILABLE_LABEL = "No preview";'), true);
-  assert.equal(explorerJs.includes('var PREVIEW_UNAVAILABLE_TITLE = "Monthly preview is not available for this site.";'), true);
+  assert.equal(explorerJs.includes('var PREVIEW_UNAVAILABLE_TITLE = "Data preview is not available for this site.";'), true);
   assert.equal(previewRenderIndex > -1, true);
   assert.equal(downloadRenderIndex > previewRenderIndex, true);
   assert.equal(explorerJs.includes('control.setAttribute("data-role", "ameriflux-download");'), true);
@@ -827,6 +888,23 @@ test('Preview modal wording and chart axes use polished labels', () => {
   assert.equal(svg.includes('>2014<'), true);
   assert.equal(svg.includes('shuttle-explorer__preview-axis-label--y'), true);
   assert.equal(svg.includes('shuttle-explorer__preview-axis-label--x'), true);
+
+  const weeklySvg = hooks.buildPreviewChartSvg({
+    resolution: 'weekly',
+    variable: 'GPP_NT_REF',
+    variableMeta: { key: 'GPP_NT_REF', label: 'GPP_NT_REF', unit: 'g C m-2 d-1' },
+    records: [
+      { date: '2012-01-02', value: 1.2 },
+      { date: '2012-01-09', value: 1.4 },
+      { date: '2013-01-07', value: 2.1 }
+    ]
+  });
+
+  assert.equal(weeklySvg.includes('Weekly preview'), true);
+  assert.equal(weeklySvg.includes('GPP_NT_REF (g C m-2 d-1)'), true);
+  assert.equal(weeklySvg.includes('Weekly preview GPP_NT_REF'), false);
+  assert.equal(weeklySvg.includes('>2012<'), true);
+  assert.equal(weeklySvg.includes('>2013<'), true);
 });
 
 test('Map marker and legend colors use the shared swapped category mapping', () => {

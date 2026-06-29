@@ -65,6 +65,7 @@ def monthly_csv(value: str = "1.23", timestamp: str = "202001", extra_columns: s
         "GPP_NT_VUT_REF",
         "NEE_VUT_REF",
         "RECO_NT_VUT_REF",
+        "RECO_DT_VUT_REF",
         "LE_F_MDS",
         "H_F_MDS",
         "TA_F",
@@ -72,7 +73,7 @@ def monthly_csv(value: str = "1.23", timestamp: str = "202001", extra_columns: s
         "SW_IN_F",
         "P_F",
     ]
-    row = [timestamp, value, "9.99", "-0.8", "2.1", "45.2", "22.7", "12.4", "0.7", "130.1", "-9999"]
+    row = [timestamp, value, "9.99", "-0.8", "2.1", "2.2", "45.2", "22.7", "12.4", "0.7", "130.1", "-9999"]
     if extra_columns:
         header.append(extra_columns)
         row.append("42")
@@ -81,6 +82,10 @@ def monthly_csv(value: str = "1.23", timestamp: str = "202001", extra_columns: s
 
 def no_target_monthly_csv() -> str:
     return "TIMESTAMP,NOT_A_TARGET\n202001,1\n"
+
+
+def weekly_csv(value: str = "1.31", timestamp_start: str = "20200101") -> str:
+    return monthly_csv(value=value, timestamp=timestamp_start).replace("TIMESTAMP,", "TIMESTAMP_START,")
 
 
 def bifvarinfo_csv() -> str:
@@ -136,10 +141,11 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
 
         self.assertEqual(preview.source_file, "AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv")
         self.assertEqual(preview.records[0]["date"], "2020-01")
-        self.assertEqual(preview.records[0]["GPP"], 1.23)
+        self.assertEqual(preview.records[0]["GPP_DT_REF"], 1.23)
+        self.assertEqual(preview.records[0]["GPP_NT_REF"], 9.99)
         self.assertIsNone(preview.records[0]["P"])
-        self.assertEqual(preview.source_columns["GPP"], "GPP_DT_VUT_REF")
-        self.assertEqual(preview.variable_metadata["GPP"]["unit"], "custom_unit")
+        self.assertEqual(preview.source_columns["GPP_DT_REF"], "GPP_DT_VUT_REF")
+        self.assertEqual(preview.variable_metadata["GPP_DT_REF"]["unit"], "custom_unit")
         self.assertEqual(preview.skipped_malformed_dates, 1)
 
     def test_multiple_fluxmet_mm_files_choose_highest_version_and_revision(self):
@@ -156,9 +162,49 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
             preview = module.parse_monthly_preview_from_zip(zip_path)
 
         self.assertEqual(preview.source_file, "AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r2.csv")
-        self.assertEqual(preview.records[0]["GPP"], 3.0)
-        self.assertEqual(len(preview.selection_warnings), 1)
-        self.assertIn("multiple FLUXMET_MM files found", preview.selection_warnings[0])
+        self.assertEqual(preview.records[0]["GPP_DT_REF"], 3.0)
+        self.assertTrue(any("multiple FLUXMET_MM files found" in warning for warning in preview.selection_warnings))
+        self.assertTrue(any("excluded all-null preview variables: P" in warning for warning in preview.selection_warnings))
+
+    def test_weekly_parser_selects_fluxmet_ww_uses_start_date_and_ignores_era5(self):
+        with TemporaryDirectory() as tmp:
+            zip_path = write_zip(
+                Path(tmp) / "site.zip",
+                {
+                    "AMF_US-Test_FLUXNET_ERA5_WW_1981-2025_v1.3_r1.csv": "TIMESTAMP_START,GPP\n20200101,99\n",
+                    "AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv("88"),
+                    "AMF_US-Test_FLUXNET_FLUXMET_WW_2020-2021_v1.3_r1.csv": weekly_csv(),
+                },
+            )
+
+            preview = module.parse_weekly_preview_from_zip(zip_path)
+
+        self.assertEqual(preview.resolution, "weekly")
+        self.assertEqual(preview.source_file, "AMF_US-Test_FLUXNET_FLUXMET_WW_2020-2021_v1.3_r1.csv")
+        self.assertEqual(preview.records[0]["date"], "2020-01-01")
+        self.assertEqual(preview.records[0]["GPP_DT_REF"], 1.31)
+        self.assertEqual(preview.source_columns["RECO_DT_REF"], "RECO_DT_VUT_REF")
+        self.assertEqual(preview.skipped_malformed_dates, 1)
+
+    def test_weekly_timestamp_parsing_supports_dates_and_iso_year_week(self):
+        self.assertEqual(module.parse_week("20200108"), "2020-01-08")
+        self.assertEqual(module.parse_week("2020-01-08"), "2020-01-08")
+        self.assertEqual(module.parse_week("2020W02"), "2020-01-06")
+        self.assertEqual(module.parse_week("202002"), "2020-01-06")
+        self.assertIsNone(module.parse_week("202054"))
+        self.assertIsNone(module.parse_week("bad"))
+
+    def test_generic_gpp_and_reco_are_only_used_without_explicit_products(self):
+        explicit = module.select_source_columns(
+            ["TIMESTAMP", "GPP", "GPP_NT_VUT_REF", "GPP_DT_VUT_REF", "RECO", "RECO_NT_VUT_REF", "RECO_DT_VUT_REF"]
+        )
+        generic = module.select_source_columns(["TIMESTAMP", "GPP", "RECO"])
+
+        self.assertNotIn("GPP", explicit)
+        self.assertNotIn("RECO", explicit)
+        self.assertEqual(explicit["GPP_NT_REF"], "GPP_NT_VUT_REF")
+        self.assertEqual(explicit["RECO_DT_REF"], "RECO_DT_VUT_REF")
+        self.assertEqual(generic, {"GPP": "GPP", "RECO": "RECO"})
 
     def test_missing_fluxmet_mm_file_is_site_scoped_failure(self):
         with TemporaryDirectory() as tmp:
@@ -177,7 +223,7 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
         self.assertEqual(module.parse_month("2020-01-31"), "2020-01")
         self.assertIsNone(module.parse_month("bad"))
         self.assertEqual(
-            module.select_source_columns(["TIMESTAMP", "GPP_NT_VUT_REF", "GPP_DT_VUT_REF"])["GPP"],
+            module.select_source_columns(["TIMESTAMP", "GPP_NT_VUT_REF", "GPP_DT_VUT_REF"])["GPP_DT_REF"],
             "GPP_DT_VUT_REF",
         )
 
@@ -206,7 +252,6 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
                 download_func=download,
                 log=lambda _message: None,
             )
-
             monthly = json.loads((output_dir / "sites" / "US-Test" / "monthly.json").read_text())
             site_manifest = json.loads((output_dir / "sites" / "US-Test" / "manifest.json").read_text())
             global_manifest = json.loads((output_dir / "manifest.json").read_text())
@@ -215,8 +260,10 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
         self.assertEqual(monthly[0]["date"], "2020-01")
         self.assertEqual(monthly[0]["NEE"], -0.8)
         self.assertEqual(site_manifest["sourceFiles"]["monthly"], "AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv")
-        self.assertEqual(site_manifest["sourceColumns"]["monthly"]["GPP"], "GPP_DT_VUT_REF")
-        self.assertEqual(site_manifest["sourceRows"]["monthly"]["warnings"], [])
+        self.assertEqual(site_manifest["sourceColumns"]["monthly"]["GPP_NT_REF"], "GPP_NT_VUT_REF")
+        self.assertEqual(site_manifest["sourceColumns"]["monthly"]["GPP_DT_REF"], "GPP_DT_VUT_REF")
+        self.assertIn("excluded all-null preview variables: P", site_manifest["sourceRows"]["monthly"]["warnings"])
+        self.assertNotIn("P", site_manifest["resolutions"]["monthly"]["variables"])
         self.assertIn("productFingerprint", site_manifest)
         self.assertEqual(global_manifest["sites"]["US-Test"]["siteManifestPath"], "sites/US-Test/manifest.json")
 
@@ -249,6 +296,97 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
 
         self.assertEqual([result.site_id for result in summary.built], ["US-Good"])
         self.assertEqual([result.site_id for result in summary.no_fluxmet_mm], ["US-Bad"])
+
+    def test_combined_build_writes_resolution_aware_manifests_and_weekly_data(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source_zip = write_zip(
+                tmp_path / "source.zip",
+                {
+                    "AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv(),
+                    "AMF_US-Test_FLUXNET_FLUXMET_WW_2020-2021_v1.3_r1.csv": weekly_csv(),
+                },
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+            output_dir = tmp_path / "preview" / "v1"
+
+            def download(_product, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source_zip, destination)
+
+            summary = module.run_build(
+                snapshot_path,
+                output_dir,
+                tmp_path / "cache",
+                resolutions=["monthly", "weekly"],
+                force=True,
+                download_func=download,
+                log=lambda _message: None,
+            )
+            weekly = json.loads((output_dir / "sites" / "US-Test" / "weekly.json").read_text())
+            site_manifest = json.loads((output_dir / "sites" / "US-Test" / "manifest.json").read_text())
+            global_entry = json.loads((output_dir / "manifest.json").read_text())["sites"]["US-Test"]
+
+        self.assertEqual(len(summary.built), 1)
+        self.assertEqual(weekly[0]["date"], "2020-01-01")
+        self.assertEqual(list(site_manifest["resolutions"]), ["monthly", "weekly"])
+        self.assertEqual(site_manifest["resolutions"]["weekly"]["path"], "weekly.json")
+        self.assertEqual(site_manifest["sourceColumns"]["weekly"]["GPP_NT_REF"], "GPP_NT_VUT_REF")
+        self.assertEqual(site_manifest["resolutions"]["weekly"]["variables"]["RECO_DT_REF"]["description"], "Ecosystem respiration, daytime partitioning reference")
+        self.assertEqual(global_entry["resolutions"], ["monthly", "weekly"])
+        self.assertEqual(global_entry["variables"][:5], ["GPP_NT_REF", "GPP_DT_REF", "NEE", "RECO_NT_REF", "RECO_DT_REF"])
+
+    def test_combined_build_keeps_monthly_when_weekly_is_missing(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2020-2021.zip",
+                {"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()},
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+            output_dir = tmp_path / "preview" / "v1"
+
+            summary = module.run_build(
+                snapshot_path,
+                output_dir,
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                resolutions=["monthly", "weekly"],
+                force=True,
+                log=lambda _message: None,
+            )
+            monthly_exists = (output_dir / "sites" / "US-Test" / "monthly.json").exists()
+            weekly_exists = (output_dir / "sites" / "US-Test" / "weekly.json").exists()
+
+        self.assertEqual([result.site_id for result in summary.built], ["US-Test"])
+        self.assertEqual(list(summary.built[0].missing_resolutions), ["weekly"])
+        self.assertEqual([result.site_id for result in summary.no_fluxmet_weekly], ["US-Test"])
+        self.assertTrue(monthly_exists)
+        self.assertFalse(weekly_exists)
+
+    def test_weekly_only_missing_file_has_clear_category(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2020-2021.zip",
+                {"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()},
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+            summary = module.run_build(
+                snapshot_path,
+                tmp_path / "preview" / "v1",
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                resolutions=["weekly"],
+                force=True,
+                log=lambda _message: None,
+            )
+
+        self.assertEqual([result.site_id for result in summary.no_fluxmet_weekly], ["US-Test"])
 
     def test_fingerprint_skip_and_force_rebuild_logic(self):
         with TemporaryDirectory() as tmp:
@@ -480,7 +618,7 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
         self.assertEqual([result.site_id for result in summary.built], ["AT-Mmg"])
         self.assertIn(module.ICOS_UNAUTHENTICATED_SUCCESS_REASON, summary.built[0].reason)
         self.assertEqual(monthly[0]["date"], "2020-01")
-        self.assertEqual(monthly[0]["GPP"], 1.23)
+        self.assertEqual(monthly[0]["GPP_DT_REF"], 1.23)
         self.assertFalse(summary.has_errors())
 
     def test_dry_run_icos_licence_accept_without_token_is_reported_buildable(self):

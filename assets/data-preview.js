@@ -59,7 +59,21 @@
   var DEFAULT_PREVIEW_BASE_URL = "fluxnet-preview/v1";
   var GLOBAL_MANIFEST_PATH = "manifest.json";
   var PREVIEW_SOURCE_LABEL = "FLUXNET Shuttle";
-  var VARIABLE_ORDER = ["GPP", "NEE", "RECO", "LE", "H", "TA", "VPD", "SW_IN", "P"];
+  var VARIABLE_ORDER = [
+    "GPP_NT_REF",
+    "GPP_DT_REF",
+    "NEE",
+    "RECO_NT_REF",
+    "RECO_DT_REF",
+    "LE",
+    "H",
+    "TA",
+    "VPD",
+    "SW_IN",
+    "P",
+    "GPP",
+    "RECO"
+  ];
 
   var ERROR_MESSAGES = {
     global_manifest_missing: "Preview manifest is unavailable. Site browsing still works.",
@@ -75,6 +89,20 @@
   };
 
   var VARIABLE_REGISTRY = {
+    GPP_NT_REF: {
+      key: "GPP_NT_REF",
+      label: "Gross primary productivity, nighttime partitioning reference",
+      defaultUnit: "g C m-2 d-1",
+      description: "Gross primary productivity, nighttime partitioning reference",
+      preferredAxisLabel: "GPP_NT_REF"
+    },
+    GPP_DT_REF: {
+      key: "GPP_DT_REF",
+      label: "Gross primary productivity, daytime partitioning reference",
+      defaultUnit: "g C m-2 d-1",
+      description: "Gross primary productivity, daytime partitioning reference",
+      preferredAxisLabel: "GPP_DT_REF"
+    },
     GPP: {
       key: "GPP",
       label: "Gross primary productivity",
@@ -95,6 +123,20 @@
       defaultUnit: "g C m-2 d-1",
       description: "Ecosystem respiration estimated from FLUXNET processing outputs.",
       preferredAxisLabel: "RECO"
+    },
+    RECO_NT_REF: {
+      key: "RECO_NT_REF",
+      label: "Ecosystem respiration, nighttime partitioning reference",
+      defaultUnit: "g C m-2 d-1",
+      description: "Ecosystem respiration, nighttime partitioning reference",
+      preferredAxisLabel: "RECO_NT_REF"
+    },
+    RECO_DT_REF: {
+      key: "RECO_DT_REF",
+      label: "Ecosystem respiration, daytime partitioning reference",
+      defaultUnit: "g C m-2 d-1",
+      description: "Ecosystem respiration, daytime partitioning reference",
+      preferredAxisLabel: "RECO_DT_REF"
     },
     LE: {
       key: "LE",

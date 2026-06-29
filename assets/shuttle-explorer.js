@@ -188,7 +188,7 @@
   var PREVIEW_ACTION_LABEL = "Preview plot";
   var PREVIEW_UNAVAILABLE_LABEL = "No preview";
   var PREVIEW_UNAVAILABLE_ARIA_LABEL = "Preview plot unavailable";
-  var PREVIEW_UNAVAILABLE_TITLE = "Monthly preview is not available for this site.";
+  var PREVIEW_UNAVAILABLE_TITLE = "Data preview is not available for this site.";
   var PREVIEW_PRODUCT_HEADING = "Site Data Preview";
   var PREVIEW_OFFICIAL_PRODUCT_LINK_LABEL = "Download site data product";
   var DATA_POLICY_MISSING_METADATA_PLACEHOLDER = "Citation/DOI not available in Explorer metadata. Please consult the source data portal.";
@@ -8370,14 +8370,16 @@
     }
     if (b.previewResolution) {
       b.previewResolution.innerHTML = resolutions.map(function (name) {
-        return "<option value=\"" + escapeHtml(name) + "\"" + (name === resolution ? " selected" : "") + ">" + escapeHtml(name) + "</option>";
+        var label = name ? name.charAt(0).toUpperCase() + name.slice(1) : name;
+        return "<option value=\"" + escapeHtml(name) + "\"" + (name === resolution ? " selected" : "") + ">" + escapeHtml(label) + "</option>";
       }).join("");
       b.previewResolution.disabled = !resolutions.length || this.state.previewMode === "loading-site";
     }
     if (b.previewVariable) {
       b.previewVariable.innerHTML = variables.map(function (key) {
         var meta = previewVariableDefinition(key, previewSiteVariableMeta(siteManifest, resolution, key));
-        return "<option value=\"" + escapeHtml(key) + "\"" + (key === variable ? " selected" : "") + ">" + escapeHtml(key + " - " + meta.label) + "</option>";
+        var label = meta.label && meta.label !== key ? key + " - " + meta.label : key;
+        return "<option value=\"" + escapeHtml(key) + "\"" + (key === variable ? " selected" : "") + ">" + escapeHtml(label) + "</option>";
       }).join("");
       b.previewVariable.disabled = !variables.length || this.state.previewMode === "loading-site" || this.state.previewMode === "loading-data";
     }

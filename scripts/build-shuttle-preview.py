@@ -7,11 +7,12 @@ The Explorer frontend reads static preview artifacts shaped like:
     manifest.json
     sites/SITE_ID/manifest.json
     sites/SITE_ID/monthly.json
+    sites/SITE_ID/weekly.json
 
 This builder reads the committed Shuttle snapshot/catalog, downloads only the
-selected products that need rebuilding, and extracts monthly preview records
-from *_FLUXNET_FLUXMET_MM_*.csv inside each Shuttle zip. It intentionally does
-not derive monthly values from HH, DD, WW, YY, ERA5, or BIF files.
+selected products that need rebuilding, and extracts preview records directly
+from the requested FLUXMET resolution files inside each Shuttle zip. It never
+derives one resolution from another and ignores ERA5 and BIF data files.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -41,8 +42,15 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 SCHEMA_VERSION = 1
 SOURCE_LABEL = "FLUXNET Shuttle"
 MONTHLY_RESOLUTION = "monthly"
+WEEKLY_RESOLUTION = "weekly"
 DAILY_RESOLUTION = "daily"
-MONTHLY_OUTPUT_FILENAME = "monthly.json"
+RESOLUTION_CONFIG: Dict[str, Dict[str, str]] = {
+    MONTHLY_RESOLUTION: {"code": "MM", "output": "monthly.json"},
+    WEEKLY_RESOLUTION: {"code": "WW", "output": "weekly.json"},
+    # Daily is intentionally planned, not enabled. Adding its parser here is the
+    # only resolution-specific work needed in a later pass.
+    # DAILY_RESOLUTION: {"code": "DD", "output": "daily.json"},
+}
 GLOBAL_MANIFEST_FILENAME = "manifest.json"
 SITE_MANIFEST_FILENAME = "manifest.json"
 DOWNLOAD_TIMEOUT_SECONDS = 60
@@ -60,26 +68,63 @@ NOTICE_TEXT = (
     "For analysis, download and cite the official data product."
 )
 
-TARGET_VARIABLES = ["GPP", "NEE", "RECO", "LE", "H", "TA", "VPD", "SW_IN", "P"]
+CANONICAL_TARGET_VARIABLES = [
+    "GPP_NT_REF",
+    "GPP_DT_REF",
+    "NEE",
+    "RECO_NT_REF",
+    "RECO_DT_REF",
+    "LE",
+    "H",
+    "TA",
+    "VPD",
+    "SW_IN",
+    "P",
+]
+GENERIC_FALLBACK_VARIABLES = ["GPP", "RECO"]
+TARGET_VARIABLES = CANONICAL_TARGET_VARIABLES + GENERIC_FALLBACK_VARIABLES
 
 VARIABLE_METADATA: Dict[str, Dict[str, str]] = {
-    "GPP": {"label": "Gross primary productivity", "unit": "g C m-2 d-1"},
-    "NEE": {"label": "Net ecosystem exchange", "unit": "g C m-2 d-1"},
-    "RECO": {"label": "Ecosystem respiration", "unit": "g C m-2 d-1"},
-    "LE": {"label": "Latent heat flux", "unit": "W m-2"},
-    "H": {"label": "Sensible heat flux", "unit": "W m-2"},
-    "TA": {"label": "Air temperature", "unit": "deg C"},
-    "VPD": {"label": "Vapor pressure deficit", "unit": "kPa"},
-    "SW_IN": {"label": "Incoming shortwave radiation", "unit": "W m-2"},
-    "P": {"label": "Precipitation", "unit": "mm d-1"},
+    "GPP_NT_REF": {
+        "label": "GPP_NT_REF",
+        "description": "Gross primary productivity, nighttime partitioning reference",
+        "unit": "g C m-2 d-1",
+    },
+    "GPP_DT_REF": {
+        "label": "GPP_DT_REF",
+        "description": "Gross primary productivity, daytime partitioning reference",
+        "unit": "g C m-2 d-1",
+    },
+    "NEE": {"label": "Net ecosystem exchange", "description": "Net carbon dioxide exchange between ecosystem and atmosphere.", "unit": "g C m-2 d-1"},
+    "RECO_NT_REF": {
+        "label": "RECO_NT_REF",
+        "description": "Ecosystem respiration, nighttime partitioning reference",
+        "unit": "g C m-2 d-1",
+    },
+    "RECO_DT_REF": {
+        "label": "RECO_DT_REF",
+        "description": "Ecosystem respiration, daytime partitioning reference",
+        "unit": "g C m-2 d-1",
+    },
+    "LE": {"label": "Latent heat flux", "description": "Latent heat exchange between land surface and atmosphere.", "unit": "W m-2"},
+    "H": {"label": "Sensible heat flux", "description": "Sensible heat exchange between land surface and atmosphere.", "unit": "W m-2"},
+    "TA": {"label": "Air temperature", "description": "Near-surface air temperature.", "unit": "deg C"},
+    "VPD": {"label": "Vapor pressure deficit", "description": "Atmospheric evaporative demand expressed as vapor pressure deficit.", "unit": "kPa"},
+    "SW_IN": {"label": "Incoming shortwave radiation", "description": "Incoming shortwave radiation at the site.", "unit": "W m-2"},
+    "P": {"label": "Precipitation", "description": "Precipitation aggregated to the preview resolution.", "unit": "mm d-1"},
+    "GPP": {"label": "Gross primary productivity", "description": "Generic gross primary productivity fallback from older products.", "unit": "g C m-2 d-1"},
+    "RECO": {"label": "Ecosystem respiration", "description": "Generic ecosystem respiration fallback from older products.", "unit": "g C m-2 d-1"},
 }
 
-# Priority order for mapping canonical preview variables to FLUXMET_MM columns.
-# The builder uses the first matching source column present in the monthly file.
+# Priority order for mapping canonical preview variables to FLUXMET columns.
+# Generic GPP/RECO are considered separately and only when neither explicit
+# partitioning product is present.
 VARIABLE_ALIASES: Dict[str, List[str]] = {
-    "GPP": ["GPP_DT_VUT_REF", "GPP_NT_VUT_REF", "GPP_DT", "GPP_NT", "GPP"],
+    "GPP_NT_REF": ["GPP_NT_VUT_REF", "GPP_NT", "GPP_NT_REF"],
+    "GPP_DT_REF": ["GPP_DT_VUT_REF", "GPP_DT", "GPP_DT_REF"],
     "NEE": ["NEE_VUT_REF", "NEE", "FC"],
-    "RECO": ["RECO_NT_VUT_REF", "RECO_DT_VUT_REF", "RECO"],
+    "RECO_NT_REF": ["RECO_NT_VUT_REF", "RECO_NT", "RECO_NT_REF"],
+    "RECO_DT_REF": ["RECO_DT_VUT_REF", "RECO_DT", "RECO_DT_REF"],
     "LE": ["LE_F_MDS", "LE"],
     "H": ["H_F_MDS", "H"],
     "TA": ["TA_F", "TA"],
@@ -191,7 +236,8 @@ class ProductFingerprint:
 
 
 @dataclass
-class MonthlyPreview:
+class ResolutionPreview:
+    resolution: str
     records: List[Dict[str, Any]]
     variables: List[str]
     source_columns: Dict[str, str]
@@ -207,9 +253,19 @@ class SiteResult:
     status: str
     reason: str = ""
     global_entry: Optional[Dict[str, Any]] = None
-    monthly: Optional[MonthlyPreview] = None
+    previews: Dict[str, ResolutionPreview] = field(default_factory=dict)
+    missing_resolutions: Dict[str, str] = field(default_factory=dict)
     fingerprint: Optional[ProductFingerprint] = None
     cache_path: Optional[Path] = None
+
+    @property
+    def monthly(self) -> Optional[ResolutionPreview]:
+        """Compatibility accessor for callers written for the monthly-only builder."""
+        return self.previews.get(MONTHLY_RESOLUTION)
+
+    @property
+    def weekly(self) -> Optional[ResolutionPreview]:
+        return self.previews.get(WEEKLY_RESOLUTION)
 
 
 @dataclass
@@ -224,6 +280,7 @@ class BuildSummary:
     malformed_zip: List[SiteResult] = field(default_factory=list)
     missing_local_archive: List[SiteResult] = field(default_factory=list)
     no_fluxmet_mm: List[SiteResult] = field(default_factory=list)
+    no_fluxmet_weekly: List[SiteResult] = field(default_factory=list)
     no_target_variables: List[SiteResult] = field(default_factory=list)
     parse_date_failure: List[SiteResult] = field(default_factory=list)
     dry_run_build: List[SiteResult] = field(default_factory=list)
@@ -250,6 +307,8 @@ class BuildSummary:
             self.missing_local_archive.append(result)
         elif result.status == "no_fluxmet_mm":
             self.no_fluxmet_mm.append(result)
+        elif result.status == "no_fluxmet_weekly":
+            self.no_fluxmet_weekly.append(result)
         elif result.status == "no_target_variables":
             self.no_target_variables.append(result)
         elif result.status == "parse_date_failure":
@@ -260,6 +319,13 @@ class BuildSummary:
             self.dry_run_skip.append(result)
         else:
             self.failed.append(SiteResult(result.site_id, "failed", result.reason or f"Unknown status {result.status!r}"))
+        if result.status == "built":
+            for resolution, reason in result.missing_resolutions.items():
+                missing = SiteResult(result.site_id, f"no_fluxmet_{resolution}", reason)
+                if resolution == WEEKLY_RESOLUTION:
+                    self.no_fluxmet_weekly.append(missing)
+                elif resolution == MONTHLY_RESOLUTION:
+                    self.no_fluxmet_mm.append(missing)
 
     def counts(self) -> Dict[str, int]:
         return {
@@ -273,6 +339,7 @@ class BuildSummary:
             "malformed_zip": len(self.malformed_zip),
             "missing_local_archive": len(self.missing_local_archive),
             "no_fluxmet_mm": len(self.no_fluxmet_mm),
+            "no_fluxmet_weekly": len(self.no_fluxmet_weekly),
             "no_target_variables": len(self.no_target_variables),
             "parse_date_failure": len(self.parse_date_failure),
             "dry_run_build": len(self.dry_run_build),
@@ -280,12 +347,17 @@ class BuildSummary:
         }
 
     def has_errors(self) -> bool:
+        built_site_ids = {result.site_id for result in self.built}
+        unbuilt_resolution_failures = any(
+            result.site_id not in built_site_ids
+            for result in self.no_fluxmet_mm + self.no_fluxmet_weekly
+        )
         return bool(
             self.failed
             or self.download_failed
             or self.non_zip_response
             or self.malformed_zip
-            or self.no_fluxmet_mm
+            or unbuilt_resolution_failures
             or self.no_target_variables
             or self.parse_date_failure
         )
@@ -313,7 +385,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--site", action="append", default=[], help="Optional site ID to build. Repeat for multiple sites.")
     parser.add_argument("--limit", type=int, default=0, help="Optional limit on the first N eligible sites after site filtering.")
     parser.add_argument("--force", action="store_true", help="Rebuild even when the product fingerprint appears unchanged.")
-    parser.add_argument("--resolution", default=MONTHLY_RESOLUTION, help="Comma-separated resolutions. Monthly is implemented; daily is scaffolded.")
+    parser.add_argument(
+        "--resolution",
+        default=MONTHLY_RESOLUTION,
+        help="Comma-separated resolutions to build (monthly, weekly). Default: monthly.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Report work without downloading or writing preview artifacts.")
     return parser.parse_args(argv)
 
@@ -418,10 +494,10 @@ def parse_resolutions(value: str) -> List[str]:
     raw = [part.strip().lower() for part in str(value or "").split(",") if part.strip()]
     if not raw:
         raw = [MONTHLY_RESOLUTION]
-    invalid = sorted(set(raw) - {MONTHLY_RESOLUTION, DAILY_RESOLUTION})
+    invalid = sorted(set(raw) - set(RESOLUTION_CONFIG))
     if invalid:
         raise ValueError(f"Unsupported resolution(s): {', '.join(invalid)}")
-    return raw
+    return list(dict.fromkeys(raw))
 
 
 def compute_fingerprint(product: ProductRow) -> ProductFingerprint:
@@ -488,7 +564,7 @@ class LocalArchiveLookup:
 
     @property
     def rejected_no_fluxmet(self) -> bool:
-        return any(reason == "no_fluxmet_mm" for _path, reason in self.rejected)
+        return any(reason.startswith("no_fluxmet_") for _path, reason in self.rejected)
 
 
 def build_local_archive_index(archive_dir: Optional[Path]) -> Optional[LocalArchiveIndex]:
@@ -535,14 +611,29 @@ def local_archive_sort_key(product: ProductRow, archive_path: Path) -> Tuple[int
     )
 
 
-def local_archive_validation_reason(archive_path: Path) -> str:
+def archive_available_resolutions(archive_path: Path, resolutions: Sequence[str]) -> List[str]:
+    if not is_valid_zip_file(archive_path):
+        return []
+    with zipfile.ZipFile(archive_path) as zip_file:
+        names = zip_file.namelist()
+        return [
+            resolution
+            for resolution in resolutions
+            if any(is_fluxmet_resolution_file(name, RESOLUTION_CONFIG[resolution]["code"]) for name in names)
+        ]
+
+
+def local_archive_validation_reason(archive_path: Path, resolutions: Sequence[str] = (MONTHLY_RESOLUTION,)) -> str:
     if not is_valid_zip_file(archive_path):
         return "invalid_zip"
     try:
-        with zipfile.ZipFile(archive_path) as zip_file:
-            choose_resolution_member(zip_file, "MM")
-    except PreviewBuildError as error:
-        return error.category
+        available = archive_available_resolutions(archive_path, resolutions)
+        if not available:
+            if list(resolutions) == [WEEKLY_RESOLUTION]:
+                return "no_fluxmet_weekly"
+            if list(resolutions) == [MONTHLY_RESOLUTION]:
+                return "no_fluxmet_mm"
+            return "no_requested_fluxmet"
     except zipfile.BadZipFile:
         return "malformed_zip"
     except OSError:
@@ -550,14 +641,19 @@ def local_archive_validation_reason(archive_path: Path) -> str:
     return ""
 
 
-def find_local_archive(product: ProductRow, archive_index: Optional[LocalArchiveIndex], log: LogFunc) -> LocalArchiveLookup:
+def find_local_archive(
+    product: ProductRow,
+    archive_index: Optional[LocalArchiveIndex],
+    resolutions: Sequence[str],
+    log: LogFunc,
+) -> LocalArchiveLookup:
     if archive_index is None:
         return LocalArchiveLookup(None)
     candidates = local_archive_candidates(product, archive_index)
     rejected: List[Tuple[Path, str]] = []
     valid: List[Path] = []
     for archive_path in candidates:
-        reason = local_archive_validation_reason(archive_path)
+        reason = local_archive_validation_reason(archive_path, resolutions)
         if reason:
             rejected.append((archive_path, reason))
             log(f"[{product.site_id}] rejecting local archive {archive_path}: {reason}")
@@ -796,7 +892,8 @@ def parse_version_rank(name: str) -> Tuple[Tuple[int, ...], int, int, str]:
 def choose_resolution_member(zip_file: zipfile.ZipFile, resolution_code: str) -> Tuple[str, List[str]]:
     matches = sorted(name for name in zip_file.namelist() if is_fluxmet_resolution_file(name, resolution_code))
     if not matches:
-        raise PreviewBuildError(f"no *_FLUXNET_FLUXMET_{resolution_code}_*.csv file found", category="no_fluxmet_mm")
+        category = "no_fluxmet_weekly" if resolution_code == "WW" else "no_fluxmet_mm"
+        raise PreviewBuildError(f"no *_FLUXNET_FLUXMET_{resolution_code}_*.csv file found", category=category)
     ranked = sorted(matches, key=parse_version_rank, reverse=True)
     warnings: List[str] = []
     if len(matches) > 1:
@@ -825,16 +922,26 @@ def normalize_column_name(value: str) -> str:
 def select_source_columns(fieldnames: Sequence[str]) -> Dict[str, str]:
     columns_by_upper = {normalize_column_name(column): column for column in fieldnames}
     selected: Dict[str, str] = {}
-    for variable in TARGET_VARIABLES:
+    for variable in CANONICAL_TARGET_VARIABLES:
         for alias in VARIABLE_ALIASES[variable]:
             if normalize_column_name(alias) in columns_by_upper:
                 selected[variable] = columns_by_upper[normalize_column_name(alias)]
                 break
+    if "GPP_NT_REF" not in selected and "GPP_DT_REF" not in selected and "GPP" in columns_by_upper:
+        selected["GPP"] = columns_by_upper["GPP"]
+    if "RECO_NT_REF" not in selected and "RECO_DT_REF" not in selected and "RECO" in columns_by_upper:
+        selected["RECO"] = columns_by_upper["RECO"]
     return selected
 
 
-def find_timestamp_column(fieldnames: Sequence[str]) -> str:
-    candidates = ["TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_BEGIN", "TIMESTAMP_DATE", "DATE", "MONTH"]
+def find_timestamp_column(fieldnames: Sequence[str], resolution: str = MONTHLY_RESOLUTION) -> str:
+    # Start is deliberately preferred for weekly files so the plotted date is
+    # the first day of the represented interval when both bounds are present.
+    candidates = (
+        ["TIMESTAMP_START", "TIMESTAMP", "TIMESTAMP_BEGIN", "TIMESTAMP_DATE", "DATE"]
+        if resolution == WEEKLY_RESOLUTION
+        else ["TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_BEGIN", "TIMESTAMP_DATE", "DATE", "MONTH"]
+    )
     columns_by_upper = {normalize_column_name(column): column for column in fieldnames}
     for candidate in candidates:
         if candidate in columns_by_upper:
@@ -842,7 +949,7 @@ def find_timestamp_column(fieldnames: Sequence[str]) -> str:
     for column in fieldnames:
         if normalize_column_name(column).startswith("TIMESTAMP"):
             return column
-    raise PreviewBuildError("no monthly timestamp column found", category="parse_date_failure")
+    raise PreviewBuildError(f"no {resolution} timestamp column found", category="parse_date_failure")
 
 
 def parse_month(value: str) -> Optional[str]:
@@ -871,6 +978,29 @@ def parse_month(value: str) -> Optional[str]:
     if year < 1900 or year > 2100 or month < 1 or month > 12:
         return None
     return f"{year:04d}-{month:02d}"
+
+
+def parse_week(value: str) -> Optional[str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    parsed: Optional[date] = None
+    try:
+        if re.fullmatch(r"\d{8}", raw):
+            parsed = datetime.strptime(raw, "%Y%m%d").date()
+        elif re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+            parsed = datetime.strptime(raw, "%Y-%m-%d").date()
+        else:
+            # Some products encode ISO year/week instead of a calendar date.
+            # ISO weekday 1 is Monday, used deterministically as period start.
+            match = re.fullmatch(r"(\d{4})(?:-?W?)(\d{2})", raw, re.IGNORECASE)
+            if match:
+                parsed = date.fromisocalendar(int(match.group(1)), int(match.group(2)), 1)
+    except ValueError:
+        return None
+    if parsed is None or parsed.year < 1900 or parsed.year > 2100:
+        return None
+    return parsed.isoformat()
 
 
 def parse_number(value: Any) -> Optional[float]:
@@ -929,60 +1059,81 @@ def variable_manifest_metadata(variable: str, source_column: str, bif_metadata: 
     defaults = VARIABLE_METADATA[variable]
     source_meta = bif_metadata.get(normalize_column_name(source_column), {})
     return {
-        "label": source_meta.get("label") or defaults["label"],
+        "label": defaults["label"],
+        "description": defaults["description"],
         "unit": source_meta.get("unit") or defaults["unit"],
     }
 
 
-def parse_monthly_preview_from_zip(zip_path: Path) -> MonthlyPreview:
+def parse_resolution_preview_from_zip(zip_path: Path, resolution: str) -> ResolutionPreview:
+    if resolution not in RESOLUTION_CONFIG:
+        raise ValueError(f"Unsupported resolution: {resolution}")
     if not is_valid_zip_file(zip_path):
         raise NonZipResponseError(f"archive is not a valid zip: {zip_path}")
+    config = RESOLUTION_CONFIG[resolution]
+    resolution_code = config["code"]
+    parse_date = parse_week if resolution == WEEKLY_RESOLUTION else parse_month
     try:
         with zipfile.ZipFile(zip_path) as zf:
-            monthly_member, selection_warnings = choose_resolution_member(zf, "MM")
-            bif_member = choose_bifvarinfo_member(zf, "MM")
+            source_member, selection_warnings = choose_resolution_member(zf, resolution_code)
+            bif_member = choose_bifvarinfo_member(zf, resolution_code)
             bif_metadata = read_bifvarinfo_metadata(zf, bif_member)
-            with text_reader_from_zip(zf, monthly_member) as handle:
+            with text_reader_from_zip(zf, source_member) as handle:
                 reader = csv.DictReader(handle)
                 if not reader.fieldnames:
                     raise PreviewBuildError(
-                        f"monthly file {zip_member_basename(monthly_member)} is missing a header",
+                        f"{resolution} file {zip_member_basename(source_member)} is missing a header",
                         category="parse_date_failure",
                     )
-                timestamp_column = find_timestamp_column(reader.fieldnames)
+                timestamp_column = find_timestamp_column(reader.fieldnames, resolution)
                 source_columns = select_source_columns(reader.fieldnames)
                 if not source_columns:
                     raise PreviewBuildError(
-                        f"no target preview variables found in {zip_member_basename(monthly_member)}",
+                        f"no target preview variables found in {zip_member_basename(source_member)}",
                         category="no_target_variables",
                     )
                 records: List[Dict[str, Any]] = []
                 skipped_malformed_dates = 0
                 for row in reader:
-                    month = parse_month(str(row.get(timestamp_column, "")))
-                    if not month:
+                    record_date = parse_date(str(row.get(timestamp_column, "")))
+                    if not record_date:
                         skipped_malformed_dates += 1
                         continue
-                    record: Dict[str, Any] = {"date": month}
+                    record: Dict[str, Any] = {"date": record_date}
                     for variable in TARGET_VARIABLES:
                         if variable in source_columns:
                             record[variable] = parse_number(row.get(source_columns[variable]))
                     records.append(record)
                 if not records:
                     raise PreviewBuildError(
-                        f"no valid monthly records found in {zip_member_basename(monthly_member)}",
+                        f"no valid {resolution} records found in {zip_member_basename(source_member)}",
                         category="parse_date_failure",
                     )
-                variables = [variable for variable in TARGET_VARIABLES if variable in source_columns]
+                variables = [
+                    variable
+                    for variable in TARGET_VARIABLES
+                    if variable in source_columns and any(record.get(variable) is not None for record in records)
+                ]
+                empty_variables = [variable for variable in TARGET_VARIABLES if variable in source_columns and variable not in variables]
+                if empty_variables:
+                    selection_warnings.append(
+                        "excluded all-null preview variables: " + ", ".join(empty_variables)
+                    )
+                if not variables:
+                    raise PreviewBuildError(
+                        f"target columns contain no numeric preview values in {zip_member_basename(source_member)}",
+                        category="no_target_variables",
+                    )
                 variable_metadata = {
                     variable: variable_manifest_metadata(variable, source_columns[variable], bif_metadata)
                     for variable in variables
                 }
-                preview = MonthlyPreview(
+                preview = ResolutionPreview(
+                    resolution=resolution,
                     records=records,
                     variables=variables,
                     source_columns=source_columns,
-                    source_file=zip_member_basename(monthly_member),
+                    source_file=zip_member_basename(source_member),
                     variable_metadata=variable_metadata,
                     skipped_malformed_dates=skipped_malformed_dates,
                     selection_warnings=selection_warnings,
@@ -992,39 +1143,60 @@ def parse_monthly_preview_from_zip(zip_path: Path) -> MonthlyPreview:
         raise MalformedZipError(f"archive cannot be opened as zip: {error}") from error
 
 
+def parse_monthly_preview_from_zip(zip_path: Path) -> ResolutionPreview:
+    return parse_resolution_preview_from_zip(zip_path, MONTHLY_RESOLUTION)
+
+
+def parse_weekly_preview_from_zip(zip_path: Path) -> ResolutionPreview:
+    return parse_resolution_preview_from_zip(zip_path, WEEKLY_RESOLUTION)
+
+
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def build_site_manifest(product: ProductRow, fingerprint: ProductFingerprint, monthly: MonthlyPreview, built_at: str) -> Dict[str, Any]:
-    variables_manifest = {variable: monthly.variable_metadata[variable] for variable in monthly.variables}
+def build_site_manifest(
+    product: ProductRow,
+    fingerprint: ProductFingerprint,
+    previews: Dict[str, ResolutionPreview],
+    built_at: str,
+) -> Dict[str, Any]:
+    all_records = [record for preview in previews.values() for record in preview.records]
+    resolutions_manifest: Dict[str, Dict[str, Any]] = {}
+    source_files: Dict[str, str] = {}
+    source_columns: Dict[str, Dict[str, str]] = {}
+    source_rows: Dict[str, Dict[str, Any]] = {}
+    for resolution in RESOLUTION_CONFIG:
+        preview = previews.get(resolution)
+        if not preview:
+            continue
+        resolutions_manifest[resolution] = {
+            "path": RESOLUTION_CONFIG[resolution]["output"],
+            "variables": {variable: preview.variable_metadata[variable] for variable in preview.variables},
+            "sourceFile": preview.source_file,
+            "sourceColumns": preview.source_columns,
+        }
+        source_files[resolution] = preview.source_file
+        source_columns[resolution] = preview.source_columns
+        source_rows[resolution] = {
+            "recordCount": len(preview.records),
+            "skippedMalformedDates": preview.skipped_malformed_dates,
+            "warnings": preview.selection_warnings,
+        }
     return {
         "schemaVersion": SCHEMA_VERSION,
         "siteId": product.site_id,
         "source": SOURCE_LABEL,
-        "productLabel": "FLUXNET Shuttle preview",
-        "dateRange": date_range(monthly.records),
+        "productLabel": "Site Data Preview",
+        "dateRange": date_range(all_records),
         "lastPreviewBuild": built_at,
-        "resolutions": {
-            MONTHLY_RESOLUTION: {
-                "path": MONTHLY_OUTPUT_FILENAME,
-                "variables": variables_manifest,
-                "sourceFile": monthly.source_file,
-                "sourceColumns": monthly.source_columns,
-            }
-        },
+        "resolutions": resolutions_manifest,
         "notice": NOTICE_TEXT,
         "productFingerprint": fingerprint.to_manifest(),
-        "sourceFiles": {MONTHLY_RESOLUTION: monthly.source_file},
-        "sourceColumns": {MONTHLY_RESOLUTION: monthly.source_columns},
-        "sourceRows": {
-            MONTHLY_RESOLUTION: {
-                "recordCount": len(monthly.records),
-                "skippedMalformedDates": monthly.skipped_malformed_dates,
-                "warnings": monthly.selection_warnings,
-            }
-        },
+        "sourceFiles": source_files,
+        "sourceColumns": source_columns,
+        "sourceRows": source_rows,
         "product": {
             "url": product.download_url,
             "name": product.product_name,
@@ -1041,10 +1213,11 @@ def global_entry_from_site_manifest(site_manifest: Dict[str, Any]) -> Dict[str, 
     site_id = str(site_manifest.get("siteId") or "")
     resolutions = site_manifest.get("resolutions") if isinstance(site_manifest.get("resolutions"), dict) else {}
     resolution_names = sorted(str(name) for name in resolutions.keys())
-    variables: List[str] = []
-    monthly_spec = resolutions.get(MONTHLY_RESOLUTION) if isinstance(resolutions, dict) else None
-    if isinstance(monthly_spec, dict) and isinstance(monthly_spec.get("variables"), dict):
-        variables = [variable for variable in TARGET_VARIABLES if variable in monthly_spec["variables"]]
+    available_variables: set[str] = set()
+    for spec in resolutions.values():
+        if isinstance(spec, dict) and isinstance(spec.get("variables"), dict):
+            available_variables.update(str(variable) for variable in spec["variables"])
+    variables = [variable for variable in TARGET_VARIABLES if variable in available_variables]
     return {
         "siteId": site_id,
         "hasPreview": True,
@@ -1077,12 +1250,58 @@ def write_global_manifest(output_dir: Path, built_at: str, entries: Dict[str, Di
     write_json(output_dir / GLOBAL_MANIFEST_FILENAME, manifest)
 
 
-def write_site_artifacts(output_dir: Path, product: ProductRow, fingerprint: ProductFingerprint, monthly: MonthlyPreview, built_at: str) -> Dict[str, Any]:
+def write_site_artifacts(
+    output_dir: Path,
+    product: ProductRow,
+    fingerprint: ProductFingerprint,
+    previews: Dict[str, ResolutionPreview],
+    built_at: str,
+) -> Dict[str, Any]:
     directory = site_dir(output_dir, product.site_id)
-    write_json(directory / MONTHLY_OUTPUT_FILENAME, monthly.records)
-    site_manifest = build_site_manifest(product, fingerprint, monthly, built_at)
+    for resolution, preview in previews.items():
+        write_json(directory / RESOLUTION_CONFIG[resolution]["output"], preview.records)
+    site_manifest = build_site_manifest(product, fingerprint, previews, built_at)
     write_json(directory / SITE_MANIFEST_FILENAME, site_manifest)
     return global_entry_from_site_manifest(site_manifest)
+
+
+def manifest_has_resolutions(
+    site_manifest: Optional[Dict[str, Any]],
+    output_dir: Path,
+    site_id: str,
+    resolutions: Sequence[str],
+) -> bool:
+    specs = site_manifest.get("resolutions") if isinstance(site_manifest, dict) else None
+    if not isinstance(specs, dict):
+        return False
+    for resolution in resolutions:
+        spec = specs.get(resolution)
+        if not isinstance(spec, dict) or not str(spec.get("path") or "").strip():
+            return False
+        if not (site_dir(output_dir, site_id) / str(spec["path"])).exists():
+            return False
+    return True
+
+
+def parse_requested_previews(
+    archive_path: Path,
+    resolutions: Sequence[str],
+) -> Tuple[Dict[str, ResolutionPreview], Dict[str, str]]:
+    previews: Dict[str, ResolutionPreview] = {}
+    missing: Dict[str, str] = {}
+    for resolution in resolutions:
+        try:
+            previews[resolution] = parse_resolution_preview_from_zip(archive_path, resolution)
+        except PreviewBuildError as error:
+            if error.category in {"no_fluxmet_mm", "no_fluxmet_weekly"}:
+                missing[resolution] = str(error)
+                continue
+            raise
+    if not previews:
+        if resolutions == [WEEKLY_RESOLUTION]:
+            raise PreviewBuildError(missing.get(WEEKLY_RESOLUTION, "no weekly FLUXMET file"), category="no_fluxmet_weekly")
+        raise PreviewBuildError(missing.get(MONTHLY_RESOLUTION, "no requested FLUXMET files"), category="no_fluxmet_mm")
+    return previews, missing
 
 
 def build_product_preview(
@@ -1098,16 +1317,39 @@ def build_product_preview(
     download_func: Optional[DownloadFunc],
     log: LogFunc,
 ) -> SiteResult:
-    if DAILY_RESOLUTION in resolutions and MONTHLY_RESOLUTION not in resolutions:
-        return SiteResult(product.site_id, "unavailable", "daily parsing is scaffolded but not implemented")
+    requested = parse_resolutions(",".join(resolutions))
     fingerprint = compute_fingerprint(product)
     existing_manifest = read_json_if_exists(site_manifest_path(output_dir, product.site_id))
-    if existing_fingerprint_value(existing_manifest) == fingerprint.value and not force:
+    if (
+        existing_fingerprint_value(existing_manifest) == fingerprint.value
+        and manifest_has_resolutions(existing_manifest, output_dir, product.site_id, requested)
+        and not force
+    ):
         entry = global_entry_from_site_manifest(existing_manifest) if existing_manifest else None
         status = "dry-run-skip" if dry_run else "skipped"
         return SiteResult(product.site_id, status, "product fingerprint unchanged", entry, fingerprint=fingerprint)
 
-    local_lookup = find_local_archive(product, archive_index, log)
+    def build_from_archive(archive_path: Path, source_label: str, download_note: str = "") -> SiteResult:
+        previews, missing = parse_requested_previews(archive_path, requested)
+        entry = write_site_artifacts(output_dir, product, fingerprint, previews, built_at)
+        counts = ", ".join(f"{len(preview.records)} {resolution} records" for resolution, preview in previews.items())
+        reason = f"built {counts} from {source_label}"
+        if missing:
+            reason += "; missing " + ", ".join(sorted(missing))
+        if download_note:
+            reason += f"; {download_note}"
+        return SiteResult(
+            product.site_id,
+            "built",
+            reason,
+            entry,
+            previews=previews,
+            missing_resolutions=missing,
+            fingerprint=fingerprint,
+            cache_path=archive_path,
+        )
+
+    local_lookup = find_local_archive(product, archive_index, requested, log)
     if local_lookup.archive_path is not None:
         archive_path = local_lookup.archive_path
         if dry_run:
@@ -1119,22 +1361,13 @@ def build_product_preview(
                 cache_path=archive_path,
             )
         log(f"[{product.site_id}] using local archive {archive_path}")
-        monthly = parse_monthly_preview_from_zip(archive_path)
-        entry = write_site_artifacts(output_dir, product, fingerprint, monthly, built_at)
-        return SiteResult(
-            product.site_id,
-            "built",
-            f"built {len(monthly.records)} monthly records from local archive",
-            entry,
-            monthly,
-            fingerprint,
-            archive_path,
-        )
+        return build_from_archive(archive_path, "local archive")
 
     if archive_index is not None and offline:
         reason = local_archive_missing_reason(product, local_lookup, archive_index)
         if local_lookup.rejected_no_fluxmet:
-            raise PreviewBuildError(reason, category="no_fluxmet_mm")
+            category = "no_fluxmet_weekly" if requested == [WEEKLY_RESOLUTION] else "no_fluxmet_mm"
+            raise PreviewBuildError(reason, category=category)
         raise MissingLocalArchiveError(reason)
 
     archive_path = cache_archive_path(cache_dir, product, fingerprint)
@@ -1153,17 +1386,7 @@ def build_product_preview(
         if not archive_path.exists():
             raise MissingLocalArchiveError("offline mode found no matching local archive and no cached archive")
         log(f"[{product.site_id}] using cached archive {archive_path}")
-        monthly = parse_monthly_preview_from_zip(archive_path)
-        entry = write_site_artifacts(output_dir, product, fingerprint, monthly, built_at)
-        return SiteResult(
-            product.site_id,
-            "built",
-            f"built {len(monthly.records)} monthly records from cached archive",
-            entry,
-            monthly,
-            fingerprint,
-            archive_path,
-        )
+        return build_from_archive(archive_path, "cached archive")
     if dry_run:
         return SiteResult(product.site_id, "dry-run-build", "would download/build preview", fingerprint=fingerprint)
 
@@ -1182,12 +1405,7 @@ def build_product_preview(
             except OSError as error:
                 raise DownloadFailedError(f"downloaded archive is invalid and could not be deleted: {error}") from error
             raise NonZipResponseError("downloaded response is not a zip archive")
-    monthly = parse_monthly_preview_from_zip(archive_path)
-    entry = write_site_artifacts(output_dir, product, fingerprint, monthly, built_at)
-    reason = f"built {len(monthly.records)} monthly records"
-    if download_note:
-        reason += f"; {download_note}"
-    return SiteResult(product.site_id, "built", reason, entry, monthly, fingerprint, archive_path)
+    return build_from_archive(archive_path, "archive", download_note)
 
 
 def run_build(
@@ -1211,9 +1429,7 @@ def run_build(
     summary = BuildSummary()
     built_at_value = built_at or utc_now()
     entries_to_update: Dict[str, Dict[str, Any]] = {}
-    requested = set(parse_resolutions(",".join(resolutions)))
-    if DAILY_RESOLUTION in requested and MONTHLY_RESOLUTION in requested:
-        log("Daily preview parsing is scaffolded but not implemented; monthly previews will be built.")
+    requested = parse_resolutions(",".join(resolutions))
     if not products:
         log("No eligible Shuttle products found for the requested filters.")
         return summary
@@ -1225,7 +1441,7 @@ def run_build(
                 cache_dir,
                 archive_index,
                 offline,
-                sorted(requested),
+                requested,
                 force=force,
                 dry_run=dry_run,
                 built_at=built_at_value,
@@ -1252,6 +1468,7 @@ def print_summary(summary: BuildSummary, log: LogFunc = log_stdout) -> None:
         "requires_icos_license_auth={requires_icos_license_auth}, download_failed={download_failed}, "
         "non_zip_response={non_zip_response}, malformed_zip={malformed_zip}, "
         "missing_local_archive={missing_local_archive}, no_fluxmet_mm={no_fluxmet_mm}, "
+        "no_fluxmet_weekly={no_fluxmet_weekly}, "
         "no_target_variables={no_target_variables}, parse_date_failure={parse_date_failure}, "
         "dry_run_build={dry_run_build}, dry_run_skip={dry_run_skip}".format(**counts)
     )
@@ -1264,6 +1481,7 @@ def print_summary(summary: BuildSummary, log: LogFunc = log_stdout) -> None:
         ("malformed_zip", summary.malformed_zip),
         ("missing_local_archive", summary.missing_local_archive),
         ("no_fluxmet_mm", summary.no_fluxmet_mm),
+        ("no_fluxmet_weekly", summary.no_fluxmet_weekly),
         ("no_target_variables", summary.no_target_variables),
         ("parse_date_failure", summary.parse_date_failure),
     )
