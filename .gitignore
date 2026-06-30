@@ -9,3 +9,14 @@ venv/
 .env.*
 download_response.json
 fluxnet_downloads/
+
+# Local preview builds and downloaded artifacts belong outside the repository.
+/preview-builder-cache*/
+/fluxnet-preview-weekly/
+/fluxnet-preview-daily-annual/
+/archived-preview-runs/
+/archived-download-artifacts/
+/logs/
+/bulk_download.log
+/*.zip
+/*.part

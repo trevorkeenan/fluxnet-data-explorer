@@ -51,7 +51,15 @@ The UI supports single-site, single-variable monthly, weekly, daily, and annual 
 
 The static app resolves the preview base URL from the Explorer root attribute `data-preview-base-url`, then `window.FLUXNET_EXPLORER_CONFIG.previewBaseUrl` or `window.FLUXNET_EXPLORER_CONFIG.fluxnetPreviewBaseUrl`, then global values such as `window.VITE_FLUXNET_PREVIEW_BASE_URL` or `window.FLUXNET_PREVIEW_BASE_URL`. The committed page config uses `fluxnet-preview/v1` on localhost and `https://fluxnet-preview.keenangroup.info/v1` in production, so the deployed Explorer fetches `https://fluxnet-preview.keenangroup.info/v1/manifest.json`.
 
-Tiny synthetic local fixtures are committed under `fluxnet-preview/v1/` for `US-Ha1` and `CA-DBB`. To test locally, run the normal static server, search one of those site IDs, and click `Preview data`.
+Tiny synthetic local fixtures are committed under `fluxnet-preview/v1/` for `US-Ha1` and `CA-DBB`. They are only for local development and are not the production artifact set. To test locally, run the normal static server, search one of those site IDs, and click `Preview data`.
+
+Maintainer preview data live outside this repository under `/Users/trevorkeenan/Data/ExplorerFluxData`:
+
+- Source archives: `/Users/trevorkeenan/Data/ExplorerFluxData/fluxnet_downloads`
+- Generated preview artifacts: `/Users/trevorkeenan/Data/ExplorerFluxData/fluxnet-preview/v1`
+- Rebuildable cache: `/Users/trevorkeenan/Data/ExplorerFluxData/preview-builder-cache`
+
+The hosted production destination is `cloudflare-r2:fluxnet-preview/v1`, served at `https://fluxnet-preview.keenangroup.info/v1`.
 
 Build preview artifacts with `scripts/build-shuttle-preview.py`. The builder reads the committed Shuttle snapshot or CSV catalog, downloads selected Shuttle zip products into a local cache, and reads requested values directly from the matching `FLUXMET_MM`, `FLUXMET_WW`, `FLUXMET_DD`, and `FLUXMET_YY` files. It ignores ERA5 files and never derives one resolution from another; matching `BIFVARINFO` files may be used for units. Annual records use `YYYY-01-01` internally so the shared date/chart path remains robust, while the x-axis displays years.
 
@@ -60,7 +68,7 @@ Recommended dry run before downloading:
 ```bash
 python3 scripts/build-shuttle-preview.py \
   --snapshot assets/shuttle_snapshot.json \
-  --output-dir fluxnet-preview/v1 \
+  --output-dir /tmp/fluxnet-preview-dry-run/v1 \
   --cache-dir /tmp/fluxnet-shuttle-preview-cache \
   --site AR-Bal \
   --dry-run
@@ -71,7 +79,7 @@ Build one site:
 ```bash
 python3 scripts/build-shuttle-preview.py \
   --snapshot assets/shuttle_snapshot.json \
-  --output-dir fluxnet-preview/v1 \
+  --output-dir /tmp/fluxnet-preview-dev/v1 \
   --cache-dir /tmp/fluxnet-shuttle-preview-cache \
   --site AR-Bal
 ```
@@ -81,12 +89,39 @@ Build a small subset from the eligible catalog:
 ```bash
 python3 scripts/build-shuttle-preview.py \
   --snapshot assets/shuttle_snapshot.json \
-  --output-dir fluxnet-preview/v1 \
+  --output-dir /tmp/fluxnet-preview-dev/v1 \
   --cache-dir /tmp/fluxnet-shuttle-preview-cache \
   --limit 25
 ```
 
 Use repeated `--site SITE_ID` arguments for an explicit subset, `--force` to rebuild unchanged fingerprints, and `--resolution monthly,weekly,daily,annual` (or any one resolution) to choose output resolutions. The default remains monthly.
+
+Build the complete local four-resolution artifact set offline from the downloaded source archives:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/fluxnet_preview_pycache \
+python3 scripts/build-shuttle-preview.py \
+  --snapshot assets/shuttle_snapshot.json \
+  --output-dir /Users/trevorkeenan/Data/ExplorerFluxData/fluxnet-preview/v1 \
+  --archive-dir /Users/trevorkeenan/Data/ExplorerFluxData/fluxnet_downloads \
+  --cache-dir /Users/trevorkeenan/Data/ExplorerFluxData/preview-builder-cache \
+  --offline \
+  --resolution monthly,weekly,daily,annual \
+  --force
+```
+
+After validating the local artifacts, a maintainer can copy them to R2 explicitly:
+
+```bash
+rclone copy \
+  "/Users/trevorkeenan/Data/ExplorerFluxData/fluxnet-preview/v1" \
+  cloudflare-r2:fluxnet-preview/v1 \
+  --progress \
+  --transfers 16 \
+  --checkers 32
+```
+
+Use `rclone copy`, not destructive `rclone sync`, unless remote stale-file deletion is intentional and has been reviewed.
 
 The output directory can be copied to Cloudflare R2 or another static host. Enable CORS for the Explorer origin, preserve the `v1/manifest.json` and `v1/sites/...` paths, and set the preview base URL in the page configuration to the hosted `v1` directory.
 
