@@ -82,7 +82,7 @@
     site_no_preview: "Preview data are not available for this site yet.",
     site_manifest_missing: "The site preview manifest is unavailable.",
     site_manifest_malformed: "The site preview manifest could not be read.",
-    variable_unavailable: "The selected variable is not available in this preview.",
+    variable_unavailable: "The selected variable is not available.",
     data_file_missing: "The selected preview data file is unavailable.",
     data_file_malformed: "The selected preview data file could not be read.",
     network_failure: "Preview data could not be loaded. Try again later."
