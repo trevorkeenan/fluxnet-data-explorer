@@ -66,8 +66,8 @@ REQUIRES_ICOS_LICENSE_REASON = "requires_icos_license_acceptance_or_auth"
 ICOS_UNAUTHENTICATED_SUCCESS_REASON = "unauthenticated ICOS licence_accept download succeeded"
 FILL_VALUES = {"", "NA", "NAN", "NULL", "NONE", "-9999", "-9999.0", "-9999.00", "-6999", "-6999.0"}
 NOTICE_TEXT = (
-    "This is a lightweight visualization preview of a subset of the data available. "
-    "For analysis, download the full official data product."
+    "This is a lightweight visualization preview of a subset of available variables. "
+    "For analysis, download the full data product."
 )
 
 STANDARD_TARGET_VARIABLES = [

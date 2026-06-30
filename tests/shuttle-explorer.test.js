@@ -924,6 +924,7 @@ test('Preview modal wording and chart axes use polished labels', () => {
   assert.equal(explorerJs.includes('Open official data product'), false);
   assert.equal(explorerJs.includes('Download site data product'), true);
   assert.equal(explorerJs.includes('var PREVIEW_PRODUCT_HEADING = "Site Data Preview";'), true);
+  assert.equal(explorerJs.includes('var PREVIEW_NOTICE_TEXT = "This is a lightweight visualization preview of a subset of available variables. For analysis, download the full data product.";'), true);
   assert.equal(explorerJs.includes('Disabled variables are not available for this site and resolution.'), true);
   assert.equal(explorerJs.includes('disabled title=\\"Not available for this site and resolution.\\"'), true);
   assert.equal(hooks.formatPreviewBuildDate('2026-06-25T04:01:24Z'), '2026-06-25');

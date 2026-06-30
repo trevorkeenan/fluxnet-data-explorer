@@ -190,6 +190,7 @@
   var PREVIEW_UNAVAILABLE_ARIA_LABEL = "Preview plot unavailable";
   var PREVIEW_UNAVAILABLE_TITLE = "Data preview is not available for this site.";
   var PREVIEW_PRODUCT_HEADING = "Site Data Preview";
+  var PREVIEW_NOTICE_TEXT = "This is a lightweight visualization preview of a subset of available variables. For analysis, download the full data product.";
   var PREVIEW_OFFICIAL_PRODUCT_LINK_LABEL = "Download site data product";
   var DATA_POLICY_MISSING_METADATA_PLACEHOLDER = "Citation/DOI not available in Explorer metadata. Please consult the source data portal.";
   var DATA_POLICY_GLOBAL_ACKNOWLEDGEMENT = "FLUXNET data products were produced and harmonized by eddy covariance regional networks and data processing centers, including AmeriFlux, ChinaFlux, European Fluxes Database, ICOS, JapanFlux, KoFlux, OzFlux, SAEON, and TERN. These products also include a modified version of ERA5 hourly data provided by the Copernicus Climate Change Service.";
@@ -8453,9 +8454,10 @@
       b.previewMeta.textContent = metaParts.join(" | ");
     }
     if (b.previewNotice) {
-      b.previewNotice.textContent = siteManifest && siteManifest.notice
-        ? siteManifest.notice
-        : "This lightweight preview is for visual browsing only. Download and cite the official data product for analysis.";
+      var manifestNotice = siteManifest && siteManifest.notice ? String(siteManifest.notice) : "";
+      b.previewNotice.textContent = manifestNotice.indexOf("This is a lightweight visualization preview") === 0
+        ? PREVIEW_NOTICE_TEXT
+        : (manifestNotice || PREVIEW_NOTICE_TEXT);
     }
     this.renderPreviewControls();
 
