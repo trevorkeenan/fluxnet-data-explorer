@@ -8,6 +8,8 @@ The Explorer frontend reads static preview artifacts shaped like:
     sites/SITE_ID/manifest.json
     sites/SITE_ID/monthly.json
     sites/SITE_ID/weekly.json
+    sites/SITE_ID/daily.json
+    sites/SITE_ID/annual.json
 
 This builder reads the committed Shuttle snapshot/catalog, downloads only the
 selected products that need rebuilding, and extracts preview records directly
@@ -44,12 +46,12 @@ SOURCE_LABEL = "FLUXNET Shuttle"
 MONTHLY_RESOLUTION = "monthly"
 WEEKLY_RESOLUTION = "weekly"
 DAILY_RESOLUTION = "daily"
+ANNUAL_RESOLUTION = "annual"
 RESOLUTION_CONFIG: Dict[str, Dict[str, str]] = {
-    MONTHLY_RESOLUTION: {"code": "MM", "output": "monthly.json"},
-    WEEKLY_RESOLUTION: {"code": "WW", "output": "weekly.json"},
-    # Daily is intentionally planned, not enabled. Adding its parser here is the
-    # only resolution-specific work needed in a later pass.
-    # DAILY_RESOLUTION: {"code": "DD", "output": "daily.json"},
+    MONTHLY_RESOLUTION: {"code": "MM", "output": "monthly.json", "dateFormat": "YYYY-MM"},
+    WEEKLY_RESOLUTION: {"code": "WW", "output": "weekly.json", "dateFormat": "YYYY-MM-DD"},
+    DAILY_RESOLUTION: {"code": "DD", "output": "daily.json", "dateFormat": "YYYY-MM-DD"},
+    ANNUAL_RESOLUTION: {"code": "YY", "output": "annual.json", "dateFormat": "YYYY-01-01"},
 }
 GLOBAL_MANIFEST_FILENAME = "manifest.json"
 SITE_MANIFEST_FILENAME = "manifest.json"
@@ -68,12 +70,17 @@ NOTICE_TEXT = (
     "For analysis, download the full official data product."
 )
 
-CANONICAL_TARGET_VARIABLES = [
-    "GPP_NT_REF",
-    "GPP_DT_REF",
-    "NEE",
-    "RECO_NT_REF",
-    "RECO_DT_REF",
+STANDARD_TARGET_VARIABLES = [
+    "GPP_NT_VUT_REF",
+    "GPP_NT_CUT_REF",
+    "GPP_DT_VUT_REF",
+    "GPP_DT_CUT_REF",
+    "NEE_VUT_REF",
+    "NEE_CUT_REF",
+    "RECO_NT_VUT_REF",
+    "RECO_NT_CUT_REF",
+    "RECO_DT_VUT_REF",
+    "RECO_DT_CUT_REF",
     "LE",
     "H",
     "TA",
@@ -81,50 +88,41 @@ CANONICAL_TARGET_VARIABLES = [
     "SW_IN",
     "P",
 ]
-GENERIC_FALLBACK_VARIABLES = ["GPP", "RECO"]
-TARGET_VARIABLES = CANONICAL_TARGET_VARIABLES + GENERIC_FALLBACK_VARIABLES
+TARGET_VARIABLES = STANDARD_TARGET_VARIABLES
 
 VARIABLE_METADATA: Dict[str, Dict[str, str]] = {
-    "GPP_NT_REF": {
-        "label": "GPP_NT_REF",
-        "description": "Gross primary productivity, nighttime partitioning reference",
-        "unit": "g C m-2 d-1",
-    },
-    "GPP_DT_REF": {
-        "label": "GPP_DT_REF",
-        "description": "Gross primary productivity, daytime partitioning reference",
-        "unit": "g C m-2 d-1",
-    },
-    "NEE": {"label": "Net ecosystem exchange", "description": "Net carbon dioxide exchange between ecosystem and atmosphere.", "unit": "g C m-2 d-1"},
-    "RECO_NT_REF": {
-        "label": "RECO_NT_REF",
-        "description": "Ecosystem respiration, nighttime partitioning reference",
-        "unit": "g C m-2 d-1",
-    },
-    "RECO_DT_REF": {
-        "label": "RECO_DT_REF",
-        "description": "Ecosystem respiration, daytime partitioning reference",
-        "unit": "g C m-2 d-1",
-    },
+    "GPP_NT_VUT_REF": {"label": "GPP_NT_VUT_REF", "description": "Gross primary productivity, nighttime partitioning, variable ustar threshold reference", "unit": "g C m-2 d-1"},
+    "GPP_NT_CUT_REF": {"label": "GPP_NT_CUT_REF", "description": "Gross primary productivity, nighttime partitioning, constant ustar threshold reference", "unit": "g C m-2 d-1"},
+    "GPP_DT_VUT_REF": {"label": "GPP_DT_VUT_REF", "description": "Gross primary productivity, daytime partitioning, variable ustar threshold reference", "unit": "g C m-2 d-1"},
+    "GPP_DT_CUT_REF": {"label": "GPP_DT_CUT_REF", "description": "Gross primary productivity, daytime partitioning, constant ustar threshold reference", "unit": "g C m-2 d-1"},
+    "NEE_VUT_REF": {"label": "NEE_VUT_REF", "description": "Net ecosystem exchange, variable ustar threshold reference", "unit": "g C m-2 d-1"},
+    "NEE_CUT_REF": {"label": "NEE_CUT_REF", "description": "Net ecosystem exchange, constant ustar threshold reference", "unit": "g C m-2 d-1"},
+    "RECO_NT_VUT_REF": {"label": "RECO_NT_VUT_REF", "description": "Ecosystem respiration, nighttime partitioning, variable ustar threshold reference", "unit": "g C m-2 d-1"},
+    "RECO_NT_CUT_REF": {"label": "RECO_NT_CUT_REF", "description": "Ecosystem respiration, nighttime partitioning, constant ustar threshold reference", "unit": "g C m-2 d-1"},
+    "RECO_DT_VUT_REF": {"label": "RECO_DT_VUT_REF", "description": "Ecosystem respiration, daytime partitioning, variable ustar threshold reference", "unit": "g C m-2 d-1"},
+    "RECO_DT_CUT_REF": {"label": "RECO_DT_CUT_REF", "description": "Ecosystem respiration, daytime partitioning, constant ustar threshold reference", "unit": "g C m-2 d-1"},
     "LE": {"label": "Latent heat flux", "description": "Latent heat exchange between land surface and atmosphere.", "unit": "W m-2"},
     "H": {"label": "Sensible heat flux", "description": "Sensible heat exchange between land surface and atmosphere.", "unit": "W m-2"},
     "TA": {"label": "Air temperature", "description": "Near-surface air temperature.", "unit": "deg C"},
     "VPD": {"label": "Vapor pressure deficit", "description": "Atmospheric evaporative demand expressed as vapor pressure deficit.", "unit": "kPa"},
     "SW_IN": {"label": "Incoming shortwave radiation", "description": "Incoming shortwave radiation at the site.", "unit": "W m-2"},
     "P": {"label": "Precipitation", "description": "Precipitation aggregated to the preview resolution.", "unit": "mm d-1"},
-    "GPP": {"label": "Gross primary productivity", "description": "Generic gross primary productivity fallback from older products.", "unit": "g C m-2 d-1"},
-    "RECO": {"label": "Ecosystem respiration", "description": "Generic ecosystem respiration fallback from older products.", "unit": "g C m-2 d-1"},
 }
 
 # Priority order for mapping canonical preview variables to FLUXMET columns.
 # Generic GPP/RECO are considered separately and only when neither explicit
 # partitioning product is present.
 VARIABLE_ALIASES: Dict[str, List[str]] = {
-    "GPP_NT_REF": ["GPP_NT_VUT_REF", "GPP_NT", "GPP_NT_REF"],
-    "GPP_DT_REF": ["GPP_DT_VUT_REF", "GPP_DT", "GPP_DT_REF"],
-    "NEE": ["NEE_VUT_REF", "NEE", "FC"],
-    "RECO_NT_REF": ["RECO_NT_VUT_REF", "RECO_NT", "RECO_NT_REF"],
-    "RECO_DT_REF": ["RECO_DT_VUT_REF", "RECO_DT", "RECO_DT_REF"],
+    "GPP_NT_VUT_REF": ["GPP_NT_VUT_REF"],
+    "GPP_NT_CUT_REF": ["GPP_NT_CUT_REF"],
+    "GPP_DT_VUT_REF": ["GPP_DT_VUT_REF"],
+    "GPP_DT_CUT_REF": ["GPP_DT_CUT_REF"],
+    "NEE_VUT_REF": ["NEE_VUT_REF"],
+    "NEE_CUT_REF": ["NEE_CUT_REF"],
+    "RECO_NT_VUT_REF": ["RECO_NT_VUT_REF"],
+    "RECO_NT_CUT_REF": ["RECO_NT_CUT_REF"],
+    "RECO_DT_VUT_REF": ["RECO_DT_VUT_REF"],
+    "RECO_DT_CUT_REF": ["RECO_DT_CUT_REF"],
     "LE": ["LE_F_MDS", "LE"],
     "H": ["H_F_MDS", "H"],
     "TA": ["TA_F", "TA"],
@@ -281,6 +279,8 @@ class BuildSummary:
     missing_local_archive: List[SiteResult] = field(default_factory=list)
     no_fluxmet_mm: List[SiteResult] = field(default_factory=list)
     no_fluxmet_weekly: List[SiteResult] = field(default_factory=list)
+    no_fluxmet_daily: List[SiteResult] = field(default_factory=list)
+    no_fluxmet_annual: List[SiteResult] = field(default_factory=list)
     no_target_variables: List[SiteResult] = field(default_factory=list)
     parse_date_failure: List[SiteResult] = field(default_factory=list)
     dry_run_build: List[SiteResult] = field(default_factory=list)
@@ -309,6 +309,10 @@ class BuildSummary:
             self.no_fluxmet_mm.append(result)
         elif result.status == "no_fluxmet_weekly":
             self.no_fluxmet_weekly.append(result)
+        elif result.status == "no_fluxmet_daily":
+            self.no_fluxmet_daily.append(result)
+        elif result.status == "no_fluxmet_annual":
+            self.no_fluxmet_annual.append(result)
         elif result.status == "no_target_variables":
             self.no_target_variables.append(result)
         elif result.status == "parse_date_failure":
@@ -326,6 +330,10 @@ class BuildSummary:
                     self.no_fluxmet_weekly.append(missing)
                 elif resolution == MONTHLY_RESOLUTION:
                     self.no_fluxmet_mm.append(missing)
+                elif resolution == DAILY_RESOLUTION:
+                    self.no_fluxmet_daily.append(missing)
+                elif resolution == ANNUAL_RESOLUTION:
+                    self.no_fluxmet_annual.append(missing)
 
     def counts(self) -> Dict[str, int]:
         return {
@@ -340,6 +348,8 @@ class BuildSummary:
             "missing_local_archive": len(self.missing_local_archive),
             "no_fluxmet_mm": len(self.no_fluxmet_mm),
             "no_fluxmet_weekly": len(self.no_fluxmet_weekly),
+            "no_fluxmet_daily": len(self.no_fluxmet_daily),
+            "no_fluxmet_annual": len(self.no_fluxmet_annual),
             "no_target_variables": len(self.no_target_variables),
             "parse_date_failure": len(self.parse_date_failure),
             "dry_run_build": len(self.dry_run_build),
@@ -350,7 +360,7 @@ class BuildSummary:
         built_site_ids = {result.site_id for result in self.built}
         unbuilt_resolution_failures = any(
             result.site_id not in built_site_ids
-            for result in self.no_fluxmet_mm + self.no_fluxmet_weekly
+            for result in self.no_fluxmet_mm + self.no_fluxmet_weekly + self.no_fluxmet_daily + self.no_fluxmet_annual
         )
         return bool(
             self.failed
@@ -388,7 +398,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--resolution",
         default=MONTHLY_RESOLUTION,
-        help="Comma-separated resolutions to build (monthly, weekly). Default: monthly.",
+        help="Comma-separated resolutions to build (monthly, weekly, daily, annual). Default: monthly.",
     )
     parser.add_argument("--dry-run", action="store_true", help="Report work without downloading or writing preview artifacts.")
     return parser.parse_args(argv)
@@ -629,10 +639,9 @@ def local_archive_validation_reason(archive_path: Path, resolutions: Sequence[st
     try:
         available = archive_available_resolutions(archive_path, resolutions)
         if not available:
-            if list(resolutions) == [WEEKLY_RESOLUTION]:
-                return "no_fluxmet_weekly"
-            if list(resolutions) == [MONTHLY_RESOLUTION]:
-                return "no_fluxmet_mm"
+            if len(resolutions) == 1:
+                resolution = list(resolutions)[0]
+                return "no_fluxmet_mm" if resolution == MONTHLY_RESOLUTION else f"no_fluxmet_{resolution}"
             return "no_requested_fluxmet"
     except zipfile.BadZipFile:
         return "malformed_zip"
@@ -892,7 +901,9 @@ def parse_version_rank(name: str) -> Tuple[Tuple[int, ...], int, int, str]:
 def choose_resolution_member(zip_file: zipfile.ZipFile, resolution_code: str) -> Tuple[str, List[str]]:
     matches = sorted(name for name in zip_file.namelist() if is_fluxmet_resolution_file(name, resolution_code))
     if not matches:
-        category = "no_fluxmet_weekly" if resolution_code == "WW" else "no_fluxmet_mm"
+        resolution_by_code = {config["code"]: name for name, config in RESOLUTION_CONFIG.items()}
+        resolution = resolution_by_code.get(resolution_code, resolution_code.lower())
+        category = "no_fluxmet_mm" if resolution == MONTHLY_RESOLUTION else f"no_fluxmet_{resolution}"
         raise PreviewBuildError(f"no *_FLUXNET_FLUXMET_{resolution_code}_*.csv file found", category=category)
     ranked = sorted(matches, key=parse_version_rank, reverse=True)
     warnings: List[str] = []
@@ -922,15 +933,11 @@ def normalize_column_name(value: str) -> str:
 def select_source_columns(fieldnames: Sequence[str]) -> Dict[str, str]:
     columns_by_upper = {normalize_column_name(column): column for column in fieldnames}
     selected: Dict[str, str] = {}
-    for variable in CANONICAL_TARGET_VARIABLES:
+    for variable in STANDARD_TARGET_VARIABLES:
         for alias in VARIABLE_ALIASES[variable]:
             if normalize_column_name(alias) in columns_by_upper:
                 selected[variable] = columns_by_upper[normalize_column_name(alias)]
                 break
-    if "GPP_NT_REF" not in selected and "GPP_DT_REF" not in selected and "GPP" in columns_by_upper:
-        selected["GPP"] = columns_by_upper["GPP"]
-    if "RECO_NT_REF" not in selected and "RECO_DT_REF" not in selected and "RECO" in columns_by_upper:
-        selected["RECO"] = columns_by_upper["RECO"]
     return selected
 
 
@@ -939,7 +946,7 @@ def find_timestamp_column(fieldnames: Sequence[str], resolution: str = MONTHLY_R
     # the first day of the represented interval when both bounds are present.
     candidates = (
         ["TIMESTAMP_START", "TIMESTAMP", "TIMESTAMP_BEGIN", "TIMESTAMP_DATE", "DATE"]
-        if resolution == WEEKLY_RESOLUTION
+        if resolution in {WEEKLY_RESOLUTION, DAILY_RESOLUTION}
         else ["TIMESTAMP", "TIMESTAMP_START", "TIMESTAMP_BEGIN", "TIMESTAMP_DATE", "DATE", "MONTH"]
     )
     columns_by_upper = {normalize_column_name(column): column for column in fieldnames}
@@ -1003,6 +1010,29 @@ def parse_week(value: str) -> Optional[str]:
     return parsed.isoformat()
 
 
+def parse_day(value: str) -> Optional[str]:
+    raw = str(value or "").strip()
+    try:
+        if re.fullmatch(r"\d{8}", raw):
+            parsed = datetime.strptime(raw, "%Y%m%d").date()
+        elif re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+            parsed = datetime.strptime(raw, "%Y-%m-%d").date()
+        else:
+            return None
+    except ValueError:
+        return None
+    return parsed.isoformat() if 1900 <= parsed.year <= 2100 else None
+
+
+def parse_annual(value: str) -> Optional[str]:
+    raw = str(value or "").strip()
+    match = re.fullmatch(r"(\d{4})(?:0101)?", re.sub(r"-", "", raw))
+    if not match:
+        return None
+    year = int(match.group(1))
+    return f"{year:04d}-01-01" if 1900 <= year <= 2100 else None
+
+
 def parse_number(value: Any) -> Optional[float]:
     raw = str(value if value is not None else "").strip()
     if raw.upper() in FILL_VALUES:
@@ -1011,7 +1041,7 @@ def parse_number(value: Any) -> Optional[float]:
         number = float(raw)
     except ValueError:
         return None
-    if number <= -9990:
+    if number <= -9990 or number == -6999:
         return None
     return number
 
@@ -1055,13 +1085,23 @@ def read_bifvarinfo_metadata(zip_file: zipfile.ZipFile, member: Optional[str]) -
     return lookup
 
 
-def variable_manifest_metadata(variable: str, source_column: str, bif_metadata: Dict[str, Dict[str, str]]) -> Dict[str, str]:
+def variable_manifest_metadata(
+    variable: str,
+    source_column: Optional[str],
+    bif_metadata: Dict[str, Dict[str, str]],
+    records: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
     defaults = VARIABLE_METADATA[variable]
-    source_meta = bif_metadata.get(normalize_column_name(source_column), {})
+    source_meta = bif_metadata.get(normalize_column_name(source_column or ""), {})
+    non_null_count = sum(record.get(variable) is not None for record in records) if source_column else 0
     return {
         "label": defaults["label"],
         "description": defaults["description"],
         "unit": source_meta.get("unit") or defaults["unit"],
+        "available": bool(source_column and non_null_count),
+        "sourceColumn": source_column,
+        "nonNullCount": non_null_count,
+        "recordCount": len(records),
     }
 
 
@@ -1072,7 +1112,12 @@ def parse_resolution_preview_from_zip(zip_path: Path, resolution: str) -> Resolu
         raise NonZipResponseError(f"archive is not a valid zip: {zip_path}")
     config = RESOLUTION_CONFIG[resolution]
     resolution_code = config["code"]
-    parse_date = parse_week if resolution == WEEKLY_RESOLUTION else parse_month
+    parse_date: Callable[[str], Optional[str]] = {
+        MONTHLY_RESOLUTION: parse_month,
+        WEEKLY_RESOLUTION: parse_week,
+        DAILY_RESOLUTION: parse_day,
+        ANNUAL_RESOLUTION: parse_annual,
+    }[resolution]
     try:
         with zipfile.ZipFile(zip_path) as zf:
             source_member, selection_warnings = choose_resolution_member(zf, resolution_code)
@@ -1125,8 +1170,8 @@ def parse_resolution_preview_from_zip(zip_path: Path, resolution: str) -> Resolu
                         category="no_target_variables",
                     )
                 variable_metadata = {
-                    variable: variable_manifest_metadata(variable, source_columns[variable], bif_metadata)
-                    for variable in variables
+                    variable: variable_manifest_metadata(variable, source_columns.get(variable), bif_metadata, records)
+                    for variable in STANDARD_TARGET_VARIABLES
                 }
                 preview = ResolutionPreview(
                     resolution=resolution,
@@ -1151,6 +1196,14 @@ def parse_weekly_preview_from_zip(zip_path: Path) -> ResolutionPreview:
     return parse_resolution_preview_from_zip(zip_path, WEEKLY_RESOLUTION)
 
 
+def parse_daily_preview_from_zip(zip_path: Path) -> ResolutionPreview:
+    return parse_resolution_preview_from_zip(zip_path, DAILY_RESOLUTION)
+
+
+def parse_annual_preview_from_zip(zip_path: Path) -> ResolutionPreview:
+    return parse_resolution_preview_from_zip(zip_path, ANNUAL_RESOLUTION)
+
+
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -1173,7 +1226,8 @@ def build_site_manifest(
             continue
         resolutions_manifest[resolution] = {
             "path": RESOLUTION_CONFIG[resolution]["output"],
-            "variables": {variable: preview.variable_metadata[variable] for variable in preview.variables},
+            "dateFormat": RESOLUTION_CONFIG[resolution]["dateFormat"],
+            "variables": {variable: preview.variable_metadata[variable] for variable in STANDARD_TARGET_VARIABLES},
             "sourceFile": preview.source_file,
             "sourceColumns": preview.source_columns,
         }
@@ -1212,12 +1266,21 @@ def build_site_manifest(
 def global_entry_from_site_manifest(site_manifest: Dict[str, Any]) -> Dict[str, Any]:
     site_id = str(site_manifest.get("siteId") or "")
     resolutions = site_manifest.get("resolutions") if isinstance(site_manifest.get("resolutions"), dict) else {}
-    resolution_names = sorted(str(name) for name in resolutions.keys())
+    resolution_names = [name for name in RESOLUTION_CONFIG if name in resolutions]
     available_variables: set[str] = set()
     for spec in resolutions.values():
         if isinstance(spec, dict) and isinstance(spec.get("variables"), dict):
             available_variables.update(str(variable) for variable in spec["variables"])
-    variables = [variable for variable in TARGET_VARIABLES if variable in available_variables]
+    variables = [
+        variable for variable in TARGET_VARIABLES
+        if variable in available_variables and any(
+            isinstance(spec, dict)
+            and isinstance(spec.get("variables"), dict)
+            and isinstance(spec["variables"].get(variable), dict)
+            and spec["variables"][variable].get("available") is not False
+            for spec in resolutions.values()
+        )
+    ]
     return {
         "siteId": site_id,
         "hasPreview": True,
@@ -1293,14 +1356,16 @@ def parse_requested_previews(
         try:
             previews[resolution] = parse_resolution_preview_from_zip(archive_path, resolution)
         except PreviewBuildError as error:
-            if error.category in {"no_fluxmet_mm", "no_fluxmet_weekly"}:
+            if error.category.startswith("no_fluxmet_"):
                 missing[resolution] = str(error)
                 continue
             raise
     if not previews:
-        if resolutions == [WEEKLY_RESOLUTION]:
-            raise PreviewBuildError(missing.get(WEEKLY_RESOLUTION, "no weekly FLUXMET file"), category="no_fluxmet_weekly")
-        raise PreviewBuildError(missing.get(MONTHLY_RESOLUTION, "no requested FLUXMET files"), category="no_fluxmet_mm")
+        if len(resolutions) == 1:
+            resolution = resolutions[0]
+            category = "no_fluxmet_mm" if resolution == MONTHLY_RESOLUTION else f"no_fluxmet_{resolution}"
+            raise PreviewBuildError(missing.get(resolution, f"no {resolution} FLUXMET file"), category=category)
+        raise PreviewBuildError("no requested FLUXMET files", category="no_fluxmet_mm")
     return previews, missing
 
 
@@ -1366,7 +1431,8 @@ def build_product_preview(
     if archive_index is not None and offline:
         reason = local_archive_missing_reason(product, local_lookup, archive_index)
         if local_lookup.rejected_no_fluxmet:
-            category = "no_fluxmet_weekly" if requested == [WEEKLY_RESOLUTION] else "no_fluxmet_mm"
+            resolution = requested[0] if len(requested) == 1 else MONTHLY_RESOLUTION
+            category = "no_fluxmet_mm" if resolution == MONTHLY_RESOLUTION else f"no_fluxmet_{resolution}"
             raise PreviewBuildError(reason, category=category)
         raise MissingLocalArchiveError(reason)
 
@@ -1468,7 +1534,8 @@ def print_summary(summary: BuildSummary, log: LogFunc = log_stdout) -> None:
         "requires_icos_license_auth={requires_icos_license_auth}, download_failed={download_failed}, "
         "non_zip_response={non_zip_response}, malformed_zip={malformed_zip}, "
         "missing_local_archive={missing_local_archive}, no_fluxmet_mm={no_fluxmet_mm}, "
-        "no_fluxmet_weekly={no_fluxmet_weekly}, "
+        "no_fluxmet_weekly={no_fluxmet_weekly}, no_fluxmet_daily={no_fluxmet_daily}, "
+        "no_fluxmet_annual={no_fluxmet_annual}, "
         "no_target_variables={no_target_variables}, parse_date_failure={parse_date_failure}, "
         "dry_run_build={dry_run_build}, dry_run_skip={dry_run_skip}".format(**counts)
     )
@@ -1482,6 +1549,8 @@ def print_summary(summary: BuildSummary, log: LogFunc = log_stdout) -> None:
         ("missing_local_archive", summary.missing_local_archive),
         ("no_fluxmet_mm", summary.no_fluxmet_mm),
         ("no_fluxmet_weekly", summary.no_fluxmet_weekly),
+        ("no_fluxmet_daily", summary.no_fluxmet_daily),
+        ("no_fluxmet_annual", summary.no_fluxmet_annual),
         ("no_target_variables", summary.no_target_variables),
         ("parse_date_failure", summary.parse_date_failure),
     )

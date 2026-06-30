@@ -6787,6 +6787,12 @@
       : [];
   }
 
+  function previewVariableIsAvailable(siteManifest, resolution, variableKey) {
+    return DataPreview && DataPreview.isVariableAvailable
+      ? DataPreview.isVariableAvailable(siteManifest, resolution, variableKey)
+      : previewVariableKeys(siteManifest, resolution).indexOf(String(variableKey || "").trim().toUpperCase()) !== -1;
+  }
+
   function previewChooseDefaultResolution(siteManifest) {
     return DataPreview && DataPreview.chooseDefaultResolution
       ? DataPreview.chooseDefaultResolution(siteManifest)
@@ -7462,6 +7468,7 @@
       "        <select id=\"shuttle-preview-variable\" data-role=\"preview-variable\"></select>",
       "      </div>",
       "    </div>",
+      "    <p class=\"shuttle-explorer__tiny shuttle-explorer__preview-variable-note\" data-role=\"preview-variable-note\">Disabled variables are not available for this site and resolution.</p>",
       "    <p class=\"shuttle-explorer__status shuttle-explorer__preview-status\" data-role=\"preview-status\" role=\"status\" aria-live=\"polite\"></p>",
       "    <div class=\"shuttle-explorer__preview-chart-wrap\" data-role=\"preview-chart\"></div>",
       "    <div class=\"shuttle-explorer__preview-footer shuttle-explorer__tiny\" data-role=\"preview-footer\"></div>",
@@ -7761,6 +7768,7 @@
       previewControls: bySelector(this.root, "[data-role='preview-controls']"),
       previewResolution: bySelector(this.root, "[data-role='preview-resolution']"),
       previewVariable: bySelector(this.root, "[data-role='preview-variable']"),
+      previewVariableNote: bySelector(this.root, "[data-role='preview-variable-note']"),
       previewStatus: bySelector(this.root, "[data-role='preview-status']"),
       previewChart: bySelector(this.root, "[data-role='preview-chart']"),
       previewFooter: bySelector(this.root, "[data-role='preview-footer']"),
@@ -8349,8 +8357,8 @@
     }
     this.state.previewResolution = String(resolution || "").trim();
     variables = previewVariableKeys(this.state.previewSiteManifest, this.state.previewResolution);
-    if (variables.indexOf(this.state.previewVariable) === -1) {
-      this.state.previewVariable = variables[0] || "";
+    if (!previewVariableIsAvailable(this.state.previewSiteManifest, this.state.previewResolution, this.state.previewVariable)) {
+      this.state.previewVariable = previewChooseDefaultVariable(this.state.previewSiteManifest, this.state.previewResolution);
     }
     this.loadPreviewSeriesForCurrent();
   };
@@ -8359,7 +8367,11 @@
     if (!this.state.previewSiteManifest) {
       return;
     }
-    this.state.previewVariable = String(variable || "").trim().toUpperCase();
+    variable = String(variable || "").trim().toUpperCase();
+    if (!previewVariableIsAvailable(this.state.previewSiteManifest, this.state.previewResolution, variable)) {
+      return;
+    }
+    this.state.previewVariable = variable;
     this.loadPreviewSeriesForCurrent();
   };
 
@@ -8383,11 +8395,19 @@
     }
     if (b.previewVariable) {
       b.previewVariable.innerHTML = variables.map(function (key) {
-        var meta = previewVariableDefinition(key, previewSiteVariableMeta(siteManifest, resolution, key));
+        var siteMeta = previewSiteVariableMeta(siteManifest, resolution, key);
+        var meta = previewVariableDefinition(key, siteMeta);
+        var available = previewVariableIsAvailable(siteManifest, resolution, key);
         var label = meta.label && meta.label !== key ? key + " - " + meta.label : key;
-        return "<option value=\"" + escapeHtml(key) + "\"" + (key === variable ? " selected" : "") + ">" + escapeHtml(label) + "</option>";
+        return "<option value=\"" + escapeHtml(key) + "\"" +
+          (key === variable ? " selected" : "") +
+          (available ? "" : " disabled title=\"Not available for this site and resolution.\"") +
+          ">" + escapeHtml(label) + "</option>";
       }).join("");
       b.previewVariable.disabled = !variables.length || this.state.previewMode === "loading-site" || this.state.previewMode === "loading-data";
+    }
+    if (b.previewVariableNote) {
+      b.previewVariableNote.classList.toggle("shuttle-explorer__hidden", !siteManifest);
     }
   };
 
