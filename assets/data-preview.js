@@ -60,17 +60,25 @@
   var GLOBAL_MANIFEST_PATH = "manifest.json";
   var PREVIEW_SOURCE_LABEL = "FLUXNET Shuttle";
   var VARIABLE_ORDER = [
-    "GPP_NT_REF",
-    "GPP_DT_REF",
-    "NEE",
-    "RECO_NT_REF",
-    "RECO_DT_REF",
+    "GPP_NT_VUT_REF",
+    "GPP_NT_CUT_REF",
+    "GPP_DT_VUT_REF",
+    "GPP_DT_CUT_REF",
+    "NEE_VUT_REF",
+    "NEE_CUT_REF",
+    "RECO_NT_VUT_REF",
+    "RECO_NT_CUT_REF",
+    "RECO_DT_VUT_REF",
+    "RECO_DT_CUT_REF",
     "LE",
     "H",
     "TA",
     "VPD",
     "SW_IN",
-    "P",
+    "P"
+  ];
+  var LEGACY_VARIABLE_ORDER = [
+    "GPP_NT_REF", "GPP_DT_REF", "NEE", "RECO_NT_REF", "RECO_DT_REF",
     "GPP",
     "RECO"
   ];
@@ -82,13 +90,23 @@
     site_no_preview: "Preview data are not available for this site yet.",
     site_manifest_missing: "The site preview manifest is unavailable.",
     site_manifest_malformed: "The site preview manifest could not be read.",
-    variable_unavailable: "The selected variable is not available.",
+    variable_unavailable: "The selected variable is not available in this preview.",
     data_file_missing: "The selected preview data file is unavailable.",
     data_file_malformed: "The selected preview data file could not be read.",
     network_failure: "Preview data could not be loaded. Try again later."
   };
 
   var VARIABLE_REGISTRY = {
+    GPP_NT_VUT_REF: { key: "GPP_NT_VUT_REF", label: "GPP_NT_VUT_REF", defaultUnit: "g C m-2 d-1", description: "Gross primary productivity, nighttime partitioning, variable ustar threshold reference", preferredAxisLabel: "GPP_NT_VUT_REF" },
+    GPP_NT_CUT_REF: { key: "GPP_NT_CUT_REF", label: "GPP_NT_CUT_REF", defaultUnit: "g C m-2 d-1", description: "Gross primary productivity, nighttime partitioning, constant ustar threshold reference", preferredAxisLabel: "GPP_NT_CUT_REF" },
+    GPP_DT_VUT_REF: { key: "GPP_DT_VUT_REF", label: "GPP_DT_VUT_REF", defaultUnit: "g C m-2 d-1", description: "Gross primary productivity, daytime partitioning, variable ustar threshold reference", preferredAxisLabel: "GPP_DT_VUT_REF" },
+    GPP_DT_CUT_REF: { key: "GPP_DT_CUT_REF", label: "GPP_DT_CUT_REF", defaultUnit: "g C m-2 d-1", description: "Gross primary productivity, daytime partitioning, constant ustar threshold reference", preferredAxisLabel: "GPP_DT_CUT_REF" },
+    NEE_VUT_REF: { key: "NEE_VUT_REF", label: "NEE_VUT_REF", defaultUnit: "g C m-2 d-1", description: "Net ecosystem exchange, variable ustar threshold reference", preferredAxisLabel: "NEE_VUT_REF" },
+    NEE_CUT_REF: { key: "NEE_CUT_REF", label: "NEE_CUT_REF", defaultUnit: "g C m-2 d-1", description: "Net ecosystem exchange, constant ustar threshold reference", preferredAxisLabel: "NEE_CUT_REF" },
+    RECO_NT_VUT_REF: { key: "RECO_NT_VUT_REF", label: "RECO_NT_VUT_REF", defaultUnit: "g C m-2 d-1", description: "Ecosystem respiration, nighttime partitioning, variable ustar threshold reference", preferredAxisLabel: "RECO_NT_VUT_REF" },
+    RECO_NT_CUT_REF: { key: "RECO_NT_CUT_REF", label: "RECO_NT_CUT_REF", defaultUnit: "g C m-2 d-1", description: "Ecosystem respiration, nighttime partitioning, constant ustar threshold reference", preferredAxisLabel: "RECO_NT_CUT_REF" },
+    RECO_DT_VUT_REF: { key: "RECO_DT_VUT_REF", label: "RECO_DT_VUT_REF", defaultUnit: "g C m-2 d-1", description: "Ecosystem respiration, daytime partitioning, variable ustar threshold reference", preferredAxisLabel: "RECO_DT_VUT_REF" },
+    RECO_DT_CUT_REF: { key: "RECO_DT_CUT_REF", label: "RECO_DT_CUT_REF", defaultUnit: "g C m-2 d-1", description: "Ecosystem respiration, daytime partitioning, constant ustar threshold reference", preferredAxisLabel: "RECO_DT_CUT_REF" },
     GPP_NT_REF: {
       key: "GPP_NT_REF",
       label: "Gross primary productivity, nighttime partitioning reference",
@@ -284,12 +302,12 @@
     var registryEntry = VARIABLE_REGISTRY[key] || {
       key: key,
       label: key,
-      defaultUnit: "unit unavailable",
+      defaultUnit: "",
       description: "Preview variable from the site manifest.",
       preferredAxisLabel: key
     };
     var siteMeta = siteVariableMeta && typeof siteVariableMeta === "object" ? siteVariableMeta : {};
-    var unit = String(siteMeta.unit || registryEntry.defaultUnit || "unit unavailable").trim();
+    var unit = String(siteMeta.unit || registryEntry.defaultUnit || "").trim();
     var label = String(siteMeta.label || registryEntry.label || key).trim();
     return {
       key: key,
@@ -409,14 +427,13 @@
 
   function getResolutionNames(siteManifest) {
     var resolutions = siteManifest && siteManifest.resolutions && typeof siteManifest.resolutions === "object" ? siteManifest.resolutions : {};
+    var order = ["monthly", "weekly", "daily", "annual"];
     return Object.keys(resolutions).filter(Boolean).sort(function (a, b) {
-      if (a === "monthly") {
-        return -1;
-      }
-      if (b === "monthly") {
-        return 1;
-      }
-      return a.localeCompare(b);
+      var aIndex = order.indexOf(a);
+      var bIndex = order.indexOf(b);
+      aIndex = aIndex === -1 ? order.length : aIndex;
+      bIndex = bIndex === -1 ? order.length : bIndex;
+      return aIndex === bIndex ? a.localeCompare(b) : aIndex - bIndex;
     });
   }
 
@@ -429,10 +446,14 @@
   function listVariables(siteManifest, resolution) {
     var spec = getResolutionSpec(siteManifest, resolution);
     var variables = spec && spec.variables && typeof spec.variables === "object" ? Object.keys(spec.variables) : [];
+    var hasExplicitAvailability = variables.some(function (key) {
+      var meta = spec.variables[key];
+      return meta && typeof meta === "object" && Object.prototype.hasOwnProperty.call(meta, "available");
+    });
     var seen = {};
     var ordered = [];
-    VARIABLE_ORDER.forEach(function (key) {
-      if (variables.indexOf(key) !== -1) {
+    (hasExplicitAvailability ? VARIABLE_ORDER : VARIABLE_ORDER.concat(LEGACY_VARIABLE_ORDER)).forEach(function (key) {
+      if (hasExplicitAvailability || variables.indexOf(key) !== -1) {
         seen[key] = true;
         ordered.push(key);
       }
@@ -447,13 +468,32 @@
     return ordered;
   }
 
+  function isVariableAvailable(siteManifest, resolution, variableKey) {
+    var spec = getResolutionSpec(siteManifest, resolution);
+    var key = normalizeVariableKey(variableKey);
+    var meta = spec && spec.variables && spec.variables[key];
+    if (!meta) {
+      return false;
+    }
+    if (Object.prototype.hasOwnProperty.call(meta, "available")) {
+      return meta.available === true && Number(meta.nonNullCount == null ? 1 : meta.nonNullCount) > 0;
+    }
+    return true;
+  }
+
+  function listAvailableVariables(siteManifest, resolution) {
+    return listVariables(siteManifest, resolution).filter(function (key) {
+      return isVariableAvailable(siteManifest, resolution, key);
+    });
+  }
+
   function chooseDefaultResolution(siteManifest) {
     var names = getResolutionNames(siteManifest);
     return names.indexOf("monthly") !== -1 ? "monthly" : (names[0] || "");
   }
 
   function chooseDefaultVariable(siteManifest, resolution) {
-    return listVariables(siteManifest, resolution)[0] || "";
+    return listAvailableVariables(siteManifest, resolution)[0] || "";
   }
 
   function valueToNumberOrNull(value) {
@@ -462,7 +502,7 @@
       return null;
     }
     numberValue = Number(value);
-    if (!isFinite(numberValue) || numberValue <= -9990) {
+    if (!isFinite(numberValue) || numberValue <= -9990 || numberValue === -6999) {
       return null;
     }
     return numberValue;
@@ -608,7 +648,7 @@
       var resolvedResolution = String(resolution || "").trim() || chooseDefaultResolution(siteManifest);
       var spec = getResolutionSpec(siteManifest, resolvedResolution);
       var resolvedVariable = normalizeVariableKey(variableKey || chooseDefaultVariable(siteManifest, resolvedResolution));
-      var variables = listVariables(siteManifest, resolvedResolution);
+      var variables = listAvailableVariables(siteManifest, resolvedResolution);
       var siteMeta;
       var dataPath;
       var cacheKey;
@@ -672,6 +712,8 @@
     buildSiteAvailabilityLookup: buildSiteAvailabilityLookup,
     getResolutionNames: getResolutionNames,
     listVariables: listVariables,
+    listAvailableVariables: listAvailableVariables,
+    isVariableAvailable: isVariableAvailable,
     chooseDefaultResolution: chooseDefaultResolution,
     chooseDefaultVariable: chooseDefaultVariable,
     normalizeTimeSeriesRecords: normalizeTimeSeriesRecords

@@ -543,6 +543,52 @@ test('preview client loads selected series with manifest metadata overrides', as
   ]);
 });
 
+test('preview client exposes the standard menu, disables unavailable variables, and loads daily data', async () => {
+  const payloads = makePreviewPayloads({
+    'https://preview.example/v1/sites/US-Ha1/manifest.json': {
+      payload: {
+        schemaVersion: 1,
+        siteId: 'US-Ha1',
+        resolutions: {
+          daily: {
+            path: 'daily.json',
+            variables: {
+              GPP_NT_VUT_REF: { label: 'GPP_NT_VUT_REF', unit: 'g C m-2 d-1', available: true, nonNullCount: 2 },
+              GPP_NT_CUT_REF: { label: 'GPP_NT_CUT_REF', unit: 'g C m-2 d-1', available: false, nonNullCount: 0 },
+              RECO_DT_VUT_REF: { label: 'RECO_DT_VUT_REF', unit: 'g C m-2 d-1', available: true, nonNullCount: 2 }
+            }
+          }
+        }
+      }
+    },
+    'https://preview.example/v1/sites/US-Ha1/daily.json': {
+      payload: [
+        { date: '2001-01-01', GPP_NT_VUT_REF: 1.2, RECO_DT_VUT_REF: 2.0 },
+        { date: '2001-01-02', GPP_NT_VUT_REF: 1.4, RECO_DT_VUT_REF: 2.1 }
+      ]
+    }
+  });
+  const client = preview.createPreviewClient({
+    baseUrl: 'https://preview.example/v1',
+    fetchImpl: makePreviewFetch(payloads)
+  });
+  const manifest = await client.loadSiteManifest('US-Ha1');
+  const result = await client.loadSeries('US-Ha1', 'daily', 'RECO_DT_VUT_REF');
+
+  assert.deepEqual(preview.getResolutionNames(manifest), ['daily']);
+  assert.deepEqual(preview.listVariables(manifest, 'daily'), preview.VARIABLE_ORDER);
+  assert.deepEqual(preview.listAvailableVariables(manifest, 'daily'), ['GPP_NT_VUT_REF', 'RECO_DT_VUT_REF']);
+  assert.equal(preview.isVariableAvailable(manifest, 'daily', 'GPP_NT_CUT_REF'), false);
+  assert.equal(preview.chooseDefaultVariable(manifest, 'daily'), 'GPP_NT_VUT_REF');
+  await assert.rejects(() => client.loadSeries('US-Ha1', 'daily', 'GPP_NT_CUT_REF'), (error) => error.code === 'variable_unavailable');
+  assert.equal(result.resolution, 'daily');
+  assert.equal(result.variableMeta.key, 'RECO_DT_VUT_REF');
+  assert.deepEqual(result.records, [
+    { date: '2001-01-01', value: 2.0 },
+    { date: '2001-01-02', value: 2.1 }
+  ]);
+});
+
 test('preview client orders explicit partitioning products and loads weekly data', async () => {
   const payloads = makePreviewPayloads({
     'https://preview.example/v1/sites/US-Ha1/manifest.json': {
@@ -596,7 +642,7 @@ test('preview client orders explicit partitioning products and loads weekly data
 
 test('preview registry retains generic GPP and RECO for old monthly artifacts', () => {
   assert.deepEqual(preview.VARIABLE_ORDER.slice(0, 5), [
-    'GPP_NT_REF', 'GPP_DT_REF', 'NEE', 'RECO_NT_REF', 'RECO_DT_REF'
+    'GPP_NT_VUT_REF', 'GPP_NT_CUT_REF', 'GPP_DT_VUT_REF', 'GPP_DT_CUT_REF', 'NEE_VUT_REF'
   ]);
   assert.equal(preview.VARIABLE_REGISTRY.GPP.key, 'GPP');
   assert.equal(preview.VARIABLE_REGISTRY.RECO.key, 'RECO');
@@ -878,6 +924,8 @@ test('Preview modal wording and chart axes use polished labels', () => {
   assert.equal(explorerJs.includes('Open official data product'), false);
   assert.equal(explorerJs.includes('Download site data product'), true);
   assert.equal(explorerJs.includes('var PREVIEW_PRODUCT_HEADING = "Site Data Preview";'), true);
+  assert.equal(explorerJs.includes('Disabled variables are not available for this site and resolution.'), true);
+  assert.equal(explorerJs.includes('disabled title=\\"Not available for this site and resolution.\\"'), true);
   assert.equal(hooks.formatPreviewBuildDate('2026-06-25T04:01:24Z'), '2026-06-25');
   assert.equal(svg.includes('Monthly preview'), true);
   assert.equal(svg.includes('GPP (g C m-2 d-1)'), true);
@@ -905,6 +953,21 @@ test('Preview modal wording and chart axes use polished labels', () => {
   assert.equal(weeklySvg.includes('Weekly preview GPP_NT_REF'), false);
   assert.equal(weeklySvg.includes('>2012<'), true);
   assert.equal(weeklySvg.includes('>2013<'), true);
+
+  const annualSvg = hooks.buildPreviewChartSvg({
+    resolution: 'annual',
+    variable: 'NEE_VUT_REF',
+    variableMeta: { key: 'NEE_VUT_REF', label: 'NEE_VUT_REF', unit: 'g C m-2 d-1' },
+    records: [
+      { date: '2018-01-01', value: -0.2 },
+      { date: '2019-01-01', value: -0.1 },
+      { date: '2020-01-01', value: 0.1 }
+    ]
+  });
+  assert.equal(annualSvg.includes('Annual preview'), true);
+  assert.equal(annualSvg.includes('NEE_VUT_REF (g C m-2 d-1)'), true);
+  assert.equal(annualSvg.includes('>2018<'), true);
+  assert.equal(annualSvg.includes('>2020<'), true);
 });
 
 test('Map marker and legend colors use the shared swapped category mapping', () => {

@@ -1166,6 +1166,11 @@
   margin: 12px 0;
 }
 
+.shuttle-explorer__preview-variable-note {
+  margin: -5px 0 10px;
+  color: #667085;
+}
+
 .shuttle-explorer__preview-status {
   margin: 10px 0;
 }

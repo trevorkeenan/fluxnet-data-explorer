@@ -43,15 +43,17 @@ fluxnet-preview/
         manifest.json
         monthly.json
         weekly.json
+        daily.json
+        annual.json
 ```
 
-The UI supports single-site, single-variable monthly and weekly previews for Shuttle-backed rows, showing only the resolutions and variables advertised by each site manifest. The data files are plot-ready wide JSON records such as `{ "date": "2001-01-02", "GPP_NT_REF": 1.23 }`. Older monthly artifacts with generic `GPP` and `RECO` remain supported.
+The UI supports single-site, single-variable monthly, weekly, daily, and annual previews for Shuttle-backed rows. The variable menu always shows the 16 standard preview variables and disables those without non-missing output. Data files are plot-ready wide JSON records such as `{ "date": "2001-01-02", "GPP_NT_VUT_REF": 1.23 }`. Older artifacts with simplified or generic GPP/RECO keys remain supported.
 
 The static app resolves the preview base URL from the Explorer root attribute `data-preview-base-url`, then `window.FLUXNET_EXPLORER_CONFIG.previewBaseUrl` or `window.FLUXNET_EXPLORER_CONFIG.fluxnetPreviewBaseUrl`, then global values such as `window.VITE_FLUXNET_PREVIEW_BASE_URL` or `window.FLUXNET_PREVIEW_BASE_URL`. The committed page config uses `fluxnet-preview/v1` on localhost and `https://fluxnet-preview.keenangroup.info/v1` in production, so the deployed Explorer fetches `https://fluxnet-preview.keenangroup.info/v1/manifest.json`.
 
 Tiny synthetic local fixtures are committed under `fluxnet-preview/v1/` for `US-Ha1` and `CA-DBB`. To test locally, run the normal static server, search one of those site IDs, and click `Preview data`.
 
-Build preview artifacts with `scripts/build-shuttle-preview.py`. The builder reads the committed Shuttle snapshot or CSV catalog, downloads selected Shuttle zip products into a local cache, and reads requested values directly from `*_FLUXNET_FLUXMET_MM_*.csv` and/or `*_FLUXNET_FLUXMET_WW_*.csv`. It ignores ERA5 files and never derives one resolution from another; matching `BIFVARINFO` files may be used for units.
+Build preview artifacts with `scripts/build-shuttle-preview.py`. The builder reads the committed Shuttle snapshot or CSV catalog, downloads selected Shuttle zip products into a local cache, and reads requested values directly from the matching `FLUXMET_MM`, `FLUXMET_WW`, `FLUXMET_DD`, and `FLUXMET_YY` files. It ignores ERA5 files and never derives one resolution from another; matching `BIFVARINFO` files may be used for units. Annual records use `YYYY-01-01` internally so the shared date/chart path remains robust, while the x-axis displays years.
 
 Recommended dry run before downloading:
 
@@ -84,7 +86,7 @@ python3 scripts/build-shuttle-preview.py \
   --limit 25
 ```
 
-Use repeated `--site SITE_ID` arguments for an explicit subset, `--force` to rebuild unchanged fingerprints, and `--resolution weekly` or `--resolution monthly,weekly` to choose output resolutions. The default remains monthly. The resolution configuration is structured so daily can be added later without changing the artifact contract.
+Use repeated `--site SITE_ID` arguments for an explicit subset, `--force` to rebuild unchanged fingerprints, and `--resolution monthly,weekly,daily,annual` (or any one resolution) to choose output resolutions. The default remains monthly.
 
 The output directory can be copied to Cloudflare R2 or another static host. Enable CORS for the Explorer origin, preserve the `v1/manifest.json` and `v1/sites/...` paths, and set the preview base URL in the page configuration to the hosted `v1` directory.
 
