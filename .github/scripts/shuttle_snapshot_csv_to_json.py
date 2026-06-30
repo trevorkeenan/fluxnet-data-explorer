@@ -8,9 +8,16 @@ import csv
 import hashlib
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from scripts.inventory_fingerprint import compact_rows_to_records, inventory_version
 
 PROCESSING_LINEAGE_ONEFLUX = "oneflux"
 
@@ -80,17 +87,14 @@ def maybe_int(value: str) -> Optional[int]:
     return None
 
 
-def load_existing_meta(output_path: Path) -> Dict[str, object]:
+def load_existing_payload(output_path: Path) -> Dict[str, object]:
     if not output_path.exists():
         return {}
     try:
         payload = json.loads(output_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    meta = payload.get("meta")
-    if isinstance(meta, dict):
-        return meta
-    return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def load_source_statuses(path_value: str) -> Dict[str, object]:
@@ -136,18 +140,18 @@ def normalize_snapshot_updated_date(value: str, fallback_at: str = "") -> str:
 
 def choose_snapshot_updated_fields(
     existing_meta: Dict[str, object],
-    version_value: str,
+    existing_inventory_version: str,
+    new_inventory_version: str,
     requested_updated_at: str,
     requested_updated_date: str,
 ) -> tuple[str, str]:
-    existing_version = str(existing_meta.get("version") or "").strip()
     existing_updated_at = normalize_snapshot_updated_at(str(existing_meta.get("snapshot_updated_at") or ""))
     existing_updated_date = normalize_snapshot_updated_date(
         str(existing_meta.get("snapshot_updated_date") or ""),
         existing_updated_at,
     )
 
-    if existing_version == version_value and existing_updated_at and existing_updated_date:
+    if existing_inventory_version == new_inventory_version and existing_updated_at and existing_updated_date:
         return existing_updated_at, existing_updated_date
 
     updated_at = normalize_snapshot_updated_at(requested_updated_at)
@@ -248,17 +252,27 @@ def main() -> None:
     canonical_data_json = json.dumps(data_payload, ensure_ascii=True, separators=(",", ":"))
     version_hash = hashlib.sha256(canonical_data_json.encode("utf-8")).hexdigest()
     version_value = f"sha256:{version_hash}"
-    existing_meta = load_existing_meta(output_path)
+    existing_payload = load_existing_payload(output_path)
+    existing_meta = existing_payload.get("meta") if isinstance(existing_payload.get("meta"), dict) else {}
+    new_inventory_version = inventory_version(records, columns)
+    existing_inventory_version = str(existing_meta.get("inventory_version") or "").strip()
+    if not existing_inventory_version and existing_payload:
+        existing_inventory_version = inventory_version(
+            compact_rows_to_records(existing_payload),
+            existing_payload.get("columns") if isinstance(existing_payload.get("columns"), list) else None,
+        )
     source_statuses = load_source_statuses(args.source_status_input)
     snapshot_updated_at, snapshot_updated_date = choose_snapshot_updated_fields(
         existing_meta,
-        version_value,
+        existing_inventory_version,
+        new_inventory_version,
         args.snapshot_updated_at,
         args.snapshot_updated_date,
     )
     meta: Dict[str, object] = {
         "schema_version": 1,
         "version": version_value,
+        "inventory_version": new_inventory_version,
         "snapshot_refreshed_at": normalize_snapshot_updated_at(args.snapshot_updated_at) or snapshot_updated_at,
         "snapshot_refreshed_date": normalize_snapshot_updated_date(args.snapshot_updated_date, args.snapshot_updated_at) or snapshot_updated_date,
         "snapshot_updated_at": snapshot_updated_at,

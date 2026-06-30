@@ -19,8 +19,10 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
+    from .inventory_fingerprint import compact_rows_to_records, inventory_version
     from .refresh_logging import compact_error, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from inventory_fingerprint import compact_rows_to_records, inventory_version
     from refresh_logging import compact_error, log, phase
 
 SITES_LIST_URL = "https://www.europe-fluxdata.eu/home/sites-list"
@@ -349,15 +351,14 @@ def dedupe_site_rows(rows: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [chosen[site_id] for site_id in sorted(chosen)]
 
 
-def load_existing_meta(output_path: Path) -> Dict[str, Any]:
+def load_existing_payload(output_path: Path) -> Dict[str, Any]:
     if not output_path.exists():
         return {}
     try:
         payload = json.loads(output_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    meta = payload.get("meta")
-    return meta if isinstance(meta, dict) else {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def normalize_snapshot_updated_at(value: str) -> str:
@@ -386,17 +387,17 @@ def normalize_snapshot_updated_date(value: str, fallback_at: str = "") -> str:
 
 def choose_snapshot_updated_fields(
     existing_meta: Dict[str, Any],
-    version_value: str,
+    existing_inventory_version: str,
+    new_inventory_version: str,
     requested_updated_at: str,
     requested_updated_date: str,
 ) -> Tuple[str, str]:
-    existing_version = clean_string(existing_meta.get("version"))
     existing_updated_at = normalize_snapshot_updated_at(clean_string(existing_meta.get("snapshot_updated_at")))
     existing_updated_date = normalize_snapshot_updated_date(
         clean_string(existing_meta.get("snapshot_updated_date")),
         existing_updated_at,
     )
-    if existing_version == version_value and existing_updated_at and existing_updated_date:
+    if existing_inventory_version == new_inventory_version and existing_updated_at and existing_updated_date:
         return existing_updated_at, existing_updated_date
 
     updated_at = normalize_snapshot_updated_at(requested_updated_at)
@@ -714,12 +715,14 @@ def write_json(
     snapshot_refreshed_at: str,
     snapshot_refreshed_date: str,
     version_value: str,
+    inventory_version_value: str,
 ) -> None:
     columns = list(OUTPUT_COLUMNS)
     payload = {
         "meta": {
             "schema_version": 1,
             "version": version_value,
+            "inventory_version": inventory_version_value,
             "snapshot_refreshed_at": snapshot_refreshed_at,
             "snapshot_refreshed_date": snapshot_refreshed_date,
             "snapshot_updated_at": snapshot_updated_at,
@@ -769,10 +772,19 @@ def main() -> None:
         version_hash = hashlib.sha256(canonical_data.encode("utf-8")).hexdigest()
         version_value = f"sha256:{version_hash}"
 
-        existing_meta = load_existing_meta(output_json)
+        existing_payload = load_existing_payload(output_json)
+        existing_meta = existing_payload.get("meta") if isinstance(existing_payload.get("meta"), dict) else {}
+        new_inventory_version = inventory_version(curated_rows, OUTPUT_COLUMNS)
+        existing_inventory_version = clean_string(existing_meta.get("inventory_version"))
+        if not existing_inventory_version and existing_payload:
+            existing_inventory_version = inventory_version(
+                compact_rows_to_records(existing_payload),
+                existing_payload.get("columns") if isinstance(existing_payload.get("columns"), list) else None,
+            )
         snapshot_updated_at, snapshot_updated_date = choose_snapshot_updated_fields(
             existing_meta,
-            version_value,
+            existing_inventory_version,
+            new_inventory_version,
             args.snapshot_updated_at,
             args.snapshot_updated_date,
         )
@@ -789,6 +801,7 @@ def main() -> None:
             snapshot_refreshed_at,
             snapshot_refreshed_date,
             version_value,
+            new_inventory_version,
         )
 
     log(f"Loaded {len(public_rows)} public EFD catalog rows")

@@ -18,8 +18,10 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
+    from .inventory_fingerprint import compact_rows_to_records, inventory_version
     from .refresh_logging import compact_error, compact_text, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from inventory_fingerprint import compact_rows_to_records, inventory_version
     from refresh_logging import compact_error, compact_text, log, phase
 
 ADS_API_BASE = "https://ads.nipr.ac.jp/api/v1"
@@ -266,15 +268,14 @@ def choose_requested_refresh_fields(requested_updated_at: str, requested_updated
     return updated_at, updated_date
 
 
-def load_existing_meta(output_path: Path) -> Dict[str, Any]:
+def load_existing_payload(output_path: Path) -> Dict[str, Any]:
     if not output_path.exists():
         return {}
     try:
         payload = json.loads(output_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    meta = payload.get("meta")
-    return meta if isinstance(meta, dict) else {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def load_source_statuses(meta: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -290,17 +291,17 @@ def load_source_statuses(meta: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
 
 def choose_snapshot_updated_fields(
     existing_meta: Dict[str, Any],
-    version_value: str,
+    existing_inventory_version: str,
+    new_inventory_version: str,
     requested_updated_at: str,
     requested_updated_date: str,
 ) -> Tuple[str, str]:
-    existing_version = str(existing_meta.get("version") or "").strip()
     existing_updated_at = normalize_snapshot_updated_at(str(existing_meta.get("snapshot_updated_at") or ""))
     existing_updated_date = normalize_snapshot_updated_date(
         str(existing_meta.get("snapshot_updated_date") or ""),
         existing_updated_at,
     )
-    if existing_version == version_value and existing_updated_at and existing_updated_date:
+    if existing_inventory_version == new_inventory_version and existing_updated_at and existing_updated_date:
         return existing_updated_at, existing_updated_date
 
     updated_at = normalize_snapshot_updated_at(requested_updated_at)
@@ -586,6 +587,42 @@ def validate_direct_download_url(
     return probe_direct_download_url(build_direct_download_url(metadata_id, version), timeout=timeout) or ""
 
 
+def load_previous_direct_downloads(output_path: Path) -> Dict[Tuple[str, str], str]:
+    """Load last-known-good direct URLs keyed by stable dataset identity/version.
+
+    ADS occasionally rate-limits or times out individual ZIP probes while the
+    catalog APIs remain healthy. A failed probe is therefore not evidence that
+    an already validated endpoint disappeared. Keeping that endpoint prevents
+    transient probe flaps from changing the published availability inventory.
+    """
+
+    payload = load_existing_payload(output_path)
+    records = compact_rows_to_records(payload)
+    direct_downloads: Dict[Tuple[str, str], str] = {}
+    for record in records:
+        metadata_id = str(record.get("metadata_id") or "").strip()
+        version = str(record.get("version") or "").strip()
+        direct_url = str(record.get("direct_download_url") or "").strip()
+        if metadata_id and version and direct_url:
+            direct_downloads[(metadata_id, version)] = direct_url
+    return direct_downloads
+
+
+def retain_previous_direct_download(
+    metadata_id: str,
+    version: str,
+    validated_url: str,
+    previous_direct_downloads: Dict[Tuple[str, str], str],
+) -> Tuple[str, bool]:
+    """Prefer a current validation, else retain the same dataset/version URL."""
+
+    current = str(validated_url or "").strip()
+    if current:
+        return current, False
+    previous = str(previous_direct_downloads.get((metadata_id, version), "") or "").strip()
+    return previous, bool(previous)
+
+
 def normalize_csv_value(value: Any) -> str:
     if value is None:
         return ""
@@ -615,10 +652,19 @@ def write_json(
     canonical_data_json = json.dumps(data_payload, ensure_ascii=True, separators=(",", ":"))
     version_hash = hashlib.sha256(canonical_data_json.encode("utf-8")).hexdigest()
     version_value = f"sha256:{version_hash}"
-    existing_meta = load_existing_meta(path)
+    existing_payload = load_existing_payload(path)
+    existing_meta = existing_payload.get("meta") if isinstance(existing_payload.get("meta"), dict) else {}
+    new_inventory_version = inventory_version(rows, OUTPUT_COLUMNS)
+    existing_inventory_version = str(existing_meta.get("inventory_version") or "").strip()
+    if not existing_inventory_version and existing_payload:
+        existing_inventory_version = inventory_version(
+            compact_rows_to_records(existing_payload),
+            existing_payload.get("columns") if isinstance(existing_payload.get("columns"), list) else None,
+        )
     updated_at, updated_date = choose_snapshot_updated_fields(
         existing_meta,
-        version_value,
+        existing_inventory_version,
+        new_inventory_version,
         snapshot_updated_at,
         snapshot_updated_date,
     )
@@ -626,6 +672,7 @@ def write_json(
         "meta": {
             "schema_version": 1,
             "version": version_value,
+            "inventory_version": new_inventory_version,
             "snapshot_refreshed_at": normalize_snapshot_updated_at(snapshot_updated_at) or updated_at,
             "snapshot_refreshed_date": normalize_snapshot_updated_date(snapshot_updated_date, snapshot_updated_at) or updated_date,
             "snapshot_updated_at": updated_at,
@@ -872,6 +919,7 @@ def fetch_site_row(
     timeout: int,
     retries: int,
     retry_delay: float,
+    previous_direct_downloads: Dict[Tuple[str, str], str] | None = None,
 ) -> Dict[str, Any]:
     metadata_id = str(inventory_record["metadata_id"])
     site_id = str(inventory_record["site_id"])
@@ -908,8 +956,21 @@ def fetch_site_row(
         version,
         timeout=max(1, min(timeout, DIRECT_DOWNLOAD_PROBE_TIMEOUT_SECONDS)),
     )
+    direct_download_url, direct_download_carried_forward = retain_previous_direct_download(
+        metadata_id,
+        version,
+        direct_download_url,
+        previous_direct_downloads or {},
+    )
+    if direct_download_carried_forward:
+        log(
+            f"JapanFlux retained previously validated direct download for {site_id} "
+            f"({metadata_id}) v{version} after an inconclusive probe."
+        )
 
-    return build_site_row(inventory_record, version, first_year, last_year, direct_download_url)
+    row = build_site_row(inventory_record, version, first_year, last_year, direct_download_url)
+    row["_direct_download_carried_forward"] = direct_download_carried_forward
+    return row
 
 
 def preflight_ads_availability(
@@ -1008,6 +1069,8 @@ def refresh(args: argparse.Namespace) -> None:
     direct_download_count = 0
     landing_page_count = 0
     total = len(inventory)
+    previous_direct_downloads = load_previous_direct_downloads(output_json)
+    retained_direct_download_count = 0
 
     with phase("refresh JapanFlux sites"):
         for index, site_record in enumerate(inventory, start=1):
@@ -1019,8 +1082,11 @@ def refresh(args: argparse.Namespace) -> None:
                     timeout=max(1, args.timeout),
                     retries=max(1, args.retries),
                     retry_delay=max(0.1, args.retry_delay),
+                    previous_direct_downloads=previous_direct_downloads,
                 )
                 rows.append(row)
+                if row.pop("_direct_download_carried_forward", False):
+                    retained_direct_download_count += 1
                 if row["download_mode"] == "direct":
                     direct_download_count += 1
                 else:
@@ -1074,6 +1140,7 @@ def refresh(args: argparse.Namespace) -> None:
                 "failed_sites": len(failures),
                 "direct_download_urls": direct_download_count,
                 "landing_page_fallbacks": landing_page_count,
+                "retained_direct_downloads_after_probe_failure": retained_direct_download_count,
                 "source": "JapanFlux2024 (Ueyama et al., 2025, ESSD)",
                 "license": "CC BY 4.0",
                 "source_statuses": {JAPANFLUX_SOURCE: source_status},

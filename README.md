@@ -16,6 +16,16 @@ The live public Explorer is served from this repository at https://www.keenangro
 
 The Explorer serves committed CSV and JSON metadata snapshots from `assets/`. These snapshots are refreshed from upstream sources by the scheduled update workflow in this repository when available. The live GitHub Pages app at https://www.keenangroup.info/fluxnet-data-explorer/ reads those generated files from this repository.
 
+Snapshot status metadata deliberately separates refresh activity from data availability:
+
+- `snapshot_refreshed_at` / `snapshot_refreshed_date` power **Explorer refreshed** and advance after every successful source refresh.
+- `snapshot_updated_at` / `snapshot_updated_date` power **New data last added** and advance only when `inventory_version` changes.
+- `version` hashes the full browser payload for cache invalidation. It may change after descriptive metadata corrections without changing `inventory_version`.
+
+`inventory_version` is an order-insensitive SHA-256 fingerprint of normalized availability records. Its explicit field contract is in `scripts/inventory_fingerprint.py`: site, source/product identity, temporal coverage, access mode, and download/request/landing endpoints are included. Descriptive names, coordinates, contacts, citations, provenance text, generated/checked timestamps, source-status logs, and row ordering are excluded. Adding or removing a site/product, changing its covered years or access mode, or adding/removing/changing an access endpoint is therefore an inventory change; metadata-only edits are not.
+
+JapanFlux direct-download probes are treated conservatively because ADS can rate-limit or time out individual ZIP checks. Once a direct endpoint has been validated for a metadata ID and dataset version, an inconclusive later probe retains that committed endpoint. A new dataset version must validate its own URL. This prevents transient endpoint downgrades from advancing `snapshot_updated_*` while still allowing newly validated endpoints and new releases to count as inventory changes.
+
 Live source availability can change between repository releases. Zenodo releases are for versioned Explorer software releases and bundled metadata snapshots, not every daily manifest refresh.
 
 ## Data Preview

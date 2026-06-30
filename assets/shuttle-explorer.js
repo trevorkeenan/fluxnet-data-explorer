@@ -645,6 +645,12 @@
     }));
   }
 
+  function latestSnapshotUpdatedDateFromResults(results) {
+    return latestSnapshotDate((results || []).map(function (result) {
+      return extractSnapshotUpdatedDate(result && result.meta ? result.meta : {});
+    }));
+  }
+
   function extractSnapshotSourceStatuses(meta) {
     if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
       return {};
@@ -11298,7 +11304,12 @@
         japanFluxResult,
         efdResult
       ]),
-      snapshotUpdatedDate: extractSnapshotUpdatedDate(shuttleResult && shuttleResult.meta ? shuttleResult.meta : {}),
+      snapshotUpdatedDate: latestSnapshotUpdatedDateFromResults([
+        shuttleResult,
+        icosDirectResult,
+        japanFluxResult,
+        efdResult
+      ]),
       amerifluxTotalSites: ameriResult && ameriResult.totalSites ? ameriResult.totalSites : 0,
       amerifluxSitesWithYears: ameriResult && ameriResult.sitesWithYears ? ameriResult.sitesWithYears : 0,
       amerifluxOverlapSites: merge.amerifluxOverlapSites || 0,
@@ -11631,6 +11642,7 @@
     extractSnapshotRefreshedDate: extractSnapshotRefreshedDate,
     latestSnapshotDate: latestSnapshotDate,
     latestSnapshotRefreshedDateFromResults: latestSnapshotRefreshedDateFromResults,
+    latestSnapshotUpdatedDateFromResults: latestSnapshotUpdatedDateFromResults,
     extractSnapshotSourceStatuses: extractSnapshotSourceStatuses,
     buildSnapshotSourceStatusWarning: buildSnapshotSourceStatusWarning,
     snapshotUpdatedDateDisplayText: snapshotUpdatedDateDisplayText,

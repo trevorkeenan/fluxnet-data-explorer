@@ -122,6 +122,74 @@ class RefreshJapanFluxDirectTests(unittest.TestCase):
 
         self.assertEqual(resolved, "")
 
+    def test_failed_probe_retains_direct_url_for_same_dataset_version(self):
+        previous_url = "https://ads.nipr.ac.jp/api/v1/metadata/A20241022-024/1.00/data/zip/DATA"
+
+        resolved, carried_forward = module.retain_previous_direct_download(
+            "A20241022-024",
+            "1.00",
+            "",
+            {("A20241022-024", "1.00"): previous_url},
+        )
+
+        self.assertEqual(resolved, previous_url)
+        self.assertTrue(carried_forward)
+
+    def test_failed_probe_does_not_reuse_direct_url_from_older_dataset_version(self):
+        resolved, carried_forward = module.retain_previous_direct_download(
+            "A20241022-024",
+            "2.00",
+            "",
+            {
+                ("A20241022-024", "1.00"):
+                    "https://ads.nipr.ac.jp/api/v1/metadata/A20241022-024/1.00/data/zip/DATA"
+            },
+        )
+
+        self.assertEqual(resolved, "")
+        self.assertFalse(carried_forward)
+
+    def test_current_validation_replaces_previous_direct_url(self):
+        resolved, carried_forward = module.retain_previous_direct_download(
+            "A20241022-024",
+            "1.00",
+            "https://cdn.example.test/current.zip",
+            {
+                ("A20241022-024", "1.00"):
+                    "https://ads.nipr.ac.jp/api/v1/metadata/A20241022-024/1.00/data/zip/DATA"
+            },
+        )
+
+        self.assertEqual(resolved, "https://cdn.example.test/current.zip")
+        self.assertFalse(carried_forward)
+
+    def test_site_refresh_keeps_same_version_direct_url_when_probe_is_inconclusive(self):
+        inventory_record = module.parse_site_inventory()[0]
+        previous_url = module.build_direct_download_url(inventory_record["metadata_id"], "1.00")
+        data_entries = [
+            {"name": "ALLVARS", "authority": "allow", "directory": True},
+        ]
+        allvars_entries = [
+            {"name": "FLX_JP-Ozm_JapanFLUX2024_ALLVARS_HH_2015-2017_1-3.csv", "directory": False},
+        ]
+
+        with (
+            mock.patch.object(module, "extract_latest_version", return_value="1.00"),
+            mock.patch.object(module, "list_directory", side_effect=[data_entries, allvars_entries]),
+            mock.patch.object(module, "validate_direct_download_url", return_value=""),
+        ):
+            row = module.fetch_site_row(
+                inventory_record,
+                timeout=5,
+                retries=1,
+                retry_delay=0.1,
+                previous_direct_downloads={(inventory_record["metadata_id"], "1.00"): previous_url},
+            )
+
+        self.assertEqual(row["download_mode"], "direct")
+        self.assertEqual(row["direct_download_url"], previous_url)
+        self.assertTrue(row["_direct_download_carried_forward"])
+
     def test_ads_outage_detection_matches_maintenance_response(self):
         self.assertTrue(module.looks_like_ads_outage(RuntimeError("HTTP 503: ADS is under maintenance.")))
         self.assertFalse(module.looks_like_ads_outage(RuntimeError("No versions returned for A20240722-001")))

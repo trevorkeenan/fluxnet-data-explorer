@@ -2679,6 +2679,17 @@ test('Snapshot refreshed helper separates workflow refresh date from data freshn
   );
 });
 
+test('Latest data inventory date includes every committed snapshot source', () => {
+  assert.equal(
+    hooks.latestSnapshotUpdatedDateFromResults([
+      { meta: { snapshot_updated_date: '2026-04-21' } },
+      { meta: { snapshot_updated_date: '2026-04-25' } },
+      { meta: { snapshot_refreshed_date: '2026-04-29', snapshot_updated_date: '2026-04-22' } }
+    ]),
+    '2026-04-25'
+  );
+});
+
 test('Snapshot source-status helper surfaces carried-forward sources as a non-blocking warning', () => {
   assert.equal(
     hooks.buildSnapshotSourceStatusWarning({
