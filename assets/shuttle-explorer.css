@@ -1199,6 +1199,13 @@
   stroke-width: 1;
 }
 
+.shuttle-explorer__preview-zero-line {
+  stroke: #6b7280;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.6;
+}
+
 .shuttle-explorer__preview-tick-mark {
   stroke: #7f8da0;
   stroke-width: 1;

@@ -6987,8 +6987,8 @@
 
     xMin = Math.min.apply(null, valid.map(function (point) { return point.time; }));
     xMax = Math.max.apply(null, valid.map(function (point) { return point.time; }));
-    yMin = Math.min.apply(null, valid.map(function (point) { return point.value; }));
-    yMax = Math.max.apply(null, valid.map(function (point) { return point.value; }));
+    yMin = Math.min(0, Math.min.apply(null, valid.map(function (point) { return point.value; })));
+    yMax = Math.max(0, Math.max.apply(null, valid.map(function (point) { return point.value; })));
     if (xMin === xMax) {
       xMin -= 86400000;
       xMax += 86400000;
@@ -7046,6 +7046,7 @@
     return [
       "<svg class=\"shuttle-explorer__preview-chart\" viewBox=\"0 0 " + width + " " + height + "\" role=\"img\" aria-label=\"" + escapeHtml(figureTitle + " chart for " + yAxisLabel) + "\">",
       "<rect class=\"shuttle-explorer__preview-plot-bg\" x=\"" + margin.left + "\" y=\"" + margin.top + "\" width=\"" + plotWidth + "\" height=\"" + plotHeight + "\" />",
+      "<line class=\"shuttle-explorer__preview-zero-line preview-zero-line\" aria-hidden=\"true\" x1=\"" + margin.left + "\" y1=\"" + yScale(0).toFixed(2) + "\" x2=\"" + (margin.left + plotWidth) + "\" y2=\"" + yScale(0).toFixed(2) + "\" />",
       "<line class=\"shuttle-explorer__preview-axis\" x1=\"" + margin.left + "\" y1=\"" + (margin.top + plotHeight) + "\" x2=\"" + (margin.left + plotWidth) + "\" y2=\"" + (margin.top + plotHeight) + "\" />",
       "<line class=\"shuttle-explorer__preview-axis\" x1=\"" + margin.left + "\" y1=\"" + margin.top + "\" x2=\"" + margin.left + "\" y2=\"" + (margin.top + plotHeight) + "\" />",
       yearTickHtml,

@@ -937,6 +937,7 @@ test('Preview modal wording and chart axes use polished labels', () => {
   assert.equal(svg.includes('>2014<'), true);
   assert.equal(svg.includes('shuttle-explorer__preview-axis-label--y'), true);
   assert.equal(svg.includes('shuttle-explorer__preview-axis-label--x'), true);
+  assert.equal(svg.includes('shuttle-explorer__preview-zero-line preview-zero-line'), true);
 
   const weeklySvg = hooks.buildPreviewChartSvg({
     resolution: 'weekly',
@@ -969,6 +970,42 @@ test('Preview modal wording and chart axes use polished labels', () => {
   assert.equal(annualSvg.includes('NEE_VUT_REF (g C m-2 d-1)'), true);
   assert.equal(annualSvg.includes('>2018<'), true);
   assert.equal(annualSvg.includes('>2020<'), true);
+});
+
+test('Preview chart zero line expands one-sided domains and handles empty data', () => {
+  const explorerCss = fs.readFileSync(path.join(__dirname, '..', 'assets', 'shuttle-explorer.css'), 'utf8');
+
+  function zeroLineY(svg) {
+    const match = svg.match(/class="shuttle-explorer__preview-zero-line preview-zero-line"[^>]* y1="([0-9.]+)"/);
+    return match ? Number(match[1]) : NaN;
+  }
+
+  const positiveSvg = hooks.buildPreviewChartSvg({
+    resolution: 'monthly', variable: 'SW_IN', variableMeta: { key: 'SW_IN', unit: 'W m-2' },
+    records: [{ date: '2020-01', value: 100 }, { date: '2020-02', value: 200 }]
+  });
+  const negativeSvg = hooks.buildPreviewChartSvg({
+    resolution: 'daily', variable: 'NEE_VUT_REF', variableMeta: { key: 'NEE_VUT_REF', unit: 'g C m-2 d-1' },
+    records: [{ date: '2020-01-01', value: -3 }, { date: '2020-01-02', value: -1 }]
+  });
+  const mixedSvg = hooks.buildPreviewChartSvg({
+    resolution: 'annual', variable: 'NEE_VUT_REF', variableMeta: { key: 'NEE_VUT_REF', unit: 'g C m-2 d-1' },
+    records: [{ date: '2019-01-01', value: -1 }, { date: '2020-01-01', value: 2 }]
+  });
+  const emptyHtml = hooks.buildPreviewChartSvg({
+    resolution: 'weekly', variable: 'GPP_NT_VUT_REF', records: [{ date: '2020-01-01', value: null }]
+  });
+
+  assert.equal(positiveSvg.includes('preview-zero-line'), true);
+  assert.equal(negativeSvg.includes('preview-zero-line'), true);
+  assert.equal(mixedSvg.includes('preview-zero-line'), true);
+  assert.equal(zeroLineY(positiveSvg) > 32 && zeroLineY(positiveSvg) < 270, true);
+  assert.equal(zeroLineY(negativeSvg) > 32 && zeroLineY(negativeSvg) < 270, true);
+  assert.equal(zeroLineY(mixedSvg) > 32 && zeroLineY(mixedSvg) < 270, true);
+  assert.equal(emptyHtml.includes('preview-zero-line'), false);
+  assert.equal(emptyHtml.includes('No numeric values are available'), true);
+  assert.equal(explorerCss.includes('.shuttle-explorer__preview-zero-line {'), true);
+  assert.equal(explorerCss.includes('stroke-dasharray: 4 4;'), true);
 });
 
 test('Map marker and legend colors use the shared swapped category mapping', () => {
