@@ -775,6 +775,8 @@ US-SJ2,WET,ameriflux_site_search
 US-SKR,EBF,ameriflux_site_search
 US-SLT,DBF,ameriflux_site_search
 US-SM1,CRO,ameriflux_site_search
+US-SM2,CRO,ameriflux_site_search
+US-SM3,CRO,ameriflux_site_search
 US-SND,GRA,ameriflux_site_search
 US-SNE,GRA,ameriflux_site_search
 US-SNF,GRA,ameriflux_site_search
