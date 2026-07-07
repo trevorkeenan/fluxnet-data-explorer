@@ -494,6 +494,259 @@ class ShuttlePreviewBuilderTests(unittest.TestCase):
         self.assertEqual(second.skipped[0].reason, "product fingerprint unchanged")
         self.assertEqual(len(forced.built), 1)
 
+    def test_product_fingerprint_is_stable_and_tracks_product_fields(self):
+        row = snapshot_row("US-Test", "https://example.test/product.zip")
+        product = module.product_row_from_snapshot(row)
+        assert product is not None
+        same = module.product_row_from_snapshot(dict(row))
+        assert same is not None
+        changed_url = module.product_row_from_snapshot({**row, "download_link": "https://example.test/product-v2.zip"})
+        changed_version = module.product_row_from_snapshot({**row, "product_version": "v2"})
+        changed_year = module.product_row_from_snapshot({**row, "last_year": "2022"})
+        assert changed_url and changed_version and changed_year
+
+        baseline = module.compute_fingerprint(product).value
+
+        self.assertEqual(module.compute_fingerprint(same).value, baseline)
+        self.assertNotEqual(module.compute_fingerprint(changed_url).value, baseline)
+        self.assertNotEqual(module.compute_fingerprint(changed_version).value, baseline)
+        self.assertNotEqual(module.compute_fingerprint(changed_year).value, baseline)
+
+    def test_build_writes_build_index_with_site_metadata(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source_zip = write_zip(
+                tmp_path / "source.zip",
+                {
+                    "AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv(),
+                    "AMF_US-Test_FLUXNET_FLUXMET_WW_2020-2021_v1.3_r1.csv": weekly_csv(),
+                },
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+            output_dir = tmp_path / "preview" / "v1"
+
+            def download(_product, destination):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source_zip, destination)
+
+            module.run_build(
+                snapshot_path,
+                output_dir,
+                tmp_path / "cache",
+                resolutions=["monthly", "weekly"],
+                force=True,
+                built_at="2026-06-24T00:00:00Z",
+                download_func=download,
+                log=lambda _message: None,
+            )
+            build_index = json.loads((output_dir / "build-index.json").read_text())
+            entry = build_index["sites"]["US-Test"]
+
+        self.assertEqual(entry["siteId"], "US-Test")
+        self.assertEqual(entry["productUrl"], "https://example.test/product.zip")
+        self.assertEqual(entry["productId"], "10.1234/test")
+        self.assertEqual(entry["firstYear"], "2020")
+        self.assertEqual(entry["lastYear"], "2021")
+        self.assertEqual(entry["previewBuiltAt"], "2026-06-24T00:00:00Z")
+        self.assertEqual(entry["resolutions"], ["monthly", "weekly"])
+        self.assertEqual(entry["artifacts"]["weekly"], "sites/US-Test/weekly.json")
+        self.assertEqual(entry["sourceFiles"]["monthly"], "AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv")
+        self.assertEqual(entry["sourceColumns"]["weekly"]["GPP_DT_VUT_REF"], "GPP_DT_VUT_REF")
+        self.assertNotIn(str(tmp_path), json.dumps(build_index))
+
+    def test_refresh_plan_classifies_sites_and_missing_artifacts(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            for site_id in ["US-Same", "US-Changed", "US-Missing", "US-Removed"]:
+                write_zip(
+                    archive_dir / f"AMF_{site_id}_FLUXNET_2020-2021.zip",
+                    {f"AMF_{site_id}_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()},
+                )
+            existing_snapshot = snapshot_json(
+                tmp_path / "existing.json",
+                [
+                    snapshot_row("US-Same"),
+                    snapshot_row("US-Changed", "https://example.test/old.zip"),
+                    snapshot_row("US-Missing"),
+                    snapshot_row("US-Removed"),
+                ],
+            )
+            existing_dir = tmp_path / "preview" / "v1"
+            module.run_build(
+                existing_snapshot,
+                existing_dir,
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=lambda _message: None,
+            )
+            (existing_dir / "sites" / "US-Missing" / "monthly.json").unlink()
+            current_snapshot = snapshot_json(
+                tmp_path / "current.json",
+                [
+                    snapshot_row("US-Same"),
+                    snapshot_row("US-Changed", "https://example.test/new.zip"),
+                    snapshot_row("US-Missing"),
+                    snapshot_row("US-New"),
+                    {"site_id": "US-NoUrl", "site_name": "No URL"},
+                ],
+            )
+
+            plan = module.plan_preview_refresh(
+                current_snapshot,
+                existing_preview_dir=existing_dir,
+                resolutions=["monthly"],
+                generated_at="2026-06-24T00:00:00Z",
+            )
+            by_site = {site["siteId"]: site["classification"] for site in plan["sites"]}
+
+        self.assertEqual(by_site["US-Same"], "unchanged")
+        self.assertEqual(by_site["US-Changed"], "changed")
+        self.assertEqual(by_site["US-Missing"], "needs_rebuild_due_to_missing_artifacts")
+        self.assertEqual(by_site["US-New"], "new")
+        self.assertEqual(by_site["US-NoUrl"], "unavailable/no_product_url")
+        self.assertEqual(by_site["US-Removed"], "missing_from_snapshot")
+        self.assertEqual(plan["counts"]["unchanged"], 1)
+        self.assertEqual(plan["counts"]["changed"], 1)
+
+    def test_incremental_refresh_retains_previous_artifacts_on_failure_and_writes_report(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2020-2021.zip",
+                {"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()},
+            )
+            existing_snapshot = snapshot_json(tmp_path / "existing.json", [snapshot_row("US-Test", "https://example.test/old.zip")])
+            existing_dir = tmp_path / "preview" / "v1"
+            module.run_build(
+                existing_snapshot,
+                existing_dir,
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=lambda _message: None,
+            )
+            current_snapshot = snapshot_json(tmp_path / "current.json", [snapshot_row("US-Test", "https://example.test/new.zip")])
+            plan = module.plan_preview_refresh(current_snapshot, existing_preview_dir=existing_dir, resolutions=["monthly"])
+            plan_path = tmp_path / "plan.json"
+            module.write_json(plan_path, plan)
+            empty_archive_dir = tmp_path / "empty-archives"
+            empty_archive_dir.mkdir()
+            output_dir = tmp_path / "refresh" / "v1"
+
+            summary = module.run_build(
+                current_snapshot,
+                output_dir,
+                tmp_path / "cache2",
+                archive_dir=empty_archive_dir,
+                offline=True,
+                force=True,
+                sites_from_plan=plan_path,
+                log=lambda _message: None,
+            )
+            report = json.loads((output_dir / "refresh-report.json").read_text())
+            retained_monthly_exists = (output_dir / "sites" / "US-Test" / "monthly.json").exists()
+
+        self.assertEqual([result.site_id for result in summary.missing_local_archive], ["US-Test"])
+        self.assertEqual([result.site_id for result in summary.previous_retained], ["US-Test"])
+        self.assertTrue(retained_monthly_exists)
+        self.assertEqual(report["previousPreviewRetainedCount"], 1)
+        self.assertEqual(report["sitesFailed"][0]["siteId"], "US-Test")
+
+    def test_incremental_refresh_merges_build_index_for_unchanged_sites(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            for site_id, value in [("US-A", "1.0"), ("US-B", "2.0")]:
+                write_zip(
+                    archive_dir / f"AMF_{site_id}_FLUXNET_2020-2021.zip",
+                    {f"AMF_{site_id}_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv(value)},
+                )
+            existing_snapshot = snapshot_json(
+                tmp_path / "existing.json",
+                [snapshot_row("US-A", "https://example.test/a-old.zip"), snapshot_row("US-B", "https://example.test/b.zip")],
+            )
+            existing_dir = tmp_path / "preview" / "v1"
+            module.run_build(
+                existing_snapshot,
+                existing_dir,
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=lambda _message: None,
+            )
+            current_snapshot = snapshot_json(
+                tmp_path / "current.json",
+                [snapshot_row("US-A", "https://example.test/a-new.zip"), snapshot_row("US-B", "https://example.test/b.zip")],
+            )
+            plan = module.plan_preview_refresh(current_snapshot, existing_preview_dir=existing_dir, resolutions=["monthly"])
+            plan_path = tmp_path / "plan.json"
+            module.write_json(plan_path, plan)
+            output_dir = tmp_path / "refresh" / "v1"
+
+            module.run_build(
+                current_snapshot,
+                output_dir,
+                tmp_path / "cache2",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                sites_from_plan=plan_path,
+                log=lambda _message: None,
+            )
+            build_index = json.loads((output_dir / "build-index.json").read_text())
+
+        self.assertEqual(set(build_index["sites"]), {"US-A", "US-B"})
+        self.assertEqual(build_index["sites"]["US-A"]["productUrl"], "https://example.test/a-new.zip")
+        self.assertEqual(build_index["sites"]["US-B"]["productUrl"], "https://example.test/b.zip")
+
+    def test_all_unchanged_plan_prefills_without_building_sites(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            archive_dir = tmp_path / "archives"
+            write_zip(
+                archive_dir / "AMF_US-Test_FLUXNET_2020-2021.zip",
+                {"AMF_US-Test_FLUXNET_FLUXMET_MM_2020-2021_v1.3_r1.csv": monthly_csv()},
+            )
+            snapshot_path = snapshot_json(tmp_path / "snapshot.json", [snapshot_row("US-Test")])
+            existing_dir = tmp_path / "preview" / "v1"
+            module.run_build(
+                snapshot_path,
+                existing_dir,
+                tmp_path / "cache",
+                archive_dir=archive_dir,
+                offline=True,
+                force=True,
+                log=lambda _message: None,
+            )
+            plan = module.plan_preview_refresh(snapshot_path, existing_preview_dir=existing_dir, resolutions=["monthly"])
+            plan_path = tmp_path / "plan.json"
+            module.write_json(plan_path, plan)
+            output_dir = tmp_path / "refresh" / "v1"
+
+            summary = module.run_build(
+                snapshot_path,
+                output_dir,
+                tmp_path / "cache2",
+                sites_from_plan=plan_path,
+                force=True,
+                download_func=lambda _product, _destination: self.fail("unchanged plan should not build or download"),
+                log=lambda _message: None,
+            )
+            report = json.loads((output_dir / "refresh-report.json").read_text())
+            build_index = json.loads((output_dir / "build-index.json").read_text())
+
+        self.assertEqual(summary.counts()["built"], 0)
+        self.assertEqual(summary.counts()["skipped"], 0)
+        self.assertEqual(set(build_index["sites"]), {"US-Test"})
+        self.assertEqual(report["countsByClassification"], {"unchanged": 1})
+        self.assertEqual(report["sitesUnchanged"], ["US-Test"])
+
     def test_dry_run_reports_build_without_download_or_writes(self):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

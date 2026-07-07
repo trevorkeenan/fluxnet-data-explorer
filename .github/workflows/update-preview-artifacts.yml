@@ -1,0 +1,202 @@
+name: Update FLUXNET Preview Artifacts
+
+"on":
+  workflow_dispatch:
+    inputs:
+      upload_to_r2:
+        description: "Upload refreshed preview artifacts to R2"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      max_rebuild_sites:
+        description: "Maximum number of sites allowed to rebuild before failing"
+        required: true
+        default: "25"
+  schedule:
+    - cron: "37 10 * * 2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-preview-artifacts
+  cancel-in-progress: false
+
+jobs:
+  update-preview-artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      EXISTING_PREVIEW_DIR: /tmp/existing-preview/v1
+      PREVIEW_OUTPUT_DIR: /tmp/fluxnet-preview-refresh/v1
+      PREVIEW_PLAN: /tmp/preview-refresh-plan.json
+      PREVIEW_VALIDATION_SUMMARY: /tmp/preview-validation-summary.json
+      PREVIEW_CACHE_DIR: /tmp/preview-builder-cache
+      RCLONE_CONFIG_PATH: /tmp/rclone.conf
+      R2_DESTINATION: cloudflare-r2:fluxnet-preview/v1
+      UPLOAD_TO_R2: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_to_r2 == 'true' && 'true' || 'false' }}
+      MAX_REBUILD_SITES: ${{ github.event_name == 'workflow_dispatch' && inputs.max_rebuild_sites || '25' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.8"
+
+      - name: Install rclone
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rclone
+          rclone version
+
+      - name: Configure rclone for Cloudflare R2
+        timeout-minutes: 2
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${R2_ACCOUNT_ID}" ] || [ -z "${R2_ACCESS_KEY_ID}" ] || [ -z "${R2_SECRET_ACCESS_KEY}" ]; then
+            echo "Missing one or more required R2 secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY" >&2
+            exit 1
+          fi
+          cat > "${RCLONE_CONFIG_PATH}" <<EOF
+          [cloudflare-r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+          acl = private
+          EOF
+          chmod 600 "${RCLONE_CONFIG_PATH}"
+
+      - name: Copy current preview artifacts from R2
+        timeout-minutes: 45
+        env:
+          RCLONE_CONFIG: ${{ env.RCLONE_CONFIG_PATH }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${EXISTING_PREVIEW_DIR}"
+          rclone copy \
+            "${R2_DESTINATION}" \
+            "${EXISTING_PREVIEW_DIR}" \
+            --progress \
+            --transfers 16 \
+            --checkers 32
+
+      - name: Plan incremental preview refresh
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          PYTHONPYCACHEPREFIX=/tmp/fluxnet_preview_pycache \
+          python3 scripts/plan-preview-refresh.py \
+            --snapshot assets/shuttle_snapshot.json \
+            --existing-preview-dir "${EXISTING_PREVIEW_DIR}" \
+            --output-plan "${PREVIEW_PLAN}"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path("/tmp/preview-refresh-plan.json").read_text(encoding="utf-8"))
+          print("Preview refresh plan counts:")
+          for name, count in sorted(plan.get("counts", {}).items()):
+              print(f"  {name}: {count}")
+          rebuild = sum(
+              1
+              for site in plan.get("sites", [])
+              if site.get("classification") in {"new", "changed", "needs_rebuild_due_to_missing_artifacts"}
+          )
+          print(f"  rebuild_required: {rebuild}")
+          PY
+
+      - name: Enforce rebuild guardrail
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          REBUILD_COUNT="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path("/tmp/preview-refresh-plan.json").read_text(encoding="utf-8"))
+          print(sum(
+              1
+              for site in plan.get("sites", [])
+              if site.get("classification") in {"new", "changed", "needs_rebuild_due_to_missing_artifacts"}
+          ))
+          PY
+          )"
+          echo "Sites requiring rebuild: ${REBUILD_COUNT}"
+          echo "Maximum allowed rebuild sites: ${MAX_REBUILD_SITES}"
+          if [ "${REBUILD_COUNT}" -gt "${MAX_REBUILD_SITES}" ]; then
+            echo "Refusing to rebuild ${REBUILD_COUNT} sites because it exceeds max_rebuild_sites=${MAX_REBUILD_SITES}." >&2
+            echo "Inspect ${PREVIEW_PLAN}; this may indicate a provider/snapshot issue or a large intentional refresh." >&2
+            exit 1
+          fi
+
+      - name: Build incremental preview output
+        timeout-minutes: 120
+        run: |
+          set -euo pipefail
+          PYTHONPYCACHEPREFIX=/tmp/fluxnet_preview_pycache \
+          python3 scripts/build-shuttle-preview.py \
+            --snapshot assets/shuttle_snapshot.json \
+            --output-dir "${PREVIEW_OUTPUT_DIR}" \
+            --cache-dir "${PREVIEW_CACHE_DIR}" \
+            --resolution monthly,weekly,daily,annual \
+            --sites-from-plan "${PREVIEW_PLAN}" \
+            --force
+
+      - name: Validate refreshed preview output
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          python3 scripts/validate-preview-artifacts.py \
+            --preview-dir "${PREVIEW_OUTPUT_DIR}" \
+            --plan "${PREVIEW_PLAN}" \
+            --summary-out "${PREVIEW_VALIDATION_SUMMARY}"
+
+      - name: Upload preview refresh diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-refresh-diagnostics
+          if-no-files-found: warn
+          path: |
+            /tmp/preview-refresh-plan.json
+            /tmp/preview-validation-summary.json
+            /tmp/fluxnet-preview-refresh/v1/refresh-report.json
+            /tmp/fluxnet-preview-refresh/v1/build-index.json
+
+      - name: Upload refreshed preview artifacts to R2
+        if: github.event_name == 'workflow_dispatch' && env.UPLOAD_TO_R2 == 'true'
+        timeout-minutes: 60
+        env:
+          RCLONE_CONFIG: ${{ env.RCLONE_CONFIG_PATH }}
+        run: |
+          set -euo pipefail
+          rclone copy \
+            "${PREVIEW_OUTPUT_DIR}" \
+            "${R2_DESTINATION}" \
+            --progress \
+            --transfers 16 \
+            --checkers 32
+
+      - name: Report hosted metadata status after upload
+        if: github.event_name == 'workflow_dispatch' && env.UPLOAD_TO_R2 == 'true'
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          for url in \
+            "https://fluxnet-preview.keenangroup.info/v1/manifest.json" \
+            "https://fluxnet-preview.keenangroup.info/v1/build-index.json"
+          do
+            status="$(curl -L -s -o /dev/null -w '%{http_code}' "${url}")"
+            echo "${url} -> HTTP ${status}"
+          done

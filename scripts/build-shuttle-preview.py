@@ -55,6 +55,8 @@ RESOLUTION_CONFIG: Dict[str, Dict[str, str]] = {
 }
 GLOBAL_MANIFEST_FILENAME = "manifest.json"
 SITE_MANIFEST_FILENAME = "manifest.json"
+BUILD_INDEX_FILENAME = "build-index.json"
+REFRESH_REPORT_FILENAME = "refresh-report.json"
 DOWNLOAD_TIMEOUT_SECONDS = 60
 DOWNLOAD_RETRIES = 2
 RETRY_DELAY_SECONDS = 2.0
@@ -134,16 +136,36 @@ VARIABLE_ALIASES: Dict[str, List[str]] = {
 FINGERPRINT_FIELDS = [
     "site_id",
     "download_link",
+    "download_url",
+    "product_url",
     "fluxnet_product_name",
     "product_id",
+    "product_pid",
+    "pid",
+    "doi",
+    "product_doi",
+    "product_version",
     "oneflux_code_version",
+    "file_size",
+    "filesize",
+    "size",
+    "checksum",
+    "sha256",
+    "md5",
     "product_source_network",
     "source_network",
     "network",
     "data_hub",
+    "source_hub",
+    "source_prefix",
     "first_year",
     "last_year",
+    "product_date",
+    "modified_date",
+    "updated_at",
+    "last_modified",
 ]
+REBUILD_PLAN_CLASSIFICATIONS = {"new", "changed", "needs_rebuild_due_to_missing_artifacts"}
 
 
 class PreviewBuildError(RuntimeError):
@@ -251,6 +273,7 @@ class SiteResult:
     status: str
     reason: str = ""
     global_entry: Optional[Dict[str, Any]] = None
+    build_index_entry: Optional[Dict[str, Any]] = None
     previews: Dict[str, ResolutionPreview] = field(default_factory=dict)
     missing_resolutions: Dict[str, str] = field(default_factory=dict)
     fingerprint: Optional[ProductFingerprint] = None
@@ -285,6 +308,8 @@ class BuildSummary:
     parse_date_failure: List[SiteResult] = field(default_factory=list)
     dry_run_build: List[SiteResult] = field(default_factory=list)
     dry_run_skip: List[SiteResult] = field(default_factory=list)
+    previous_retained: List[SiteResult] = field(default_factory=list)
+    plan_counts: Dict[str, int] = field(default_factory=dict)
 
     def add(self, result: SiteResult) -> None:
         if result.status == "built":
@@ -321,6 +346,8 @@ class BuildSummary:
             self.dry_run_build.append(result)
         elif result.status == "dry-run-skip":
             self.dry_run_skip.append(result)
+        elif result.status == "previous_retained":
+            self.previous_retained.append(result)
         else:
             self.failed.append(SiteResult(result.site_id, "failed", result.reason or f"Unknown status {result.status!r}"))
         if result.status == "built":
@@ -354,6 +381,7 @@ class BuildSummary:
             "parse_date_failure": len(self.parse_date_failure),
             "dry_run_build": len(self.dry_run_build),
             "dry_run_skip": len(self.dry_run_skip),
+            "previous_retained": len(self.previous_retained),
         }
 
     def has_errors(self) -> bool:
@@ -401,6 +429,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Comma-separated resolutions to build (monthly, weekly, daily, annual). Default: monthly.",
     )
     parser.add_argument("--dry-run", action="store_true", help="Report work without downloading or writing preview artifacts.")
+    parser.add_argument("--sites-from-plan", type=Path, help="Preview refresh plan JSON; builds only sites classified as new, changed, or missing artifacts.")
+    parser.add_argument("--existing-preview-dir", type=Path, help="Previous complete preview root to copy before applying an incremental refresh.")
     return parser.parse_args(argv)
 
 
@@ -1290,6 +1320,89 @@ def global_entry_from_site_manifest(site_manifest: Dict[str, Any]) -> Dict[str, 
     }
 
 
+def first_manifest_field(payload: Dict[str, Any], names: Sequence[str]) -> str:
+    for name in names:
+        value = payload.get(name)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return ""
+
+
+def product_metadata_from_manifest(site_manifest: Dict[str, Any]) -> Dict[str, Any]:
+    product = site_manifest.get("product") if isinstance(site_manifest.get("product"), dict) else {}
+    fingerprint = site_manifest.get("productFingerprint") if isinstance(site_manifest.get("productFingerprint"), dict) else {}
+    fingerprint_fields = fingerprint.get("fields") if isinstance(fingerprint.get("fields"), dict) else {}
+    product_id = first_manifest_field(product, ["id", "productId"]) or first_manifest_field(fingerprint_fields, ["product_id"])
+    product_url = first_manifest_field(product, ["url", "productUrl"]) or first_manifest_field(
+        fingerprint_fields,
+        ["download_link", "download_url", "product_url"],
+    )
+    return {
+        "productUrl": product_url,
+        "productId": product_id,
+        "productVersion": first_manifest_field(product, ["version", "productVersion"]) or first_manifest_field(
+            fingerprint_fields,
+            ["product_version", "oneflux_code_version"],
+        ),
+        "doi": first_manifest_field(product, ["doi", "DOI"]) or first_manifest_field(
+            fingerprint_fields,
+            ["doi", "product_doi", "product_id"],
+        ),
+        "productDate": first_manifest_field(product, ["date", "productDate", "modifiedDate"]) or first_manifest_field(
+            fingerprint_fields,
+            ["product_date", "modified_date", "updated_at", "last_modified"],
+        ),
+        "source": {
+            "hub": first_manifest_field(product, ["dataHub", "hub"]) or first_manifest_field(
+                fingerprint_fields,
+                ["data_hub", "source_hub"],
+            ),
+            "prefix": first_manifest_field(product, ["sourceNetwork", "prefix"]) or first_manifest_field(
+                fingerprint_fields,
+                ["product_source_network", "source_network", "source_prefix", "network"],
+            ),
+        },
+        "firstYear": first_manifest_field(product, ["firstYear"]) or first_manifest_field(fingerprint_fields, ["first_year"]),
+        "lastYear": first_manifest_field(product, ["lastYear"]) or first_manifest_field(fingerprint_fields, ["last_year"]),
+    }
+
+
+def build_index_entry_from_site_manifest(site_manifest: Dict[str, Any]) -> Dict[str, Any]:
+    site_id = str(site_manifest.get("siteId") or "")
+    resolutions = site_manifest.get("resolutions") if isinstance(site_manifest.get("resolutions"), dict) else {}
+    resolution_names = [resolution for resolution in RESOLUTION_CONFIG if resolution in resolutions]
+    source_files = site_manifest.get("sourceFiles") if isinstance(site_manifest.get("sourceFiles"), dict) else {}
+    source_columns = site_manifest.get("sourceColumns") if isinstance(site_manifest.get("sourceColumns"), dict) else {}
+    artifacts = {
+        resolution: f"sites/{site_id}/{spec.get('path')}"
+        for resolution, spec in resolutions.items()
+        if isinstance(spec, dict) and str(spec.get("path") or "").strip()
+    }
+    metadata = product_metadata_from_manifest(site_manifest)
+    entry = {
+        "siteId": site_id,
+        "productFingerprint": site_manifest.get("productFingerprint", {}),
+        "productUrl": metadata["productUrl"],
+        "productId": metadata["productId"],
+        "productVersion": metadata["productVersion"],
+        "doi": metadata["doi"],
+        "productDate": metadata["productDate"],
+        "source": metadata["source"],
+        "firstYear": metadata["firstYear"],
+        "lastYear": metadata["lastYear"],
+        "previewBuiltAt": str(site_manifest.get("lastPreviewBuild") or ""),
+        "resolutions": resolution_names,
+        "artifacts": artifacts,
+        "sourceFiles": {resolution: source_files.get(resolution, "") for resolution in resolution_names},
+        "sourceColumns": {
+            resolution: source_columns.get(resolution, {})
+            for resolution in resolution_names
+            if isinstance(source_columns.get(resolution, {}), dict)
+        },
+    }
+    return entry
+
+
 def load_global_manifest(output_dir: Path) -> Dict[str, Any]:
     payload = read_json_if_exists(output_dir / GLOBAL_MANIFEST_FILENAME)
     if not payload:
@@ -1313,19 +1426,69 @@ def write_global_manifest(output_dir: Path, built_at: str, entries: Dict[str, Di
     write_json(output_dir / GLOBAL_MANIFEST_FILENAME, manifest)
 
 
+def load_build_index(output_dir: Path) -> Dict[str, Any]:
+    payload = read_json_if_exists(output_dir / BUILD_INDEX_FILENAME)
+    if not payload:
+        return {"schemaVersion": SCHEMA_VERSION, "builtAt": "", "source": SOURCE_LABEL, "sites": {}}
+    if not isinstance(payload.get("sites"), dict):
+        payload["sites"] = {}
+    payload.setdefault("schemaVersion", SCHEMA_VERSION)
+    payload.setdefault("source", SOURCE_LABEL)
+    payload.setdefault("builtAt", "")
+    return payload
+
+
+def write_build_index(output_dir: Path, built_at: str, entries: Dict[str, Dict[str, Any]]) -> None:
+    build_index = load_build_index(output_dir)
+    sites = build_index.setdefault("sites", {})
+    for site_id, entry in entries.items():
+        sites[site_id] = entry
+    build_index["schemaVersion"] = SCHEMA_VERSION
+    build_index["source"] = SOURCE_LABEL
+    build_index["builtAt"] = built_at
+    write_json(output_dir / BUILD_INDEX_FILENAME, build_index)
+
+
+def build_index_entries_from_site_manifests(output_dir: Path) -> Dict[str, Dict[str, Any]]:
+    entries: Dict[str, Dict[str, Any]] = {}
+    sites_root = output_dir / "sites"
+    if not sites_root.exists():
+        return entries
+    for manifest_path in sorted(sites_root.glob(f"*/{SITE_MANIFEST_FILENAME}")):
+        site_manifest = read_json_if_exists(manifest_path)
+        if not site_manifest:
+            continue
+        entry = build_index_entry_from_site_manifest(site_manifest)
+        site_id = str(entry.get("siteId") or manifest_path.parent.name)
+        entries[site_id] = entry
+    return entries
+
+
+def write_complete_build_index_from_site_manifests(output_dir: Path, built_at: str) -> None:
+    write_json(
+        output_dir / BUILD_INDEX_FILENAME,
+        {
+            "schemaVersion": SCHEMA_VERSION,
+            "builtAt": built_at,
+            "source": SOURCE_LABEL,
+            "sites": build_index_entries_from_site_manifests(output_dir),
+        },
+    )
+
+
 def write_site_artifacts(
     output_dir: Path,
     product: ProductRow,
     fingerprint: ProductFingerprint,
     previews: Dict[str, ResolutionPreview],
     built_at: str,
-) -> Dict[str, Any]:
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     directory = site_dir(output_dir, product.site_id)
     for resolution, preview in previews.items():
         write_json(directory / RESOLUTION_CONFIG[resolution]["output"], preview.records)
     site_manifest = build_site_manifest(product, fingerprint, previews, built_at)
     write_json(directory / SITE_MANIFEST_FILENAME, site_manifest)
-    return global_entry_from_site_manifest(site_manifest)
+    return global_entry_from_site_manifest(site_manifest), build_index_entry_from_site_manifest(site_manifest)
 
 
 def manifest_has_resolutions(
@@ -1369,6 +1532,337 @@ def parse_requested_previews(
     return previews, missing
 
 
+def fingerprint_value_from_entry(entry: Optional[Dict[str, Any]]) -> str:
+    raw = entry.get("productFingerprint") if isinstance(entry, dict) else None
+    if isinstance(raw, dict):
+        return str(raw.get("value") or "")
+    return str(raw or "")
+
+
+def site_id_from_snapshot(row: Dict[str, str]) -> str:
+    return first_field(row, ["site_id", "site", "site_code", "mysitename"])
+
+
+def load_existing_build_index_from_dir(preview_dir: Path) -> Dict[str, Any]:
+    build_index = load_build_index(preview_dir)
+    if build_index.get("sites"):
+        return build_index
+    global_manifest = load_global_manifest(preview_dir)
+    sites: Dict[str, Dict[str, Any]] = {}
+    for site_id, entry in sorted(global_manifest.get("sites", {}).items()):
+        manifest_path = entry.get("siteManifestPath") if isinstance(entry, dict) else ""
+        site_manifest = read_json_if_exists(preview_dir / str(manifest_path or f"sites/{site_id}/{SITE_MANIFEST_FILENAME}"))
+        if site_manifest:
+            sites[str(site_id)] = build_index_entry_from_site_manifest(site_manifest)
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "builtAt": str(global_manifest.get("builtAt") or ""),
+        "source": SOURCE_LABEL,
+        "sites": sites,
+    }
+
+
+def fetch_json_url(url: str) -> Optional[Dict[str, Any]]:
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def load_existing_build_index_from_url(preview_url: str) -> Dict[str, Any]:
+    base = preview_url.rstrip("/")
+    build_index = fetch_json_url(f"{base}/{BUILD_INDEX_FILENAME}")
+    if build_index and isinstance(build_index.get("sites"), dict):
+        return build_index
+    global_manifest = fetch_json_url(f"{base}/{GLOBAL_MANIFEST_FILENAME}") or {}
+    sites: Dict[str, Dict[str, Any]] = {}
+    for site_id, entry in sorted((global_manifest.get("sites") or {}).items()):
+        if not isinstance(entry, dict):
+            continue
+        manifest_path = str(entry.get("siteManifestPath") or f"sites/{site_id}/{SITE_MANIFEST_FILENAME}")
+        site_manifest = fetch_json_url(f"{base}/{manifest_path}")
+        if site_manifest:
+            sites[str(site_id)] = build_index_entry_from_site_manifest(site_manifest)
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "builtAt": str(global_manifest.get("builtAt") or ""),
+        "source": SOURCE_LABEL,
+        "sites": sites,
+    }
+
+
+def local_artifacts_missing(preview_dir: Path, entry: Dict[str, Any], resolutions: Sequence[str]) -> List[str]:
+    site_id = str(entry.get("siteId") or "")
+    artifacts = entry.get("artifacts") if isinstance(entry.get("artifacts"), dict) else {}
+    missing: List[str] = []
+    for resolution in resolutions:
+        artifact_path = str(artifacts.get(resolution) or f"sites/{site_id}/{RESOLUTION_CONFIG[resolution]['output']}")
+        if not (preview_dir / artifact_path).exists():
+            missing.append(resolution)
+    return missing
+
+
+def remote_url_exists(url: str) -> bool:
+    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS):
+            return True
+    except (OSError, urllib.error.URLError):
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(request, timeout=DOWNLOAD_TIMEOUT_SECONDS):
+                return True
+        except (OSError, urllib.error.URLError):
+            return False
+
+
+def remote_artifacts_missing(preview_url: str, entry: Dict[str, Any], resolutions: Sequence[str]) -> List[str]:
+    base = preview_url.rstrip("/")
+    site_id = str(entry.get("siteId") or "")
+    artifacts = entry.get("artifacts") if isinstance(entry.get("artifacts"), dict) else {}
+    missing: List[str] = []
+    for resolution in resolutions:
+        artifact_path = str(artifacts.get(resolution) or f"sites/{site_id}/{RESOLUTION_CONFIG[resolution]['output']}")
+        if not remote_url_exists(f"{base}/{artifact_path}"):
+            missing.append(resolution)
+    return missing
+
+
+def count_classifications(sites: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for site in sites:
+        classification = str(site.get("classification") or "unknown")
+        counts[classification] = counts.get(classification, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def plan_preview_refresh(
+    snapshot: Path,
+    resolutions: Sequence[str],
+    existing_preview_dir: Optional[Path] = None,
+    existing_preview_url: str = "",
+    generated_at: Optional[str] = None,
+) -> Dict[str, Any]:
+    requested = parse_resolutions(",".join(resolutions))
+    rows = load_snapshot_rows(snapshot)
+    products_by_site: Dict[str, ProductRow] = {}
+    unavailable_rows: Dict[str, Dict[str, str]] = {}
+    for row in rows:
+        site_id = display_site_id(site_id_from_snapshot(row))
+        if not site_id:
+            continue
+        product = product_row_from_snapshot(row)
+        if product is None:
+            unavailable_rows.setdefault(site_id, row)
+            continue
+        products_by_site.setdefault(product.site_id, product)
+
+    if existing_preview_dir is not None:
+        existing_index = load_existing_build_index_from_dir(existing_preview_dir)
+    elif existing_preview_url:
+        existing_index = load_existing_build_index_from_url(existing_preview_url)
+    else:
+        existing_index = {"schemaVersion": SCHEMA_VERSION, "builtAt": "", "source": SOURCE_LABEL, "sites": {}}
+    existing_sites = existing_index.get("sites") if isinstance(existing_index.get("sites"), dict) else {}
+
+    planned_sites: List[Dict[str, Any]] = []
+    for site_id in sorted(products_by_site):
+        product = products_by_site[site_id]
+        fingerprint = compute_fingerprint(product)
+        existing_entry = existing_sites.get(site_id) if isinstance(existing_sites.get(site_id), dict) else None
+        previous_fingerprint = fingerprint_value_from_entry(existing_entry)
+        missing_artifacts: List[str] = []
+        if existing_entry and existing_preview_dir is not None:
+            missing_artifacts = local_artifacts_missing(existing_preview_dir, existing_entry, requested)
+        elif existing_entry and existing_preview_url:
+            missing_artifacts = remote_artifacts_missing(existing_preview_url, existing_entry, requested)
+        if existing_entry is None:
+            classification = "new"
+            reason = "no previous build-index entry"
+        elif previous_fingerprint != fingerprint.value:
+            classification = "changed"
+            reason = "product fingerprint changed"
+        elif missing_artifacts:
+            classification = "needs_rebuild_due_to_missing_artifacts"
+            reason = "missing artifact(s): " + ", ".join(missing_artifacts)
+        else:
+            classification = "unchanged"
+            reason = "product fingerprint and requested artifacts match"
+        planned_sites.append(
+            {
+                "siteId": site_id,
+                "classification": classification,
+                "reason": reason,
+                "rebuild": classification in REBUILD_PLAN_CLASSIFICATIONS,
+                "productFingerprint": fingerprint.to_manifest(),
+                "previousProductFingerprint": previous_fingerprint,
+                "missingArtifacts": missing_artifacts,
+                "productUrl": product.download_url,
+            }
+        )
+
+    for site_id in sorted(unavailable_rows):
+        if site_id in products_by_site:
+            continue
+        planned_sites.append(
+            {
+                "siteId": site_id,
+                "classification": "unavailable/no_product_url",
+                "reason": "snapshot row has no product download URL",
+                "rebuild": False,
+                "productFingerprint": {},
+                "previousProductFingerprint": fingerprint_value_from_entry(existing_sites.get(site_id)),
+                "missingArtifacts": [],
+                "productUrl": "",
+            }
+        )
+
+    snapshot_site_ids = set(products_by_site) | set(unavailable_rows)
+    for site_id in sorted(str(site_id) for site_id in existing_sites if str(site_id) not in snapshot_site_ids):
+        planned_sites.append(
+            {
+                "siteId": site_id,
+                "classification": "missing_from_snapshot",
+                "reason": "previous preview exists but site is absent from current snapshot",
+                "rebuild": False,
+                "productFingerprint": {},
+                "previousProductFingerprint": fingerprint_value_from_entry(existing_sites.get(site_id)),
+                "missingArtifacts": [],
+                "productUrl": "",
+            }
+        )
+
+    planned_sites.sort(key=lambda item: (str(item.get("siteId") or ""), str(item.get("classification") or "")))
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "generatedAt": generated_at or utc_now(),
+        "snapshot": str(snapshot),
+        "existingPreviewDir": str(existing_preview_dir) if existing_preview_dir else "",
+        "existingPreviewUrl": existing_preview_url,
+        "resolutions": requested,
+        "counts": count_classifications(planned_sites),
+        "sites": planned_sites,
+    }
+
+
+def plan_site_ids(plan: Dict[str, Any], classifications: set[str] = REBUILD_PLAN_CLASSIFICATIONS) -> List[str]:
+    sites = plan.get("sites") if isinstance(plan.get("sites"), list) else []
+    selected = [
+        str(site.get("siteId"))
+        for site in sites
+        if isinstance(site, dict)
+        and str(site.get("classification") or "") in classifications
+        and str(site.get("siteId") or "").strip()
+    ]
+    return sorted(dict.fromkeys(selected), key=normalize_site_id)
+
+
+def read_plan(path: Optional[Path]) -> Optional[Dict[str, Any]]:
+    if path is None:
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Refresh plan is not a JSON object: {path}")
+    return payload
+
+
+def previous_preview_dir_from_plan(plan: Optional[Dict[str, Any]]) -> Optional[Path]:
+    if not plan:
+        return None
+    value = str(plan.get("existingPreviewDir") or "").strip()
+    return Path(value) if value else None
+
+
+def copy_previous_preview_tree(previous_dir: Optional[Path], output_dir: Path, log: LogFunc) -> bool:
+    if previous_dir is None:
+        return False
+    try:
+        same_dir = previous_dir.resolve() == output_dir.resolve()
+    except OSError:
+        same_dir = False
+    if same_dir:
+        return False
+    if not previous_dir.exists():
+        log(f"Previous preview directory does not exist; cannot prefill unchanged artifacts: {previous_dir}")
+        return False
+    shutil.copytree(previous_dir, output_dir, dirs_exist_ok=True)
+    log(f"Copied previous preview artifacts from {previous_dir} to {output_dir}")
+    return True
+
+
+def relative_site_artifacts_exist(output_dir: Path, site_id: str, resolutions: Sequence[str]) -> bool:
+    manifest = read_json_if_exists(site_manifest_path(output_dir, site_id))
+    if manifest and manifest_has_resolutions(manifest, output_dir, site_id, resolutions):
+        return True
+    return False
+
+
+def directory_size_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+    total = 0
+    for child in path.rglob("*"):
+        if child.is_file():
+            try:
+                total += child.stat().st_size
+            except OSError:
+                continue
+    return total
+
+
+def build_refresh_report(
+    summary: BuildSummary,
+    plan: Optional[Dict[str, Any]],
+    output_dir: Path,
+    built_at: str,
+    warnings: Sequence[str],
+) -> Dict[str, Any]:
+    plan_sites = plan.get("sites") if isinstance(plan, dict) and isinstance(plan.get("sites"), list) else []
+    classification_counts = count_classifications([site for site in plan_sites if isinstance(site, dict)])
+    failed_results = (
+        summary.failed
+        + summary.unavailable
+        + summary.requires_icos_license_auth
+        + summary.download_failed
+        + summary.non_zip_response
+        + summary.malformed_zip
+        + summary.missing_local_archive
+        + summary.no_fluxmet_mm
+        + summary.no_fluxmet_weekly
+        + summary.no_fluxmet_daily
+        + summary.no_fluxmet_annual
+        + summary.no_target_variables
+        + summary.parse_date_failure
+    )
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "runTimestamp": built_at,
+        "countsByClassification": classification_counts,
+        "buildCounts": summary.counts(),
+        "sitesRebuilt": [result.site_id for result in summary.built],
+        "sitesUnchanged": [
+            str(site.get("siteId"))
+            for site in plan_sites
+            if isinstance(site, dict) and site.get("classification") == "unchanged"
+        ],
+        "sitesFailed": [
+            {"siteId": result.site_id, "status": result.status, "reason": result.reason}
+            for result in failed_results
+        ],
+        "previousPreviewRetainedCount": len(summary.previous_retained),
+        "previousPreviewRetainedSites": [result.site_id for result in summary.previous_retained],
+        "outputArtifactSizeBytes": directory_size_bytes(output_dir),
+        "warnings": list(warnings),
+    }
+
+
+def write_refresh_report(output_dir: Path, report: Dict[str, Any]) -> None:
+    write_json(output_dir / REFRESH_REPORT_FILENAME, report)
+
+
 def build_product_preview(
     product: ProductRow,
     output_dir: Path,
@@ -1391,12 +1885,13 @@ def build_product_preview(
         and not force
     ):
         entry = global_entry_from_site_manifest(existing_manifest) if existing_manifest else None
+        index_entry = build_index_entry_from_site_manifest(existing_manifest) if existing_manifest else None
         status = "dry-run-skip" if dry_run else "skipped"
-        return SiteResult(product.site_id, status, "product fingerprint unchanged", entry, fingerprint=fingerprint)
+        return SiteResult(product.site_id, status, "product fingerprint unchanged", entry, index_entry, fingerprint=fingerprint)
 
     def build_from_archive(archive_path: Path, source_label: str, download_note: str = "") -> SiteResult:
         previews, missing = parse_requested_previews(archive_path, requested)
-        entry = write_site_artifacts(output_dir, product, fingerprint, previews, built_at)
+        entry, index_entry = write_site_artifacts(output_dir, product, fingerprint, previews, built_at)
         counts = ", ".join(f"{len(preview.records)} {resolution} records" for resolution, preview in previews.items())
         reason = f"built {counts} from {source_label}"
         if missing:
@@ -1408,6 +1903,7 @@ def build_product_preview(
             "built",
             reason,
             entry,
+            index_entry,
             previews=previews,
             missing_resolutions=missing,
             fingerprint=fingerprint,
@@ -1485,19 +1981,39 @@ def run_build(
     force: bool = False,
     resolutions: Sequence[str] = (MONTHLY_RESOLUTION,),
     dry_run: bool = False,
+    sites_from_plan: Optional[Path] = None,
+    existing_preview_dir: Optional[Path] = None,
     built_at: Optional[str] = None,
     download_func: Optional[DownloadFunc] = None,
     log: LogFunc = log_stdout,
 ) -> BuildSummary:
     rows = load_snapshot_rows(snapshot)
-    products = eligible_products(rows, sites, limit)
-    archive_index = build_local_archive_index(archive_dir)
     summary = BuildSummary()
     built_at_value = built_at or utc_now()
-    entries_to_update: Dict[str, Dict[str, Any]] = {}
     requested = parse_resolutions(",".join(resolutions))
+    plan = read_plan(sites_from_plan)
+    report_warnings: List[str] = []
+    if plan:
+        summary.plan_counts = dict(plan.get("counts") or {})
+        planned_site_ids = plan_site_ids(plan)
+        if sites:
+            explicit = {normalize_site_id(site) for site in sites}
+            planned_site_ids = [site_id for site_id in planned_site_ids if normalize_site_id(site_id) in explicit]
+        sites = planned_site_ids
+        existing_preview_dir = existing_preview_dir or previous_preview_dir_from_plan(plan)
+        if not dry_run:
+            if not copy_previous_preview_tree(existing_preview_dir, output_dir, log):
+                report_warnings.append("previous preview tree was not copied; refresh output may contain only rebuilt sites")
+    products = [] if plan and not sites else eligible_products(rows, sites, limit)
+    archive_index = build_local_archive_index(archive_dir)
+    entries_to_update: Dict[str, Dict[str, Any]] = {}
+    index_entries_to_update: Dict[str, Dict[str, Any]] = {}
     if not products:
         log("No eligible Shuttle products found for the requested filters.")
+        if plan and not dry_run:
+            write_complete_build_index_from_site_manifests(output_dir, built_at_value)
+            report = build_refresh_report(summary, plan, output_dir, built_at_value, report_warnings)
+            write_refresh_report(output_dir, report)
         return summary
     for product in products:
         try:
@@ -1519,11 +2035,21 @@ def run_build(
         except Exception as error:  # site-scoped by design
             result = SiteResult(product.site_id, "failed", str(error))
         summary.add(result)
+        if plan and result.status not in {"built", "skipped"} and relative_site_artifacts_exist(output_dir, product.site_id, requested):
+            summary.add(SiteResult(product.site_id, "previous_retained", f"retained previous artifacts after {result.status}: {result.reason}"))
         if result.global_entry and result.status in {"built", "skipped"}:
             entries_to_update[result.site_id] = result.global_entry
+        if result.build_index_entry and result.status in {"built", "skipped"}:
+            index_entries_to_update[result.site_id] = result.build_index_entry
         log(f"[{result.site_id}] {result.status}: {result.reason}")
     if entries_to_update and not dry_run:
         write_global_manifest(output_dir, built_at_value, entries_to_update)
+    if index_entries_to_update and not dry_run:
+        write_build_index(output_dir, built_at_value, index_entries_to_update)
+    if plan and not dry_run:
+        write_complete_build_index_from_site_manifests(output_dir, built_at_value)
+        report = build_refresh_report(summary, plan, output_dir, built_at_value, report_warnings)
+        write_refresh_report(output_dir, report)
     return summary
 
 
@@ -1537,7 +2063,8 @@ def print_summary(summary: BuildSummary, log: LogFunc = log_stdout) -> None:
         "no_fluxmet_weekly={no_fluxmet_weekly}, no_fluxmet_daily={no_fluxmet_daily}, "
         "no_fluxmet_annual={no_fluxmet_annual}, "
         "no_target_variables={no_target_variables}, parse_date_failure={parse_date_failure}, "
-        "dry_run_build={dry_run_build}, dry_run_skip={dry_run_skip}".format(**counts)
+        "dry_run_build={dry_run_build}, dry_run_skip={dry_run_skip}, "
+        "previous_retained={previous_retained}".format(**counts)
     )
     grouped_results = (
         ("failed", summary.failed),
@@ -1574,6 +2101,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             force=args.force,
             resolutions=resolutions,
             dry_run=args.dry_run,
+            sites_from_plan=args.sites_from_plan,
+            existing_preview_dir=args.existing_preview_dir,
         )
         print_summary(summary)
         return 1 if summary.has_errors() else 0
