@@ -19,10 +19,10 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
-    from .inventory_fingerprint import compact_rows_to_records, inventory_version
+    from .inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from .refresh_logging import compact_text, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
-    from inventory_fingerprint import compact_rows_to_records, inventory_version
+    from inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from refresh_logging import compact_text, log, phase
 
 SPARQL_ENDPOINT = "https://meta.icos-cp.eu/sparql"
@@ -996,6 +996,16 @@ def main() -> None:
         )
 
     with phase("write ICOS outputs"):
+        existing_payload = load_existing_payload(output_json)
+        log(
+            "inventory_change_summary="
+            + inventory_change_summary_json(
+                "ICOS-direct",
+                compact_rows_to_records(existing_payload),
+                deduped_rows,
+                OUTPUT_COLUMNS,
+            )
+        )
         write_csv(output_csv, deduped_rows)
         suppressed_by_shuttle = len(deduped_rows) - len(final_icos_rows)
         version_hash = write_json(

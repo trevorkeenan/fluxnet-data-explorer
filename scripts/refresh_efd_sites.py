@@ -19,10 +19,10 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
-    from .inventory_fingerprint import compact_rows_to_records, inventory_version
+    from .inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from .refresh_logging import compact_error, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
-    from inventory_fingerprint import compact_rows_to_records, inventory_version
+    from inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from refresh_logging import compact_error, log, phase
 
 SITES_LIST_URL = "https://www.europe-fluxdata.eu/home/sites-list"
@@ -790,6 +790,15 @@ def main() -> None:
         )
 
         finalized_records = [dict(record, last_updated=snapshot_updated_at) for record in curated_rows]
+        log(
+            "inventory_change_summary="
+            + inventory_change_summary_json(
+                EFD_SOURCE,
+                compact_rows_to_records(existing_payload),
+                finalized_records,
+                OUTPUT_COLUMNS,
+            )
+        )
         write_csv(output_csv, finalized_records)
         snapshot_refreshed_at = normalize_snapshot_updated_at(args.snapshot_updated_at) or snapshot_updated_at
         snapshot_refreshed_date = normalize_snapshot_updated_date(args.snapshot_updated_date, args.snapshot_updated_at) or snapshot_updated_date

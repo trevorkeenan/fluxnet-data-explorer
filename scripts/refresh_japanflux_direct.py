@@ -18,10 +18,10 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
-    from .inventory_fingerprint import compact_rows_to_records, inventory_version
+    from .inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from .refresh_logging import compact_error, compact_text, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
-    from inventory_fingerprint import compact_rows_to_records, inventory_version
+    from inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from refresh_logging import compact_error, compact_text, log, phase
 
 ADS_API_BASE = "https://ads.nipr.ac.jp/api/v1"
@@ -1123,6 +1123,16 @@ def refresh(args: argparse.Namespace) -> None:
     rows.sort(key=lambda row: (str(row.get("country") or ""), str(row.get("site_id") or "")))
 
     with phase("write JapanFlux outputs"):
+        existing_payload = load_existing_payload(output_json)
+        log(
+            "inventory_change_summary="
+            + inventory_change_summary_json(
+                JAPANFLUX_SOURCE,
+                compact_rows_to_records(existing_payload),
+                rows,
+                OUTPUT_COLUMNS,
+            )
+        )
         source_status = build_fresh_status(
             rows,
             snapshot_updated_at=requested_at,

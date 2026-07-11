@@ -17,7 +17,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from scripts.inventory_fingerprint import compact_rows_to_records, inventory_version
+from scripts.inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
 
 PROCESSING_LINEAGE_ONEFLUX = "oneflux"
 
@@ -287,6 +287,15 @@ def main() -> None:
         "rows": payload_rows,
     }
 
+    log(
+        "inventory_change_summary="
+        + inventory_change_summary_json(
+            "FLUXNET Shuttle",
+            compact_rows_to_records(existing_payload),
+            records,
+            columns,
+        )
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     json_text = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
     output_path.write_text(json_text, encoding="utf-8")
