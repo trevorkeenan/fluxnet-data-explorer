@@ -646,6 +646,7 @@ US-NGC,GRA,ameriflux_site_search
 US-NMJ,ENF,ameriflux_site_search
 US-NP1,CRO,ameriflux_site_search
 US-NP2,CRO,ameriflux_site_search
+US-NPR,GRA,ameriflux_site_search
 US-NR1,ENF,ameriflux_site_search
 US-NR2,ENF,ameriflux_site_search
 US-NR3,GRA,ameriflux_site_search
@@ -880,6 +881,8 @@ US-VCS,ENF,ameriflux_site_search
 US-VFP,WET,ameriflux_site_search
 US-VT1,CRO,ameriflux_site_search
 US-VT2,CRO,ameriflux_site_search
+US-WB1,OSH,ameriflux_site_search
+US-WB2,OSH,ameriflux_site_search
 US-WBW,DBF,ameriflux_site_search
 US-WCR,DBF,ameriflux_site_search
 US-WDN,OSH,ameriflux_site_search
