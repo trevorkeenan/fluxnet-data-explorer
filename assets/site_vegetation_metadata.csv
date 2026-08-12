@@ -825,6 +825,7 @@ US-TW2,CRO,ameriflux_site_search
 US-TW3,CRO,ameriflux_site_search
 US-TW4,WET,ameriflux_site_search
 US-TW5,WET,ameriflux_site_search
+US-TW6,WET,ameriflux_site_search
 US-TWT,CRO,ameriflux_site_search
 US-TX1,GRA,ameriflux_site_search
 US-TX2,GRA,ameriflux_site_search
@@ -872,6 +873,8 @@ US-UTN,CRO,ameriflux_site_search
 US-UTP,WET,ameriflux_site_search
 US-UTV,CRO,ameriflux_site_search
 US-UTW,CRO,ameriflux_site_search
+US-UTX,WAT,ameriflux_site_search
+US-UTY,WAT,ameriflux_site_search
 US-UUC,WAT,ameriflux_site_search
 US-UUP,BSV,ameriflux_site_search
 US-VAR,GRA,ameriflux_site_search
