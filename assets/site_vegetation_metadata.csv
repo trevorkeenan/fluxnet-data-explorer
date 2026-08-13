@@ -75,6 +75,7 @@ CA-CHA,MF,ameriflux_site_search
 CA-CQ1,CRO,ameriflux_site_search
 CA-CQ2,WET,ameriflux_site_search
 CA-CQ3,WET,ameriflux_site_search
+CA-CQ4,CRO,ameriflux_site_search
 CA-CRB,CRO,ameriflux_site_search
 CA-DB2,WET,ameriflux_site_search
 CA-DBB,WET,ameriflux_site_search
@@ -866,6 +867,7 @@ US-UTB,BSV,ameriflux_site_search
 US-UTD,CRO,ameriflux_site_search
 US-UTE,CRO,ameriflux_site_search
 US-UTG,CRO,ameriflux_site_search
+US-UTH,WAT,ameriflux_site_search
 US-UTJ,CRO,ameriflux_site_search
 US-UTL,CRO,ameriflux_site_search
 US-UTM,WET,ameriflux_site_search

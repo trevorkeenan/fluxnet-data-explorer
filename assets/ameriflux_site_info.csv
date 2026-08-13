@@ -46,6 +46,7 @@ CA-CHA,New Brunswick - Charlie Lake site 01 (immature balsam fir forest to be th
 CA-CQ1,Québec. Carbonique1 - Lac Saint-Pierre Disturbed Marsh,Canada,46.1645,-72.6850
 CA-CQ2,Québec. Carbonique2 - Natural Lac-à-la-Tortue Open Bog,Canada,46.5316,-72.6450
 CA-CQ3,Québec. Carbonique3 - Natural Lac-à-la-Tortue Forested bog,Canada,46.5280,-72.6462
+CA-CQ4,Québec. Carbonique4 - Saint-Rémi Transformed Forested Peatland,Canada,45.2458,-73.6823
 CA-CRB,Carberry,Canada,49.9061,-99.3480
 CA-DB2,Delta Burns Bog 2,Canada,49.1190,-122.9951
 CA-DBB,Delta Burns Bog,Canada,49.1293,-122.9849
@@ -742,6 +743,7 @@ US-UTB,UFLUX Bonneville Salt Flats,USA,40.7848,-113.8299
 US-UTD,UFLUX Dugout Ranch,USA,38.1038,-109.5952
 US-UTE,UFLUX Escalante,USA,37.7353,-111.5708
 US-UTG,UFLUX Green River,USA,39.0188,-110.1663
+US-UTH,Ogden Bay,USA,41.1785,-112.1763
 US-UTJ,UFLUX Bluff,USA,37.2818,-109.5348
 US-UTL,UFLUX Pelican Lake,USA,40.1877,-109.6579
 US-UTM,UFLUX Matheson,USA,38.5879,-109.5775
