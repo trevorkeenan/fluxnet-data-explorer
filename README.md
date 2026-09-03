@@ -1,191 +1,95 @@
 # FLUXNET Data Explorer
 
-The FLUXNET Data Explorer is a web-based tool for discovering and accessing flux-tower datasets across FLUXNET-related sources. It combines the FLUXNET Shuttle catalog with selected supplemental metadata snapshots from regional or source-specific portals, including AmeriFlux, ICOS, JapanFlux, and EFD.
+[**Open the Explorer**](https://www.keenangroup.info/fluxnet-data-explorer/)
 
-AmeriFlux BASE-BADM availability includes records shared under CC-BY-4.0 and records shared under the AmeriFlux Legacy Data Policy. Legacy-policy products are labeled explicitly in the Explorer and in generated bulk-download helpers. AmeriFlux FLUXNET/ONEFlux products remain CC-BY-4.0 only.
+Find and access eddy-covariance tower observations of carbon, water, and energy exchange across FLUXNET and regional data sources. The Explorer brings together site metadata, coverage information, download or request links, and lightweight data previews in a searchable table and map.
 
-Preferred live application: https://www.keenangroup.info/fluxnet-data-explorer/
+Use the hosted application without installing software. The Explorer is a discovery and access tool, not a single uniformly processed dataset: the original providers distribute the full data products and define their terms of use.
 
-## Repository And Deployment Model
+## Get started
 
-This repository is the canonical source, release, Zenodo DOI, and GitHub Pages hosting repository for the FLUXNET Data Explorer. It contains the Explorer source code, tests, generated manifests and snapshots, refresh scripts, refresh workflows, release metadata, Apache-2.0 license, and citation metadata.
+1. **Find sites.** Search by site ID or name, or filter by processing level, source, network, country, vegetation type, record length, and years.
+2. **Inspect coverage.** Use the map and table to see where sites are located and which products and years are available.
+3. **Preview a site.** For supported Shuttle records, choose **Preview plot**, then select a variable and time resolution.
+4. **Access the data.** Use the row's download, command-copy, landing-page, or request action. For multiple sites, select rows or choose **Select all (filtered results)**, then open **Bulk Download Tools**.
+5. **Prepare attribution.** Open **Data Policy Tools** for the selected sites to generate citation tables, references, and acknowledgements. Check these against the providers' requirements and fill in any missing metadata.
 
-The live public Explorer is served from this repository at https://www.keenangroup.info/fluxnet-data-explorer/.
+**Select all (all sites)** includes sites outside your current filters. Table and site-CSV exports contain metadata, not the underlying flux observations.
 
-## Data Snapshots
+## Data sources and coverage
 
-The Explorer serves committed CSV and JSON metadata snapshots from `assets/`. These snapshots are refreshed from upstream sources by the scheduled update workflow in this repository when available. The live GitHub Pages app at https://www.keenangroup.info/fluxnet-data-explorer/ reads those generated files from this repository.
+The Explorer combines committed metadata snapshots with live AmeriFlux and FLUXNET2015 availability queries. Source and network labels can overlap; they are not counts of independent datasets.
 
-Snapshot status metadata deliberately separates refresh activity from data availability:
+| Source or product group | What the Explorer includes |
+| --- | --- |
+| [FLUXNET Shuttle](https://data.fluxnet.org/) | Catalog records distributed through the AmeriFlux, ICOS, and TERN hubs. Shuttle records take precedence where sources overlap. |
+| [AmeriFlux](https://ameriflux.lbl.gov/) | Additional CC-BY-4.0 FLUXNET products and BASE-BADM observations under CC-BY-4.0 or explicitly labeled Legacy policies. |
+| FLUXNET2015 | Additional records obtained through the AmeriFlux-hosted availability API when not superseded by higher-priority sources. |
+| ICOS direct | Supplemental FLUXNET and ETC archive records discovered through ICOS metadata. |
+| JapanFlux2024 | Records from the ADS archive, with validated direct links or landing-page fallbacks. |
+| EFD | Curated records from public site and policy pages; access is request-based and may require login, PI approval, or direct contact. |
 
-- `snapshot_refreshed_at` / `snapshot_refreshed_date` power **Explorer refreshed** and advance after every successful source refresh.
-- `snapshot_updated_at` / `snapshot_updated_date` power **New data last added** and advance only when `inventory_version` changes.
-- `version` hashes the full browser payload for cache invalidation. It may change after descriptive metadata corrections without changing `inventory_version`.
+**Processing matters.** The **Processing Level** filter distinguishes ONEFlux-derived FLUXNET coverage from other processed products. AmeriFlux BASE observations and JapanFlux2024 are not interchangeable with ONEFlux-derived products. A site may show both FLUXNET and BASE products when their coverage differs; compare the product-specific years before choosing data.
 
-`inventory_version` is an order-insensitive SHA-256 fingerprint of normalized availability records. Its explicit field contract is in `scripts/inventory_fingerprint.py`: site, source/product identity, temporal coverage, access mode, and download/request/landing endpoints are included. Descriptive names, coordinates, contacts, citations, provenance text, generated/checked timestamps, source-status logs, and row ordering are excluded. Adding or removing a site/product, changing its covered years or access mode, or adding/removing/changing an access endpoint is therefore an inventory change; metadata-only edits are not.
+The **Show all known sites** map layer includes sites for which the Explorer has not identified shared data. A map marker is not a guarantee of downloadable observations, and absence from the Explorer does not establish that a site has no data.
 
-JapanFlux direct-download probes are treated conservatively because ADS can rate-limit or time out individual ZIP checks. Once a direct endpoint has been validated for a metadata ID and dataset version, an inconclusive later probe retains that committed endpoint. A new dataset version must validate its own URL. This prevents transient endpoint downgrades from advancing `snapshot_updated_*` while still allowing newly validated endpoints and new releases to count as inventory changes.
+## Downloading data
 
-Live source availability can change between repository releases. Zenodo releases are for versioned Explorer software releases and bundled metadata snapshots, not every daily manifest refresh.
+Individual row actions depend on the source. Some open a provider-hosted archive; others copy an AmeriFlux command to run locally, open a landing page, or start a provider's request workflow. ICOS downloads may require interactive license acceptance.
 
-## Data Preview
-
-The Explorer includes a Data Preview for FLUXNET Shuttle rows. It is a catalog/discovery preview only: clicking `Preview data` fetches precomputed lightweight JSON artifacts and never downloads or unzips the full Shuttle product in the browser.
-
-Preview artifacts are static files with this layout:
-
-```text
-fluxnet-preview/
-  v1/
-    manifest.json
-    sites/
-      SITE_ID/
-        manifest.json
-        monthly.json
-        weekly.json
-        daily.json
-        annual.json
-```
-
-The UI supports single-site, single-variable monthly, weekly, daily, and annual previews for Shuttle-backed rows. The variable menu always shows the 16 standard preview variables and disables those without non-missing output. Data files are plot-ready wide JSON records such as `{ "date": "2001-01-02", "GPP_NT_VUT_REF": 1.23 }`. Older artifacts with simplified or generic GPP/RECO keys remain supported.
-
-The static app resolves the preview base URL from the Explorer root attribute `data-preview-base-url`, then `window.FLUXNET_EXPLORER_CONFIG.previewBaseUrl` or `window.FLUXNET_EXPLORER_CONFIG.fluxnetPreviewBaseUrl`, then global values such as `window.VITE_FLUXNET_PREVIEW_BASE_URL` or `window.FLUXNET_PREVIEW_BASE_URL`. The committed page config uses `fluxnet-preview/v1` on localhost and `https://fluxnet-preview.keenangroup.info/v1` in production, so the deployed Explorer fetches `https://fluxnet-preview.keenangroup.info/v1/manifest.json`.
-
-Tiny synthetic local fixtures are committed under `fluxnet-preview/v1/` for `US-Ha1` and `CA-DBB`. They are only for local development and are not the production artifact set. To test locally, run the normal static server, search one of those site IDs, and click `Preview data`.
-
-Maintainer preview data live outside this repository under `/Users/trevorkeenan/Data/ExplorerFluxData`:
-
-- Source archives: `/Users/trevorkeenan/Data/ExplorerFluxData/fluxnet_downloads`
-- Generated preview artifacts: `/Users/trevorkeenan/Data/ExplorerFluxData/fluxnet-preview/v1`
-- Rebuildable cache: `/Users/trevorkeenan/Data/ExplorerFluxData/preview-builder-cache`
-
-The hosted production destination is `cloudflare-r2:fluxnet-preview/v1`, served at `https://fluxnet-preview.keenangroup.info/v1`.
-
-Build preview artifacts with `scripts/build-shuttle-preview.py`. The builder reads the committed Shuttle snapshot or CSV catalog, downloads selected Shuttle zip products into a local cache, and reads requested values directly from the matching `FLUXMET_MM`, `FLUXMET_WW`, `FLUXMET_DD`, and `FLUXMET_YY` files. It ignores ERA5 files and never derives one resolution from another; matching `BIFVARINFO` files may be used for units. Annual records use `YYYY-01-01` internally so the shared date/chart path remains robust, while the x-axis displays years.
-
-Recommended dry run before downloading:
+For a multi-site selection, download the self-contained `download_fluxnet_selected.sh` from **Bulk Download Tools**, review it, and run:
 
 ```bash
-python3 scripts/build-shuttle-preview.py \
-  --snapshot assets/shuttle_snapshot.json \
-  --output-dir /tmp/fluxnet-preview-dry-run/v1 \
-  --cache-dir /tmp/fluxnet-shuttle-preview-cache \
-  --site AR-Bal \
-  --dry-run
+bash download_fluxnet_selected.sh
 ```
 
-Build one site:
+The script handles direct links and AmeriFlux API-backed products. It requires Bash, curl, standard Unix command-line utilities, and either `jq` or `python3` for AmeriFlux response parsing. FLUXNET2015 requests also need `base64` or `python3`. AmeriFlux username/email overrides are available in the tools; access remains subject to the provider's requirements.
+
+By default, data are saved under `fluxnet_selected_downloads/siteData/` beside the script, with logs under `fluxnet_selected_downloads/logs/`. Review the logs for failures. Landing-page-only and request-only records are not downloaded automatically. The **Advanced files** section provides source-specific manifests, links, site lists, and helper scripts for custom workflows.
+
+Year filters help select sites; they do not trim the contents of downloaded provider products.
+
+## Previews, updates, and limitations
+
+Previews show one site and variable at a time, with monthly, weekly, daily, and annual resolutions where artifacts are available. Variables include carbon fluxes, energy fluxes, and meteorological observations; unavailable variables are disabled. Previews load precomputed subsets, not full archives. Download the official product for analysis, quality assessment, and citation.
+
+Catalog snapshots are scheduled for daily refresh. The application also queries live availability, with cached or committed-data fallbacks when sources are unavailable. Coverage and access links can therefore change, and a successful catalog refresh does not guarantee that every upstream service or download is available.
+
+The application distinguishes:
+
+- **Explorer refreshed:** when snapshot refresh activity last succeeded.
+- **New data last added:** when recorded availability changed, including product coverage or access links—not necessarily when new observations were collected.
+
+Preview artifacts and the broader known-sites inventory are maintained separately. Check the preview's own build date; it may lag the catalog. Versioned software releases do not freeze the continuously updated hosted application or upstream data.
+
+## Data use, citation, and license
+
+Follow the original providers' data-use policies and cite the datasets, site teams, networks, and product DOIs applicable to your analysis. **Data Policy Tools** help prepare those materials but do not replace checking them. AmeriFlux Legacy-policy BASE products remain explicitly labeled in the Explorer and generated download helpers.
+
+To cite the Explorer software:
+
+> Keenan TF. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. [doi:10.5281/zenodo.20331228](https://doi.org/10.5281/zenodo.20331228).
+
+See [CITATION.cff](CITATION.cff) and the [software releases](https://github.com/trevorkeenan/fluxnet-data-explorer/releases). Cite the version actually used when reproducibility requires an exact software release; the citation above identifies v1.0.0, not every subsequent update to the live application.
+
+The Explorer's software code and original documentation are licensed under [Apache-2.0](LICENSE). This does not relicense third-party data, metadata, APIs, download URLs, logos, or trademarks. Use of the Explorer does not imply endorsement by UC Berkeley, the Keenan Lab, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or other data providers.
+
+## Run locally and contribute
+
+Clone or download this repository. From its root, serve the static files with Python 3:
 
 ```bash
-python3 scripts/build-shuttle-preview.py \
-  --snapshot assets/shuttle_snapshot.json \
-  --output-dir /tmp/fluxnet-preview-dev/v1 \
-  --cache-dir /tmp/fluxnet-shuttle-preview-cache \
-  --site AR-Bal
+python3 -m http.server 8000 --bind 127.0.0.1
 ```
 
-Build a small subset from the eligible catalog:
+Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/). No application build step is required. External availability services, map tiles, and CDN-hosted libraries still require network access.
 
-```bash
-python3 scripts/build-shuttle-preview.py \
-  --snapshot assets/shuttle_snapshot.json \
-  --output-dir /tmp/fluxnet-preview-dev/v1 \
-  --cache-dir /tmp/fluxnet-shuttle-preview-cache \
-  --limit 25
-```
+Local previews use small **synthetic fixtures** for `US-Ha1` and `CA-DBB`, not the production preview collection. They are development examples, not scientific data.
 
-Use repeated `--site SITE_ID` arguments for an explicit subset, `--force` to rebuild unchanged fingerprints, and `--resolution monthly,weekly,daily,annual` (or any one resolution) to choose output resolutions. The default remains monthly.
+See the [maintainer guide](MAINTAINING.md) for repository structure, test setup, snapshot refreshes, preview builds, deployment, and release procedures. Report problems or suggest improvements through [GitHub issues](https://github.com/trevorkeenan/fluxnet-data-explorer/issues).
 
-Build the complete local four-resolution artifact set offline from the downloaded source archives:
+## Contact and acknowledgements
 
-```bash
-PYTHONPYCACHEPREFIX=/tmp/fluxnet_preview_pycache \
-python3 scripts/build-shuttle-preview.py \
-  --snapshot assets/shuttle_snapshot.json \
-  --output-dir /Users/trevorkeenan/Data/ExplorerFluxData/fluxnet-preview/v1 \
-  --archive-dir /Users/trevorkeenan/Data/ExplorerFluxData/fluxnet_downloads \
-  --cache-dir /Users/trevorkeenan/Data/ExplorerFluxData/preview-builder-cache \
-  --offline \
-  --resolution monthly,weekly,daily,annual \
-  --force
-```
+For questions, suggestions, or missing sites, contact Trevor F. Keenan at [trevorkeenan@berkeley.edu](mailto:trevorkeenan@berkeley.edu).
 
-After validating the local artifacts, a maintainer can copy them to R2 explicitly:
-
-```bash
-rclone copy \
-  "/Users/trevorkeenan/Data/ExplorerFluxData/fluxnet-preview/v1" \
-  cloudflare-r2:fluxnet-preview/v1 \
-  --progress \
-  --transfers 16 \
-  --checkers 32
-```
-
-Use `rclone copy`, not destructive `rclone sync`, unless remote stale-file deletion is intentional and has been reviewed.
-
-The output directory can be copied to Cloudflare R2 or another static host. Enable CORS for the Explorer origin, preserve the `v1/manifest.json` and `v1/sites/...` paths, and set the preview base URL in the page configuration to the hosted `v1` directory.
-
-## Repository Structure
-
-- `index.html`: GitHub Pages entry point for the Explorer.
-- `assets/`: Explorer JavaScript, CSS, and committed metadata snapshots.
-- `scripts/`: Snapshot refresh, validation, and catalog-building scripts.
-- `.github/workflows/`: GitHub Actions workflow for refreshing Explorer snapshots.
-- `tests/`: JavaScript and Python regression tests.
-- `stylesheets/` and `images/`: Minimal copied website theme assets needed by the current Explorer page.
-
-## Run Locally
-
-From the repository root:
-
-```bash
-python3 -m http.server 8000
-```
-
-Then open http://localhost:8000/ in a browser.
-
-## Update Workflow
-
-The GitHub Actions workflow in `.github/workflows/update-shuttle-snapshot.yml` can be run manually or on its schedule. It refreshes the Shuttle, ICOS-direct, JapanFlux-direct, and curated EFD snapshot files, validates ICOS coverage, and commits only the generated snapshot artifacts back to this repository when they materially change.
-
-AmeriFlux site metadata and vegetation metadata can be refreshed with `scripts/refresh_ameriflux_site_info.py` and `scripts/refresh_site_vegetation_metadata.py`. The AmeriFlux site-info refresh validates that sites surfaced by the AmeriFlux FLUXNET, BASE-BADM CC-BY-4.0, and BASE-BADM Legacy availability endpoints are present in the metadata snapshot.
-
-The broader known-sites map assets are committed in `assets/all_known_flux_sites*`. They can be regenerated with `scripts/build_all_known_flux_sites.py`; optional supplemental source lists should be placed in `external_site_lists/` when needed.
-
-## Maintainer Workflow
-
-Make Explorer changes in this repository, run the JavaScript and Python tests here, update manifests and snapshots here, and create tagged releases here for Zenodo archival.
-
-Do not edit Explorer code, manifests, snapshots, tests, release metadata, or citation metadata in `trevorkeenan/trevorkeenan.github.io`. That repository should keep only a lightweight legacy pointer from `fluxnet-explorer.html` to the hosted app in this repository.
-
-## Analytics Verification
-
-The Explorer uses the Keenan Group GA4 measurement ID `G-DXJ7N8LZEX`. The Google tag is included once in `index.html` and sends the canonical page path `/fluxnet-data-explorer/`. Custom Explorer events are emitted from `assets/shuttle-explorer.js` through `gtag("event", ...)`, including search/filter interactions and outbound or download actions such as `fx_row_download_click`, `fx_request_page_click`, `fx_landing_page_click`, and bulk-download helper events.
-
-To verify tracking after deployment:
-
-1. Open Google Tag Assistant at https://tagassistant.google.com/ and connect to `https://www.keenangroup.info/fluxnet-data-explorer/`.
-2. Confirm exactly one Google tag is detected for `G-DXJ7N8LZEX`, then confirm the initial `page_view` reports `/fluxnet-data-explorer/`.
-3. Trigger a few Explorer interactions, such as search, filter changes, row download links, and generated script or manifest downloads. Confirm the corresponding `fx_*` events appear in the Tag Assistant event stream.
-4. In GA4, open Reports > Realtime for the same property. Confirm an active user appears for the Explorer and that the event count includes `page_view` plus the tested `fx_*` events.
-5. To measure residual old-link traffic, repeat the Tag Assistant or Realtime check for `https://www.keenangroup.info/fluxnet-explorer.html`; that legacy page should also report to `G-DXJ7N8LZEX`, but it should not load the full Explorer app.
-
-## License
-
-The Explorer software code and original documentation in this repository are licensed under the Apache License, Version 2.0. See `LICENSE`.
-
-Third-party datasets, metadata, download URLs, APIs, logos, trademarks, and data products surfaced by the Explorer remain governed by the original providers' terms, licenses, citation requirements, and data-use policies, including those of FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, and other contributing networks or repositories.
-
-The Explorer preserves product-level data-policy labels for AmeriFlux API-backed products so generated manifests and download helpers can apply the policy associated with each selected product.
-
-Use of the FLUXNET Data Explorer does not imply endorsement by UC Berkeley, the Keenan Lab, FLUXNET, AmeriFlux, ICOS, JapanFlux, AsiaFlux, EFD, or any data provider.
-
-## Citation
-
-Citation metadata are provided in `CITATION.cff`.
-
-Suggested citation:
-
-> Keenan TF. 2026. FLUXNET Data Explorer (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.20331228
-
-Zenodo may provide both an all-versions/concept DOI for citing the Explorer project generally and a version-specific DOI for citing an exact release. Use the version-specific DOI when you need to cite the exact software and bundled metadata snapshots used. The live GitHub Pages app may continue to receive updated snapshots after a release.
+The Explorer depends on observations contributed by site teams and the work of participating networks and data providers. Funding for the FLUXNET Data Explorer was provided by the NSF AccelNet program.
