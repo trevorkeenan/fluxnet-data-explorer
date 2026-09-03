@@ -46,6 +46,7 @@ CA-CHA,New Brunswick - Charlie Lake site 01 (immature balsam fir forest to be th
 CA-CQ1,Québec. Carbonique1 - Lac Saint-Pierre Disturbed Marsh,Canada,46.1645,-72.6850
 CA-CQ2,Québec. Carbonique2 - Natural Lac-à-la-Tortue Open Bog,Canada,46.5316,-72.6450
 CA-CQ3,Québec. Carbonique3 - Natural Lac-à-la-Tortue Forested bog,Canada,46.5280,-72.6462
+CA-CQ4,Québec. Carbonique4 - Montérégie transformed forested peatland,Canada,45.2458,-73.6823
 CA-CRB,Carberry,Canada,49.9061,-99.3480
 CA-DB2,Delta Burns Bog 2,Canada,49.1190,-122.9951
 CA-DBB,Delta Burns Bog,Canada,49.1293,-122.9849
@@ -233,6 +234,7 @@ US-BN3,"Bonanza Creek, 1999 Burn site near Delta Junction",USA,63.9227,-145.7442
 US-BNF,ARM Bankhead National Forest Site,USA,34.3437,-87.3504
 US-BO1,Bondville,USA,40.0062,-88.2904
 US-BO2,Bondville (companion site),USA,40.0090,-88.2900
+US-BQT,Barrow Aquatic Tundra,USA,71.2897,-156.6274
 US-BR1,Brooks Field Site 10- Ames,USA,41.9749,-93.6906
 US-BR2,Brooks Field Site 1011- Ames,USA,41.9757,-93.6925
 US-BR3,Brooks Field Site 11- Ames,USA,41.9747,-93.6936
@@ -701,6 +703,7 @@ US-TW2,Twitchell Corn,USA,38.0969,-121.6365
 US-TW3,Twitchell Alfalfa,USA,38.1152,-121.6469
 US-TW4,Twitchell East End Wetland,USA,38.1027,-121.6413
 US-TW5,East Pond Wetland,USA,38.1072,-121.6426
+US-TW6,Twitchell East End Burn,USA,38.0965,-121.6422
 US-TWT,Twitchell Island,USA,38.1087,-121.6531
 US-TX1,Stiles Farm Prairie,USA,30.6176,-97.2938
 US-TX2,Riesel Farm Native Prairie,USA,31.4802,-96.8827
@@ -741,6 +744,7 @@ US-UTB,UFLUX Bonneville Salt Flats,USA,40.7848,-113.8299
 US-UTD,UFLUX Dugout Ranch,USA,38.1038,-109.5952
 US-UTE,UFLUX Escalante,USA,37.7353,-111.5708
 US-UTG,UFLUX Green River,USA,39.0188,-110.1663
+US-UTH,Ogden Bay,USA,41.1785,-112.1763
 US-UTJ,UFLUX Bluff,USA,37.2818,-109.5348
 US-UTL,UFLUX Pelican Lake,USA,40.1877,-109.6579
 US-UTM,UFLUX Matheson,USA,38.5879,-109.5775
@@ -748,6 +752,8 @@ US-UTN,UFLUX Nephi,USA,39.6896,-111.8814
 US-UTP,UFLUX Great Salt Lake Phragmites,USA,41.0604,-112.1013
 US-UTV,UFLUX Desert View,USA,40.1266,-109.9546
 US-UTW,UFLUX Wellington,USA,39.4453,-110.7288
+US-UTX,Great Salt Lake South Arm,USA,41.2219,-112.6126
+US-UTY,Great Salt Lake North Arm,USA,41.2228,-112.6124
 US-UUC,University of Utah Compass Minerals Flux,USA,41.2961,-112.3074
 US-UUP,University of Utah Playa Flux,USA,41.0303,-112.1175
 US-VAR,Vaira Ranch- Ione,USA,38.4133,-120.9508
