@@ -1592,7 +1592,7 @@ US-Me5,FLUXNET2015,CCBY4.0,10.18140/FLX/1440082,https://doi.org/10.18140/FLX/144
 US-Me6,BASE-BADM,CCBY4.0,10.17190/AMF/1246128,https://doi.org/10.17190/AMF/1246128,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-Me6,BASE-BADM,LEGACY,10.17190/AMF/1246128,https://doi.org/10.17190/AMF/1246128,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-Me6,FLUXNET,CCBY4.0,10.17190/AMF/2204871,https://doi.org/10.17190/AMF/2204871,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
-US-Me6,FLUXNET2015,CCBY4.0,10.18140/FLX/1440099,https://doi.org/10.18140/FLX/1440099,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/US-Me6
+US-Me6,FLUXNET2015,CCBY4.0,,,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/US-Me6
 US-Me7,BASE-BADM,CCBY4.0,10.17190/AMF/2331381,https://doi.org/10.17190/AMF/2331381,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-Me7,BASE-BADM,LEGACY,10.17190/AMF/2331381,https://doi.org/10.17190/AMF/2331381,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-Me7,FLUXNET,CCBY4.0,10.17190/AMF/3027360,https://doi.org/10.17190/AMF/3027360,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
