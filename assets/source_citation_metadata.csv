@@ -384,7 +384,7 @@ CA-ST2,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.
 CA-TP1,BASE-BADM,CCBY4.0,10.17190/AMF/1246009,https://doi.org/10.17190/AMF/1246009,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 CA-TP1,BASE-BADM,LEGACY,10.17190/AMF/1246009,https://doi.org/10.17190/AMF/1246009,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 CA-TP1,FLUXNET,CCBY4.0,10.17190/AMF/2006962,https://doi.org/10.17190/AMF/2006962,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
-CA-TP1,FLUXNET2015,CCBY4.0,10.18140/FLX/1440050,https://doi.org/10.18140/FLX/1440050,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/CA-TP1
+CA-TP1,FLUXNET2015,CCBY4.0,,,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/CA-TP1
 CA-TP2,BASE-BADM,CCBY4.0,10.17190/AMF/1246010,https://doi.org/10.17190/AMF/1246010,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 CA-TP2,BASE-BADM,LEGACY,10.17190/AMF/1246010,https://doi.org/10.17190/AMF/1246010,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 CA-TP2,FLUXNET,CCBY4.0,10.17190/AMF/3365262,https://doi.org/10.17190/AMF/3365262,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
@@ -473,7 +473,7 @@ CR-SoC,BASE-BADM,CCBY4.0,10.17190/AMF/1880911,https://doi.org/10.17190/AMF/18809
 CR-SoC,BASE-BADM,LEGACY,10.17190/AMF/1880911,https://doi.org/10.17190/AMF/1880911,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 CR-SoC,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 CZ-BK1,FLUXNET2015,CCBY4.0,10.18140/FLX/1440143,https://doi.org/10.18140/FLX/1440143,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/CZ-BK1
-CZ-BK2,FLUXNET2015,CCBY4.0,10.18140/FLX/1440144,https://doi.org/10.18140/FLX/1440144,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/CZ-BK2
+CZ-BK2,FLUXNET2015,CCBY4.0,,,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/CZ-BK2
 CZ-wet,FLUXNET2015,CCBY4.0,10.18140/FLX/1440145,https://doi.org/10.18140/FLX/1440145,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/CZ-wet
 DE-Akm,FLUXNET2015,CCBY4.0,10.18140/FLX/1440213,https://doi.org/10.18140/FLX/1440213,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/DE-Akm
 DE-Geb,FLUXNET2015,CCBY4.0,10.18140/FLX/1440146,https://doi.org/10.18140/FLX/1440146,,FLUXNET2015 data-citation page,https://fluxnet.org/sites/siteinfo/DE-Geb
