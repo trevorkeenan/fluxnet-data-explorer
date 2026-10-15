@@ -592,6 +592,9 @@ US-MBP,WET,ameriflux_site_search
 US-MC1,CRO,ameriflux_site_search
 US-MC2,CRO,ameriflux_site_search
 US-MCP,WET,ameriflux_site_search
+US-MDE,CRO,ameriflux_site_search
+US-MDS,CRO,ameriflux_site_search
+US-MDW,CRO,ameriflux_site_search
 US-ME1,ENF,ameriflux_site_search
 US-ME2,ENF,ameriflux_site_search
 US-ME3,ENF,ameriflux_site_search
@@ -747,6 +750,8 @@ US-RO5,CRO,ameriflux_site_search
 US-RO6,CRO,ameriflux_site_search
 US-RPF,DBF,ameriflux_site_search
 US-RRC,WET,ameriflux_site_search
+US-RSI,CRO,ameriflux_site_search
+US-RSV,CRO,ameriflux_site_search
 US-RTS,GRA,ameriflux_site_search
 US-RWE,CSH,ameriflux_site_search
 US-RWF,CSH,ameriflux_site_search
