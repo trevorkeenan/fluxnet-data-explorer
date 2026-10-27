@@ -239,3 +239,15 @@ def test_shuttle_programming_error_is_not_treated_as_outage(assets):
         with pytest.raises(TypeError):
             run_catalog(assets, callbacks)
     assert all_bytes(assets) == before
+
+
+def test_shuttle_invalid_candidate_schema_is_fatal(assets, tmp_path):
+    candidate = tmp_path / "bad-candidate.csv"
+    candidate.write_text("wrong,columns\ninvalid,record\n")
+    callbacks = fresh_callbacks()
+    callbacks[0] = catalog.refreshers(NOW)[0]
+    before = all_bytes(assets)
+    with mock.patch.object(catalog.shuttle, "fetch_candidate_csv_via_shuttle", return_value=candidate):
+        with pytest.raises(RuntimeError, match="missing required columns"):
+            run_catalog(assets, callbacks)
+    assert all_bytes(assets) == before

@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 try:
+    from .snapshot_validation import RetentionError
     from .refresh_logging import log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from snapshot_validation import RetentionError
     from refresh_logging import log, phase
 
 PROCESSING_LINEAGE_ONEFLUX = "oneflux"
@@ -212,7 +214,7 @@ def normalize_snapshot_rows(
         normalized_rows.append(normalized_row)
 
     if not normalized_rows:
-        raise RuntimeError(empty_rows_message)
+        raise RetentionError(empty_rows_message)
 
     normalized_rows.sort(key=row_sort_key)
     return normalized_fieldnames, normalized_rows
@@ -521,18 +523,23 @@ def main(argv=None) -> None:
             else:
                 with candidate_runtime_limit(max(1, int(args.candidate_timeout))):
                     candidate_path = fetch_candidate_csv_via_shuttle()
-            candidate_fieldnames, raw_candidate_rows = read_csv_snapshot(candidate_path)
-            log(f"Candidate Shuttle CSV rows: {len(raw_candidate_rows)} path={candidate_path}")
+    except (OSError, RuntimeError, ValueError) as err:
+        # The upstream package reports retrieval failures as RuntimeError.
+        # Our own parsing/normalization errors below must still surface.
+        candidate_error = str(err)
+        log(f"Warning: {candidate_error}")
+
+    if not candidate_error:
+        candidate_fieldnames, raw_candidate_rows = read_csv_snapshot(candidate_path)
+        log(f"Candidate Shuttle CSV rows: {len(raw_candidate_rows)} path={candidate_path}")
+        try:
             normalized_candidate_fieldnames, normalized_candidate_rows = normalize_snapshot_rows(
                 candidate_fieldnames,
                 raw_candidate_rows,
                 empty_rows_message="Refusing to overwrite Shuttle snapshot: listall() returned zero rows.",
             )
-    except (OSError, RuntimeError, ValueError) as err:
-        # Transport failures and rejected provider data may retain a snapshot.
-        # TypeError, AttributeError, and other programming errors must surface.
-        candidate_error = str(err)
-        log(f"Warning: {candidate_error}")
+        except RetentionError as err:
+            candidate_error = str(err)
 
     with phase("stabilize Shuttle snapshot"):
         published_rows, source_statuses = stabilize_snapshot(
