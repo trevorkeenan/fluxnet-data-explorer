@@ -35,7 +35,7 @@ def to_snake_case(name: str) -> str:
     return value.strip("_").lower()
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, help="Input CSV path (e.g. assets/shuttle_snapshot.csv)")
     parser.add_argument("--output", required=True, help="Output JSON path (e.g. assets/shuttle_snapshot.json)")
@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Snapshot refresh date in YYYY-MM-DD form",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def first_present(row: Dict[str, str], *keys: str) -> str:
@@ -197,8 +197,8 @@ def build_record(row: Dict[str, str]) -> Dict[str, object]:
     return record
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv=None) -> None:
+    args = parse_args(argv)
     input_path = Path(args.input)
     output_path = Path(args.output)
 

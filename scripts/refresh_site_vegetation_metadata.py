@@ -16,8 +16,10 @@ from urllib.error import HTTPError, URLError
 import urllib.request
 
 try:
+    from .refresh_errors import SourceUnavailableError
     from .refresh_logging import compact_error, compact_text, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_errors import SourceUnavailableError
     from refresh_logging import compact_error, compact_text, log, phase
 
 
@@ -84,17 +86,17 @@ def fetch_text(url: str, timeout: int, retries: int, retry_delay: float, label: 
                 return response.read().decode("utf-8", errors="replace")
         except HTTPError as err:
             detail = compact_text(err.read().decode("utf-8", "replace"))
-            last_error = RuntimeError(f"HTTP {err.code}: {detail}")
+            last_error = SourceUnavailableError(f"HTTP {err.code}: {detail}", endpoint=url, status_code=err.code)
             if attempt >= max(1, retries) or not should_retry_http_status(err.code):
                 break
         except (URLError, TimeoutError, OSError) as err:
-            last_error = err
+            last_error = SourceUnavailableError(str(err), endpoint=url)
             if attempt >= max(1, retries):
                 break
         delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
         log(f"Vegetation metadata retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(last_error)}")
         time.sleep(delay)
-    raise RuntimeError(f"Vegetation metadata request failed after {retries} attempt(s) ({label}): {compact_error(last_error)}")
+    raise SourceUnavailableError(f"Vegetation metadata request failed after {retries} attempt(s) ({label}): {compact_error(last_error)}", endpoint=url, status_code=getattr(last_error, "status_code", None)) from last_error
 
 
 def normalize_site_id(value: object) -> str:

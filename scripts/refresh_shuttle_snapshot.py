@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 try:
+    from .snapshot_validation import RetentionError
     from .refresh_logging import log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from snapshot_validation import RetentionError
     from refresh_logging import log, phase
 
 PROCESSING_LINEAGE_ONEFLUX = "oneflux"
@@ -24,7 +26,7 @@ DEFAULT_MIN_SITE_RETENTION_RATIO = 0.8
 DEFAULT_MIN_GUARDED_SITE_COUNT = 25
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-csv", required=True, help="Published Shuttle snapshot CSV path.")
     parser.add_argument(
@@ -70,7 +72,7 @@ def parse_args() -> argparse.Namespace:
         default=300,
         help="Maximum seconds to allow fluxnet_shuttle.listall() to build a candidate CSV before carrying forward existing data.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 @contextmanager
@@ -212,7 +214,7 @@ def normalize_snapshot_rows(
         normalized_rows.append(normalized_row)
 
     if not normalized_rows:
-        raise RuntimeError(empty_rows_message)
+        raise RetentionError(empty_rows_message)
 
     normalized_rows.sort(key=row_sort_key)
     return normalized_fieldnames, normalized_rows
@@ -486,8 +488,8 @@ def format_counts_by_hub(rows: Sequence[Dict[str, str]]) -> Dict[str, int]:
     return {hub: len(grouped[hub]) for hub in sorted(grouped)}
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv=None) -> None:
+    args = parse_args(argv)
     output_csv = Path(args.output_csv)
     existing_json = Path(args.existing_json) if args.existing_json else output_csv.with_suffix(".json")
     source_status_output = Path(args.source_status_output) if args.source_status_output else None
@@ -521,16 +523,23 @@ def main() -> None:
             else:
                 with candidate_runtime_limit(max(1, int(args.candidate_timeout))):
                     candidate_path = fetch_candidate_csv_via_shuttle()
-            candidate_fieldnames, raw_candidate_rows = read_csv_snapshot(candidate_path)
-            log(f"Candidate Shuttle CSV rows: {len(raw_candidate_rows)} path={candidate_path}")
+    except (OSError, RuntimeError, ValueError) as err:
+        # The upstream package reports retrieval failures as RuntimeError.
+        # Our own parsing/normalization errors below must still surface.
+        candidate_error = str(err)
+        log(f"Warning: {candidate_error}")
+
+    if not candidate_error:
+        candidate_fieldnames, raw_candidate_rows = read_csv_snapshot(candidate_path)
+        log(f"Candidate Shuttle CSV rows: {len(raw_candidate_rows)} path={candidate_path}")
+        try:
             normalized_candidate_fieldnames, normalized_candidate_rows = normalize_snapshot_rows(
                 candidate_fieldnames,
                 raw_candidate_rows,
                 empty_rows_message="Refusing to overwrite Shuttle snapshot: listall() returned zero rows.",
             )
-    except Exception as err:  # noqa: BLE001 - preserve last-known-good snapshot when candidate generation fails
-        candidate_error = str(err)
-        log(f"Warning: {candidate_error}")
+        except RetentionError as err:
+            candidate_error = str(err)
 
     with phase("stabilize Shuttle snapshot"):
         published_rows, source_statuses = stabilize_snapshot(

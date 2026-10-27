@@ -4,7 +4,7 @@ name: Update FLUXNET Explorer Snapshots
   workflow_dispatch:
     inputs:
       strict_refresh:
-        description: "Fail instead of carrying forward a previous valid source snapshot when an upstream source is temporarily unavailable."
+        description: "Fail instead of carrying forward a previous valid source snapshot when an upstream source is unavailable or a candidate fails retention checks."
         required: false
         default: false
         type: boolean
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   update-shuttle-snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       STRICT_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.strict_refresh == true && 'true' || 'false' }}
     steps:
@@ -43,164 +43,15 @@ jobs:
           gha_run_timed "Upgrade pip" python -m pip install --timeout 60 --retries 5 --upgrade pip
           gha_run_timed "Install fluxnet-shuttle" python -m pip install --timeout 60 --retries 5 "git+https://github.com/fluxnet/shuttle.git"
 
-      - name: Generate stable FLUXNET snapshot CSV
-        timeout-minutes: 7
-        env:
-          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
-          TARGET_SNAPSHOT_JSON: assets/shuttle_snapshot.json
+      - name: Stage and validate catalog refreshes
+        timeout-minutes: 50
         run: |
           set -euo pipefail
-          source .github/scripts/gha_timing.sh
-          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
-          SHUTTLE_SOURCE_STATUS_JSON="$RUNNER_TEMP/shuttle-source-status.json"
-          gha_run_timed "Generate stable FLUXNET snapshot CSV" python scripts/refresh_shuttle_snapshot.py \
-            --output-csv "${TARGET_SNAPSHOT_CSV}" \
-            --existing-json "${TARGET_SNAPSHOT_JSON}" \
-            --source-status-output "${SHUTTLE_SOURCE_STATUS_JSON}" \
-            --candidate-timeout 300 \
-            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
-            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
-          gha_log "Snapshot CSV path=${TARGET_SNAPSHOT_CSV} bytes=$(wc -c < "${TARGET_SNAPSHOT_CSV}")"
-          gha_log "Shuttle source status path=${SHUTTLE_SOURCE_STATUS_JSON} bytes=$(wc -c < "${SHUTTLE_SOURCE_STATUS_JSON}")"
-
-      - name: Convert snapshot CSV to compact JSON
-        timeout-minutes: 2
-        env:
-          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
-          TARGET_SNAPSHOT_JSON: assets/shuttle_snapshot.json
-        run: |
-          set -euo pipefail
-          source .github/scripts/gha_timing.sh
-          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
-          SHUTTLE_SOURCE_STATUS_JSON="$RUNNER_TEMP/shuttle-source-status.json"
-          gha_run_timed "Convert snapshot CSV to compact JSON" python .github/scripts/shuttle_snapshot_csv_to_json.py \
-            --input "${TARGET_SNAPSHOT_CSV}" \
-            --output "${TARGET_SNAPSHOT_JSON}" \
-            --source-status-input "${SHUTTLE_SOURCE_STATUS_JSON}" \
-            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
-            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
-          gha_log "Snapshot JSON path=${TARGET_SNAPSHOT_JSON} bytes=$(wc -c < "${TARGET_SNAPSHOT_JSON}")"
-
-      - name: Refresh ICOS-direct archive snapshot
-        timeout-minutes: 10
-        env:
-          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
-          TARGET_ICOS_DIRECT_CSV: assets/icos_direct_fluxnet.csv
-          TARGET_ICOS_DIRECT_JSON: assets/icos_direct_fluxnet.json
-        run: |
-          set -euo pipefail
-          source .github/scripts/gha_timing.sh
-          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
-          gha_run_timed "Refresh ICOS-direct archive snapshot" python scripts/refresh_icos_direct_fluxnet.py \
-            --shuttle-csv "${TARGET_SNAPSHOT_CSV}" \
-            --output-csv "${TARGET_ICOS_DIRECT_CSV}" \
-            --output-json "${TARGET_ICOS_DIRECT_JSON}" \
-            --timeout 45 \
-            --retries 5 \
-            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
-            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
-          gha_log "ICOS CSV path=${TARGET_ICOS_DIRECT_CSV} bytes=$(wc -c < "${TARGET_ICOS_DIRECT_CSV}")"
-          gha_log "ICOS JSON path=${TARGET_ICOS_DIRECT_JSON} bytes=$(wc -c < "${TARGET_ICOS_DIRECT_JSON}")"
-
-      - name: Validate ICOS-direct site coverage
-        timeout-minutes: 2
-        env:
-          TARGET_SNAPSHOT_CSV: assets/shuttle_snapshot.csv
-          TARGET_ICOS_DIRECT_CSV: assets/icos_direct_fluxnet.csv
-        run: |
-          set -euo pipefail
-          source .github/scripts/gha_timing.sh
-          gha_run_timed "Validate ICOS-direct site coverage" python scripts/validate_icos_direct_fluxnet.py \
-            --shuttle-csv "${TARGET_SNAPSHOT_CSV}" \
-            --icos-csv "${TARGET_ICOS_DIRECT_CSV}"
-
-      - name: Refresh JapanFlux-direct snapshot
-        timeout-minutes: 9
-        env:
-          TARGET_JAPANFLUX_CSV: assets/japanflux_direct_snapshot.csv
-          TARGET_JAPANFLUX_JSON: assets/japanflux_direct_snapshot.json
-        run: |
-          set -euo pipefail
-          source .github/scripts/gha_timing.sh
-          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
-          JAPANFLUX_SOURCE_STATUS_JSON="$RUNNER_TEMP/japanflux-source-status.json"
-          JAPANFLUX_STRICT_ARGS=()
-          if [ "${STRICT_REFRESH:-false}" = "true" ]; then
-            JAPANFLUX_STRICT_ARGS+=(--strict-refresh)
-            gha_log "JapanFlux strict refresh mode enabled; upstream outages will fail this workflow."
-          else
-            gha_log "JapanFlux tolerant refresh mode enabled; known temporary ADS outages will carry forward the previous valid snapshot."
+          STRICT_ARGS=()
+          if [ "${STRICT_REFRESH}" = "true" ]; then
+            STRICT_ARGS+=(--strict-refresh)
           fi
-          set +e
-          gha_run_timed "Refresh JapanFlux-direct snapshot" python scripts/refresh_japanflux_direct.py \
-            --output-csv "${TARGET_JAPANFLUX_CSV}" \
-            --output-json "${TARGET_JAPANFLUX_JSON}" \
-            --status-output "${JAPANFLUX_SOURCE_STATUS_JSON}" \
-            --timeout 30 \
-            --retries 4 \
-            --max-failures 3 \
-            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
-            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}" \
-            "${JAPANFLUX_STRICT_ARGS[@]}"
-          JAPANFLUX_REFRESH_STATUS=$?
-          set -e
-          if [ -f "${TARGET_JAPANFLUX_CSV}" ]; then
-            gha_log "JapanFlux CSV path=${TARGET_JAPANFLUX_CSV} bytes=$(wc -c < "${TARGET_JAPANFLUX_CSV}")"
-          else
-            gha_log "JapanFlux CSV missing after refresh attempt: ${TARGET_JAPANFLUX_CSV}"
-          fi
-          if [ -f "${TARGET_JAPANFLUX_JSON}" ]; then
-            gha_log "JapanFlux JSON path=${TARGET_JAPANFLUX_JSON} bytes=$(wc -c < "${TARGET_JAPANFLUX_JSON}")"
-          else
-            gha_log "JapanFlux JSON missing after refresh attempt: ${TARGET_JAPANFLUX_JSON}"
-          fi
-          if [ -f "${JAPANFLUX_SOURCE_STATUS_JSON}" ]; then
-            gha_log "JapanFlux source status path=${JAPANFLUX_SOURCE_STATUS_JSON} bytes=$(wc -c < "${JAPANFLUX_SOURCE_STATUS_JSON}")"
-            python -m json.tool "${JAPANFLUX_SOURCE_STATUS_JSON}"
-          fi
-          if [ "${JAPANFLUX_REFRESH_STATUS}" -ne 0 ]; then
-            gha_log "JapanFlux refresh exited with status ${JAPANFLUX_REFRESH_STATUS}; failing workflow after diagnostics."
-            exit "${JAPANFLUX_REFRESH_STATUS}"
-          fi
-
-      - name: Refresh curated EFD site inventory
-        timeout-minutes: 6
-        env:
-          TARGET_EFD_CSV: assets/efd_curated_sites_snapshot.csv
-          TARGET_EFD_JSON: assets/efd_curated_sites_snapshot.json
-        run: |
-          set -euo pipefail
-          source .github/scripts/gha_timing.sh
-          SNAPSHOT_UPDATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SNAPSHOT_UPDATED_DATE="${SNAPSHOT_UPDATED_AT%%T*}"
-          gha_run_timed "Refresh curated EFD site inventory" python scripts/refresh_efd_sites.py \
-            --output-csv "${TARGET_EFD_CSV}" \
-            --output-json "${TARGET_EFD_JSON}" \
-            --timeout 30 \
-            --retries 4 \
-            --snapshot-updated-at "${SNAPSHOT_UPDATED_AT}" \
-            --snapshot-updated-date "${SNAPSHOT_UPDATED_DATE}"
-          gha_log "EFD CSV path=${TARGET_EFD_CSV} bytes=$(wc -c < "${TARGET_EFD_CSV}")"
-          gha_log "EFD JSON path=${TARGET_EFD_JSON} bytes=$(wc -c < "${TARGET_EFD_JSON}")"
-
-      - name: Refresh AmeriFlux site metadata
-        timeout-minutes: 20
-        run: |
-          set -euo pipefail
-          source .github/scripts/gha_timing.sh
-          gha_run_timed "Refresh AmeriFlux site metadata" python scripts/refresh_ameriflux_site_info.py \
-            --output-csv assets/ameriflux_site_info.csv
-          gha_run_timed "Refresh site vegetation metadata" python scripts/refresh_site_vegetation_metadata.py \
-            assets/site_vegetation_metadata.csv
-          gha_run_timed "Refresh source citation metadata" python scripts/refresh_source_citation_metadata.py \
-            --output-csv assets/source_citation_metadata.csv
-          gha_log "AmeriFlux site info path=assets/ameriflux_site_info.csv bytes=$(wc -c < assets/ameriflux_site_info.csv)"
-          gha_log "Vegetation metadata path=assets/site_vegetation_metadata.csv bytes=$(wc -c < assets/site_vegetation_metadata.csv)"
-          gha_log "Source citation metadata path=assets/source_citation_metadata.csv bytes=$(wc -c < assets/source_citation_metadata.csv)"
+          python scripts/refresh_catalog.py "${STRICT_ARGS[@]}"
 
       - name: Commit and push snapshot files if changed
         timeout-minutes: 4
@@ -225,6 +76,7 @@ jobs:
 
           # Stage only generated snapshot artifacts to avoid committing anything else.
           git add -- \
+            assets/catalog_refresh_status.json \
             "${TARGET_SNAPSHOT_CSV}" \
             "${TARGET_SNAPSHOT_JSON}" \
             "${TARGET_ICOS_DIRECT_CSV}" \
@@ -246,3 +98,21 @@ jobs:
           gha_run_timed "Commit snapshot files" git commit -m "chore(data): refresh FLUXNET explorer snapshots"
           gha_run_timed "Rebase before push" git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}"
           gha_run_timed "Push snapshot commit" git push
+
+  catalog-health:
+    name: Report catalog source health after publication
+    needs: update-shuttle-snapshot
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Read published catalog status
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref_name }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.8"
+      - name: Check source freshness
+        run: python scripts/refresh_catalog.py --check-health

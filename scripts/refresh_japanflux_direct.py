@@ -18,9 +18,13 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
+    from .refresh_errors import SourceUnavailableError
+    from .snapshot_validation import validate_pair
     from .inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from .refresh_logging import compact_error, compact_text, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_errors import SourceUnavailableError
+    from snapshot_validation import validate_pair
     from inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from refresh_logging import compact_error, compact_text, log, phase
 
@@ -211,8 +215,8 @@ class ResponseParseError(RuntimeError):
     """Raised when an upstream ADS response is not valid JSON."""
 
 
-class UpstreamUnavailableError(RuntimeError):
-    """Raised when ADS appears temporarily unavailable after bounded retries."""
+class UpstreamUnavailableError(SourceUnavailableError):
+    """Raised when an ADS endpoint cannot be retrieved after bounded retries."""
 
 
 def maybe_float(value: Any) -> Optional[float]:
@@ -354,7 +358,9 @@ def is_temporary_ads_http_error(status_code: int, detail: str) -> bool:
     lowered = str(detail or "").casefold()
     return (
         status_code >= 500
-        or status_code in (408, 425, 429)
+        # A missing ADS metadata route is an unavailable endpoint, not evidence
+        # that previously published datasets should be removed.
+        or status_code in (404, 408, 425, 429)
         or "ads is under maintenance" in lowered
         or "maintenance" in lowered and status_code == 503
     )
@@ -399,7 +405,8 @@ def request_json(url: str, timeout: int, retries: int, retry_delay: float, label
             if attempt >= retries or not should_retry_http_status(err.code):
                 if is_temporary_ads_http_error(err.code, detail):
                     raise UpstreamUnavailableError(
-                        f"ADS unavailable after {attempt} attempt(s) ({label}): HTTP {err.code}: {detail}"
+                        f"ADS endpoint unavailable after {attempt} attempt(s) ({label}): HTTP {err.code}: {detail}",
+                        endpoint=url, status_code=err.code,
                     ) from err
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
@@ -413,7 +420,8 @@ def request_json(url: str, timeout: int, retries: int, retry_delay: float, label
             last_error = err
             if attempt >= retries:
                 raise UpstreamUnavailableError(
-                    f"ADS network request failed after {attempt} attempt(s) ({label}): {compact_error(err)}"
+                    f"ADS network request failed after {attempt} attempt(s) ({label}): {compact_error(err)}",
+                    endpoint=url,
                 ) from err
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             log(f"ADS retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(err)}")
@@ -708,8 +716,8 @@ def fallback_last_success(existing_meta: Dict[str, Any], existing_status: Dict[s
         )
         if status_at or status_date:
             return status_at, status_date
-    meta_at = normalize_snapshot_updated_at(str(existing_meta.get("snapshot_updated_at") or ""))
-    meta_date = normalize_snapshot_updated_date(str(existing_meta.get("snapshot_updated_date") or ""), meta_at)
+    meta_at = normalize_snapshot_updated_at(str(existing_meta.get("snapshot_refreshed_at") or existing_meta.get("snapshot_updated_at") or ""))
+    meta_date = normalize_snapshot_updated_date(str(existing_meta.get("snapshot_refreshed_date") or existing_meta.get("snapshot_updated_date") or ""), meta_at)
     return meta_at, meta_date
 
 
@@ -794,52 +802,10 @@ def write_status_output(path_value: str, source_status: Dict[str, Any]) -> None:
 
 
 def load_previous_valid_snapshot(output_json: Path, output_csv: Path) -> Tuple[Dict[str, Any], List[str], List[List[Any]], int]:
-    if not output_json.exists():
-        raise RuntimeError(f"No previous valid JapanFlux JSON snapshot exists at {output_json}")
-    if not output_csv.exists():
-        raise RuntimeError(f"No previous valid JapanFlux CSV snapshot exists at {output_csv}")
-
-    try:
-        payload = json.loads(output_json.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as err:
-        raise RuntimeError(f"Previous JapanFlux JSON snapshot is not readable JSON: {output_json}: {err}") from err
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"Previous JapanFlux JSON snapshot must be an object: {output_json}")
-
-    meta = payload.get("meta")
-    columns = payload.get("columns")
-    rows = payload.get("rows")
-    if not isinstance(meta, dict):
-        raise RuntimeError(f"Previous JapanFlux JSON snapshot is missing object meta: {output_json}")
-    if not str(meta.get("version") or "").strip():
-        raise RuntimeError(f"Previous JapanFlux JSON snapshot is missing meta.version: {output_json}")
-    if not isinstance(columns, list) or [str(column) for column in columns] != list(OUTPUT_COLUMNS):
-        raise RuntimeError(f"Previous JapanFlux JSON snapshot columns do not match expected schema: {output_json}")
-    if not isinstance(rows, list) or not rows:
-        raise RuntimeError(f"Previous JapanFlux JSON snapshot has no rows to carry forward: {output_json}")
-
-    normalized_rows: List[List[Any]] = []
-    for index, row in enumerate(rows, start=1):
-        if not isinstance(row, list) or len(row) != len(OUTPUT_COLUMNS):
-            raise RuntimeError(f"Previous JapanFlux JSON row {index} does not match expected schema: {output_json}")
-        normalized_rows.append(list(row))
-
-    try:
-        with output_csv.open("r", encoding="utf-8", newline="") as fh:
-            reader = csv.DictReader(fh)
-            csv_columns = [str(column or "").strip() for column in (reader.fieldnames or [])]
-            if csv_columns != list(OUTPUT_COLUMNS):
-                raise RuntimeError(f"Previous JapanFlux CSV columns do not match expected schema: {output_csv}")
-            csv_row_count = sum(1 for _ in reader)
-    except OSError as err:
-        raise RuntimeError(f"Previous JapanFlux CSV snapshot is not readable: {output_csv}: {err}") from err
-
-    if csv_row_count != len(normalized_rows):
-        raise RuntimeError(
-            f"Previous JapanFlux JSON/CSV row counts differ: json_rows={len(normalized_rows)} csv_rows={csv_row_count}"
-        )
-
-    return payload, [str(column) for column in columns], normalized_rows, csv_row_count
+    payload = validate_pair(
+        output_csv, output_json, ("site_id", "download_link"), ("site_id",), columns=OUTPUT_COLUMNS,
+    )
+    return payload, payload["columns"], payload["rows"], len(payload["rows"])
 
 
 def write_carried_forward_json(
@@ -857,8 +823,8 @@ def write_carried_forward_json(
     source_statuses = load_source_statuses(meta)
     source_statuses[JAPANFLUX_SOURCE] = source_status
     meta["source_statuses"] = {source_name: source_statuses[source_name] for source_name in sorted(source_statuses)}
-    meta["snapshot_refreshed_at"] = requested_at
-    meta["snapshot_refreshed_date"] = requested_date
+    meta["last_refresh_attempt_at"] = requested_at
+    meta["last_refresh_attempt_date"] = requested_date
     meta["last_refresh_status"] = "carried_forward"
     output_payload = {
         "meta": meta,
@@ -997,6 +963,7 @@ def carry_forward_previous_snapshot(
     reason: str,
     requested_at: str,
     requested_date: str,
+    error: SourceUnavailableError | None = None,
 ) -> None:
     if bool(args.strict_refresh):
         raise UpstreamUnavailableError(
@@ -1016,6 +983,8 @@ def carry_forward_previous_snapshot(
             output_csv=output_csv,
             output_json=output_json,
         )
+        if error is not None:
+            source_status.update({"endpoint": error.endpoint, "http_status": error.status_code})
         write_carried_forward_json(
             output_json,
             output_csv,
@@ -1052,7 +1021,7 @@ def refresh(args: argparse.Namespace) -> None:
                 retry_delay=max(0.1, args.retry_delay),
             )
     except UpstreamUnavailableError as err:
-        reason = f"JapanFlux ADS is unavailable or under maintenance during preflight: {compact_error(err, 300)}"
+        reason = f"JapanFlux ADS endpoint could not be retrieved during preflight: {compact_error(err, 300)}"
         log("JapanFlux ADS unavailable; carrying forward previous valid snapshot")
         carry_forward_previous_snapshot(
             args=args,
@@ -1061,6 +1030,7 @@ def refresh(args: argparse.Namespace) -> None:
             reason=reason,
             requested_at=requested_at,
             requested_date=requested_date,
+            error=err,
         )
         return
 
@@ -1112,6 +1082,7 @@ def refresh(args: argparse.Namespace) -> None:
                         reason=reason,
                         requested_at=requested_at,
                         requested_date=requested_date,
+                        error=err if isinstance(err, SourceUnavailableError) else None,
                     )
                     return
                 if len(failures) >= max(1, int(args.max_failures)):

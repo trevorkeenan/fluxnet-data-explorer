@@ -42,16 +42,38 @@ For changes to the interface, inspect the local application as well: search and 
 
 The browser loads CSV/JSON snapshots from `assets/` and supplements them with live AmeriFlux FLUXNET, BASE-BADM CC-BY-4.0, BASE-BADM Legacy, and FLUXNET2015 availability queries. Live availability is cached separately and can fall back to cached or committed records when an upstream source is unavailable.
 
-The [snapshot workflow](.github/workflows/update-shuttle-snapshot.yml) runs on a daily schedule at 05:17 UTC or by manual dispatch. It:
+The [snapshot workflow](.github/workflows/update-shuttle-snapshot.yml) runs on a daily schedule at 05:17 UTC or by manual dispatch. Its [catalog coordinator](scripts/refresh_catalog.py):
 
 1. Installs the upstream FLUXNET Shuttle package and refreshes its catalog.
 2. Converts the Shuttle CSV to compact JSON.
 3. Refreshes ICOS-direct records and validates their coverage.
 4. Refreshes JapanFlux-direct and curated EFD records.
 5. Refreshes AmeriFlux site metadata, vegetation metadata, and source citation metadata.
-6. Commits only the specified generated artifacts when their files differ.
+6. Validates the complete staged catalog and commits only the specified generated artifacts when their files differ.
 
-The workflow installs Shuttle separately from `requirements-dev.txt`. Refreshes can update timestamps even when the available data inventory is unchanged; a refresh commit does not by itself indicate new observations. Manual dispatch exposes `strict_refresh` to fail rather than carry forward supported previous snapshots after upstream failures. Inspect source-status warnings and workflow logs before interpreting a refresh as complete.
+The workflow installs Shuttle separately from `requirements-dev.txt`. Refreshes can update timestamps even when the available data inventory is unchanged; a refresh commit does not by itself indicate new observations.
+
+All source refreshes run in a temporary staging directory seeded with the committed snapshots. Before promoting any files, the coordinator checks required fields, duplicate records, CSV/JSON content agreement, coverage years, the expected ICOS/Shuttle sites, and retention of at least 80% of previously published site IDs. Shuttle also retains its existing per-hub completeness checks. CSV-only metadata receives the same schema, duplicate, and site-retention checks. Suspicious site losses retain the previous validated source snapshot. Inspect and review intentional large removals before changing the committed baseline.
+
+After bounded network retries, unavailable providers retain their previous validated data while other sources continue refreshing. This includes ADS metadata HTTP 404 responses (which can indicate an unavailable or changed endpoint, not necessarily temporary maintenance) and ICOS timeouts, including its HTTP 400 execution-timeout responses. Parser errors, programming errors, invalid candidate schemas, and missing or corrupt fallback snapshots stop publication. The workflow does not use `continue-on-error` to bypass failed validation.
+
+`assets/catalog_refresh_status.json` records each source's status, attempt time, last successful refresh, and failure reason, including endpoint and HTTP status where available. CSV-only metadata statuses also appear in the Shuttle JSON so the browser can show their stale-source warnings. On the first coordinator run, CSV-only metadata dates are conservatively bootstrapped from the file's last Git commit; subsequent runs preserve the explicit successful-refresh date. Checkout filesystem modification times are never used.
+
+To run the same refresh locally (contacts providers and writes validated output):
+
+```bash
+python scripts/refresh_catalog.py
+```
+
+Use `--assets-dir /absolute/path/to/copied-assets` for a disposable run against a complete copy of `assets/`. Manual dispatch exposes `strict_refresh`; locally use `--strict-refresh`. Strict mode rejects every carried-forward source, including Shuttle hubs and JapanFlux, and leaves the published files untouched. Run the coordinator rather than individual refreshers when preparing a complete catalog update; standalone refresh scripts do not provide catalog-wide staging.
+
+The refresh job publishes a validated catalog even when some sources are carried forward. A separate **Report catalog source health after publication** job then fails for degraded source health, preserving GitHub failure notifications without preventing publication. Both jobs provide a per-source summary. A red health job therefore does not mean the healthy sources failed to publish. Diagnose its listed sources; repeated failures must retain their original successful-refresh date. Recovery clears the stale status even if the provider returns unchanged data. This read-only command performs the same health check:
+
+```bash
+python scripts/refresh_catalog.py --check-health
+```
+
+The [catalog regression workflow](.github/workflows/test-catalog-refresh.yml) runs the Python and browser-logic suites on relevant pull requests. It mocks provider failures and never refreshes production snapshots.
 
 The [AmeriFlux site-info refresher](scripts/refresh_ameriflux_site_info.py) validates that sites from the FLUXNET and both BASE-BADM policy endpoints are represented. Vegetation and citation refresh logic is in [refresh_site_vegetation_metadata.py](scripts/refresh_site_vegetation_metadata.py) and [refresh_source_citation_metadata.py](scripts/refresh_source_citation_metadata.py).
 
@@ -61,7 +83,8 @@ The wider known-sites map assets, `assets/all_known_flux_sites*`, are regenerate
 
 The snapshot metadata separates refresh activity from changes to availability:
 
-- `snapshot_refreshed_at` / `snapshot_refreshed_date` drive **Explorer refreshed** and advance after successful source refreshes.
+- `snapshot_refreshed_at` / `snapshot_refreshed_date` drive **Explorer refreshed** and advance after successful source refreshes. Retaining a source does not advance its successful-refresh date; check the source warnings when the catalog refresh is partial.
+- `last_refresh_attempt_at` records an attempt even when a source is retained. Per-source `last_successful_refresh_at` / `last_successful_refresh_date` preserve the last validated retrieval across repeated failures.
 - `snapshot_updated_at` / `snapshot_updated_date` drive **New data last added** and advance when `inventory_version` changes.
 - `version` fingerprints the browser payload for cache invalidation and can change after descriptive metadata corrections.
 

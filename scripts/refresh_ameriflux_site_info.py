@@ -16,8 +16,12 @@ import urllib.request
 from typing import Any
 
 try:
+    from .refresh_errors import SourceUnavailableError
+    from .snapshot_validation import RetentionError
     from .refresh_logging import compact_error, compact_text, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_errors import SourceUnavailableError
+    from snapshot_validation import RetentionError
     from refresh_logging import compact_error, compact_text, log, phase
 
 
@@ -83,17 +87,17 @@ def fetch_text(url: str, timeout: int, retries: int, retry_delay: float, label: 
                 return response.read().decode("utf-8", errors="replace")
         except HTTPError as err:
             detail = compact_text(err.read().decode("utf-8", "replace"))
-            last_error = RuntimeError(f"HTTP {err.code}: {detail}")
+            last_error = SourceUnavailableError(f"HTTP {err.code}: {detail}", endpoint=url, status_code=err.code)
             if attempt >= max(1, retries) or not should_retry_http_status(err.code):
                 break
         except (URLError, TimeoutError, OSError) as err:
-            last_error = err
+            last_error = SourceUnavailableError(str(err), endpoint=url)
             if attempt >= max(1, retries):
                 break
         delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
         log(f"AmeriFlux retry {attempt}/{retries} ({label}) after {delay:.1f}s: {compact_error(last_error)}")
         time.sleep(delay)
-    raise RuntimeError(f"AmeriFlux request failed after {retries} attempt(s) ({label}): {compact_error(last_error)}")
+    raise SourceUnavailableError(f"AmeriFlux request failed after {retries} attempt(s) ({label}): {compact_error(last_error)}", endpoint=url, status_code=getattr(last_error, "status_code", None)) from last_error
 
 
 def fetch_json(url: str, timeout: int, retries: int, retry_delay: float, label: str) -> Any:
@@ -186,7 +190,7 @@ def validate_available_sites_are_present(rows: list[dict[str, str]], timeout: in
     if missing:
         sample = ", ".join(missing[:20])
         suffix = "" if len(missing) <= 20 else f", ... ({len(missing)} total)"
-        raise RuntimeError(
+        raise RetentionError(
             "AmeriFlux site metadata is missing available-data site(s): "
             f"{sample}{suffix}"
         )
@@ -211,7 +215,7 @@ def main(argv: list[str]) -> int:
         rows = build_site_info_rows(parse_ameriflux_site_search(site_search_html))
         log(f"AmeriFlux site-search metadata rows: {len(rows)}")
     if not rows:
-        raise RuntimeError("AmeriFlux site-search returned no usable site metadata rows.")
+        raise RetentionError("AmeriFlux site-search returned no usable site metadata rows.")
     if not args.skip_availability_validation:
         with phase("validate AmeriFlux availability coverage"):
             validate_available_sites_are_present(rows, timeout, retries, retry_delay)
