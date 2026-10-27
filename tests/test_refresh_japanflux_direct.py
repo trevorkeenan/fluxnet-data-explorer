@@ -249,12 +249,13 @@ class RefreshJapanFluxDirectTests(unittest.TestCase):
 
             payload = json.loads(output_json.read_text(encoding="utf-8"))
             self.assertEqual(payload["rows"], [self.previous_row_values()])
-            self.assertEqual(payload["meta"]["snapshot_refreshed_date"], "2026-06-04")
+            self.assertEqual(payload["meta"]["snapshot_refreshed_date"], "2026-06-02")
+            self.assertEqual(payload["meta"]["last_refresh_attempt_date"], "2026-06-04")
             self.assertEqual(payload["meta"]["snapshot_updated_date"], "2026-05-29")
             self.assertEqual(payload["meta"]["last_refresh_status"], "carried_forward")
             japanflux_status = payload["meta"]["source_statuses"]["JapanFlux"]
             self.assertEqual(japanflux_status["status"], "carried_forward")
-            self.assertEqual(japanflux_status["last_successful_refresh_date"], "2026-05-29")
+            self.assertEqual(japanflux_status["last_successful_refresh_date"], "2026-06-02")
             self.assertEqual(japanflux_status["published_row_count"], 1)
             self.assertIn("under maintenance", japanflux_status["reason"])
 

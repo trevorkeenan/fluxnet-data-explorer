@@ -19,9 +19,13 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
+    from .refresh_errors import SourceUnavailableError
+    from .snapshot_validation import RetentionError
     from .inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from .refresh_logging import compact_text, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_errors import SourceUnavailableError
+    from snapshot_validation import RetentionError
     from inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from refresh_logging import compact_text, log, phase
 
@@ -173,7 +177,7 @@ class ResponseParseError(RuntimeError):
     """Raised when an upstream HTTP response is not valid JSON."""
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-csv", required=True, help="Destination CSV path.")
     parser.add_argument("--output-json", required=True, help="Destination JSON path.")
@@ -210,7 +214,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Snapshot refresh date in YYYY-MM-DD form.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def first_present(mapping: Dict[str, Any], *keys: str) -> str:
@@ -657,7 +661,12 @@ def sparql_post(query: str, timeout: int, retries: int, retry_delay: float, labe
                 return read_json_response(response, f"ICOS SPARQL {label or '<unlabeled>'}")
         except HTTPError as err:
             detail = compact_text(err.read().decode("utf-8", "replace"))
-            last_error = RuntimeError(f"HTTP {err.code}: {detail}")
+            # ICOS also reports server execution timeouts as HTTP 400.
+            if err.code < 500 and err.code not in (408, 425, 429) and not (
+                err.code == 400 and ("timeout" in detail.lower() or "query quota" in detail.lower())
+            ):
+                raise
+            last_error = SourceUnavailableError(f"HTTP {err.code}: {detail}", endpoint=SPARQL_ENDPOINT, status_code=err.code)
             if attempt >= retries:
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
@@ -665,7 +674,9 @@ def sparql_post(query: str, timeout: int, retries: int, retry_delay: float, labe
                 delay = max(65.0, delay)
             log(f"ICOS SPARQL retry {attempt}/{retries} ({label or 'query'}) after {delay:.1f}s: {last_error}")
             time.sleep(delay)
-        except (URLError, TimeoutError, OSError, ResponseParseError) as err:
+        except ResponseParseError:
+            raise
+        except (URLError, TimeoutError, OSError) as err:
             last_error = err
             if attempt >= retries:
                 break
@@ -673,7 +684,10 @@ def sparql_post(query: str, timeout: int, retries: int, retry_delay: float, labe
             log(f"ICOS SPARQL retry {attempt}/{retries} ({label or 'query'}) after {delay:.1f}s: {err}")
             time.sleep(delay)
     detail = f" ({label})" if label else ""
-    raise RuntimeError(f"ICOS SPARQL request failed after {retries} attempt(s){detail}: {last_error}")
+    raise SourceUnavailableError(
+        f"ICOS SPARQL request failed after {retries} attempt(s){detail}: {last_error}",
+        endpoint=SPARQL_ENDPOINT, status_code=getattr(last_error, "status_code", None),
+    ) from last_error
 
 
 def build_candidate(binding: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -760,20 +774,27 @@ def load_object_metadata(object_id: str, timeout: int, retries: int, retry_delay
                 return read_json_response(response, f"ICOS object metadata {object_id}")
         except HTTPError as err:
             detail = compact_text(err.read().decode("utf-8", "replace"))
-            last_error = RuntimeError(f"HTTP {err.code}: {detail}")
+            if err.code < 500 and err.code not in (408, 425, 429):
+                raise
+            last_error = SourceUnavailableError(f"HTTP {err.code}: {detail}", endpoint=url, status_code=err.code)
             if attempt >= retries:
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             log(f"ICOS object metadata retry {attempt}/{retries} ({object_id}) after {delay:.1f}s: {last_error}")
             time.sleep(delay)
-        except (URLError, TimeoutError, OSError, ResponseParseError) as err:
+        except ResponseParseError:
+            raise
+        except (URLError, TimeoutError, OSError) as err:
             last_error = err
             if attempt >= retries:
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             log(f"ICOS object metadata retry {attempt}/{retries} ({object_id}) after {delay:.1f}s: {err}")
             time.sleep(delay)
-    raise RuntimeError(f"ICOS object metadata request failed after {retries} attempt(s) ({object_id}): {last_error}")
+    raise SourceUnavailableError(
+        f"ICOS object metadata request failed after {retries} attempt(s) ({object_id}): {last_error}",
+        endpoint=url, status_code=getattr(last_error, "status_code", None),
+    ) from last_error
 
 
 def hydrate_candidate_from_metadata(
@@ -927,8 +948,8 @@ def build_final_explorer_sources(
     return sources
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv=None) -> None:
+    args = parse_args(argv)
     output_csv = Path(args.output_csv)
     output_json = Path(args.output_json)
     shuttle_site_ids = load_shuttle_site_ids(args.shuttle_csv)
@@ -991,7 +1012,7 @@ def main() -> None:
         + ", ".join(f"{site_id}={final_explorer_sources.get(site_id, 'MISSING')}" for site_id in EXPECTED_REGRESSION_SITE_IDS),
     )
     if final_missing:
-        raise RuntimeError(
+        raise RetentionError(
             "Expected ICOS/Shuttle sites missing from final explorer data: " + ", ".join(final_missing)
         )
 

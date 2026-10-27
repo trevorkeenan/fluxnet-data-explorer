@@ -19,9 +19,13 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 try:
+    from .refresh_errors import SourceUnavailableError
+    from .snapshot_validation import RetentionError
     from .inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from .refresh_logging import compact_error, log, phase
 except ImportError:  # pragma: no cover - supports direct script execution
+    from refresh_errors import SourceUnavailableError
+    from snapshot_validation import RetentionError
     from inventory_fingerprint import compact_rows_to_records, inventory_change_summary_json, inventory_version
     from refresh_logging import compact_error, log, phase
 
@@ -97,7 +101,7 @@ POLICY_EMPTY_VALUES = {"", "-", "--", "n/a", "na", "none", "null", "not availabl
 RESTRICTED_ACCESS_TERMS = ("private", "restricted", "approval", "contact", "closed", "pi")
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-csv", required=True, help="Destination CSV path.")
     parser.add_argument("--output-json", required=True, help="Destination JSON path.")
@@ -135,7 +139,7 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Snapshot refresh date in YYYY-MM-DD form.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def clean_string(value: Any) -> str:
@@ -422,19 +426,23 @@ def fetch_json_with_retry(
         "X-Requested-With": "XMLHttpRequest",
     }
     errors: List[str] = []
+    last_error: Exception | None = None
     for attempt in range(1, max(1, retries) + 1):
         try:
             request = Request(url, data=body, headers=headers, method="POST")
             with urlopen(request, timeout=timeout) as response:
                 return json.load(response)
         except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            last_error = exc
             errors.append(f"attempt {attempt}: {compact_error(exc)}")
             if attempt >= max(1, retries):
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             log(f"EFD JSON retry {attempt}/{retries} after {delay:.1f}s: {compact_error(exc)}")
             time.sleep(delay)
-    raise RuntimeError(f"Failed to fetch EFD public site JSON from {url}: {'; '.join(errors)}")
+    if isinstance(last_error, json.JSONDecodeError):
+        raise ValueError(f"Invalid EFD JSON from {url}: {'; '.join(errors)}")
+    raise SourceUnavailableError(f"Failed to fetch EFD public site JSON from {url}: {'; '.join(errors)}", endpoint=url, status_code=getattr(last_error, "code", None)) from last_error
 
 
 def fetch_text_with_retry(
@@ -449,19 +457,21 @@ def fetch_text_with_retry(
         "Accept": accept,
     }
     errors: List[str] = []
+    last_error: Exception | None = None
     for attempt in range(1, max(1, retries) + 1):
         try:
             request = Request(url, headers=headers, method="GET")
             with urlopen(request, timeout=timeout) as response:
                 return response.read().decode("utf-8-sig", errors="replace")
         except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError) as exc:
+            last_error = exc
             errors.append(f"attempt {attempt}: {compact_error(exc)}")
             if attempt >= max(1, retries):
                 break
             delay = min(30.0, retry_delay * (2 ** (attempt - 1)))
             log(f"EFD text retry {attempt}/{retries} ({url}) after {delay:.1f}s: {compact_error(exc)}")
             time.sleep(delay)
-    raise RuntimeError(f"Failed to fetch text from {url}: {'; '.join(errors)}")
+    raise SourceUnavailableError(f"Failed to fetch text from {url}: {'; '.join(errors)}", endpoint=url, status_code=getattr(last_error, "code", None)) from last_error
 
 
 def fetch_site_detail_html_with_retry(
@@ -508,7 +518,7 @@ def load_public_site_rows(
             retry_delay,
         )
         return parse_public_site_json(payload, last_updated), ""
-    except Exception as primary_error:
+    except (SourceUnavailableError, ValueError, RuntimeError) as primary_error:
         csv_text = fetch_text_with_retry(PUBLIC_SITE_CSV_URL, timeout, retries, retry_delay)
         rows = parse_public_site_csv(csv_text, last_updated)
         warning = (
@@ -675,7 +685,7 @@ def curate_public_site_rows(
             site_id = clean_string(row.get("site_id"))
             try:
                 detail_html = future.result()
-            except Exception as exc:
+            except SourceUnavailableError as exc:
                 failures.append(f"{site_id}: {exc}")
                 continue
             curated_row = build_curated_site_row(row, detail_html, last_updated)
@@ -686,7 +696,7 @@ def curate_public_site_rows(
         sample = "; ".join(failures[:10])
         if len(failures) > 10:
             sample += f"; ... ({len(failures) - 10} more)"
-        raise RuntimeError(f"Failed to fetch one or more EFD site-detail pages: {sample}")
+        raise SourceUnavailableError(f"Failed to fetch one or more EFD site-detail pages: {sample}", endpoint=PUBLIC_SITE_JSON_URL)
 
     return dedupe_site_rows(curated)
 
@@ -735,8 +745,8 @@ def write_json(
     path.write_text(json.dumps(payload, ensure_ascii=True, separators=(",", ":")), encoding="utf-8")
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv=None) -> None:
+    args = parse_args(argv)
     output_csv = Path(args.output_csv)
     output_json = Path(args.output_json)
 
@@ -752,7 +762,7 @@ def main() -> None:
             args.retry_delay,
         )
     if not public_rows:
-        raise RuntimeError("Refusing to curate an empty EFD site inventory.")
+        raise RetentionError("Refusing to curate an empty EFD site inventory.")
 
     with phase(f"curate EFD site details ({len(public_rows)} catalog rows, workers={args.workers})"):
         curated_rows = curate_public_site_rows(
@@ -764,7 +774,7 @@ def main() -> None:
             args.workers,
         )
     if not curated_rows:
-        raise RuntimeError("Refusing to write empty curated EFD snapshot.")
+        raise RetentionError("Refusing to write empty curated EFD snapshot.")
 
     with phase("write EFD outputs"):
         version_payload = build_version_payload(curated_rows)

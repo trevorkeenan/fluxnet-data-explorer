@@ -24,7 +24,7 @@ DEFAULT_MIN_SITE_RETENTION_RATIO = 0.8
 DEFAULT_MIN_GUARDED_SITE_COUNT = 25
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-csv", required=True, help="Published Shuttle snapshot CSV path.")
     parser.add_argument(
@@ -70,7 +70,7 @@ def parse_args() -> argparse.Namespace:
         default=300,
         help="Maximum seconds to allow fluxnet_shuttle.listall() to build a candidate CSV before carrying forward existing data.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 @contextmanager
@@ -486,8 +486,8 @@ def format_counts_by_hub(rows: Sequence[Dict[str, str]]) -> Dict[str, int]:
     return {hub: len(grouped[hub]) for hub in sorted(grouped)}
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv=None) -> None:
+    args = parse_args(argv)
     output_csv = Path(args.output_csv)
     existing_json = Path(args.existing_json) if args.existing_json else output_csv.with_suffix(".json")
     source_status_output = Path(args.source_status_output) if args.source_status_output else None
@@ -528,7 +528,9 @@ def main() -> None:
                 raw_candidate_rows,
                 empty_rows_message="Refusing to overwrite Shuttle snapshot: listall() returned zero rows.",
             )
-    except Exception as err:  # noqa: BLE001 - preserve last-known-good snapshot when candidate generation fails
+    except (OSError, RuntimeError, ValueError) as err:
+        # Transport failures and rejected provider data may retain a snapshot.
+        # TypeError, AttributeError, and other programming errors must surface.
         candidate_error = str(err)
         log(f"Warning: {candidate_error}")
 
