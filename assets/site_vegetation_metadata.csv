@@ -312,6 +312,7 @@ US-AC5,URB,ameriflux_site_search
 US-AC6,URB,ameriflux_site_search
 US-ACT,WAT,ameriflux_site_search
 US-ADR,BSV,ameriflux_site_search
+US-AEF,GRA,ameriflux_site_search
 US-AF1,CVM,ameriflux_site_search
 US-AKN,MF,ameriflux_site_search
 US-ALQ,WET,ameriflux_site_search
@@ -629,6 +630,7 @@ US-MRF,ENF,ameriflux_site_search
 US-MRM,WET,ameriflux_site_search
 US-MSR,CRO,ameriflux_site_search
 US-MTB,ENF,ameriflux_site_search
+US-MTV,WET,ameriflux_site_search
 US-MUR,WET,ameriflux_site_search
 US-MVF,CRO,ameriflux_site_search
 US-MVW,CRO,ameriflux_site_search

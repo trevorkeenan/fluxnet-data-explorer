@@ -712,6 +712,9 @@ US-Act,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.
 US-ADR,BASE-BADM,CCBY4.0,10.17190/AMF/1418680,https://doi.org/10.17190/AMF/1418680,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-ADR,BASE-BADM,LEGACY,10.17190/AMF/1418680,https://doi.org/10.17190/AMF/1418680,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-ADR,FLUXNET,CCBY4.0,10.17190/AMF/3027322,https://doi.org/10.17190/AMF/3027322,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
+US-AEF,BASE-BADM,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
+US-AEF,BASE-BADM,LEGACY,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
+US-AEF,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-AF1,BASE-BADM,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-AF1,BASE-BADM,LEGACY,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-AF1,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
@@ -1690,6 +1693,9 @@ US-MSR,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.
 US-MtB,BASE-BADM,CCBY4.0,10.17190/AMF/1579717,https://doi.org/10.17190/AMF/1579717,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-MtB,BASE-BADM,LEGACY,10.17190/AMF/1579717,https://doi.org/10.17190/AMF/1579717,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-MtB,FLUXNET,CCBY4.0,10.17190/AMF/2571103,https://doi.org/10.17190/AMF/2571103,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
+US-Mtv,BASE-BADM,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
+US-Mtv,BASE-BADM,LEGACY,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
+US-Mtv,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-Mur,BASE-BADM,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-Mur,BASE-BADM,LEGACY,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
 US-Mur,FLUXNET,CCBY4.0,,,,AmeriFlux V2 site_info_display API,https://amfcdn.lbl.gov/api/v2/site_info_display/AmeriFlux
