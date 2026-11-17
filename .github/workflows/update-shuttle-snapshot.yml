@@ -33,7 +33,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12.8"
+          python-version: "3.12"
 
       - name: Install FLUXNET Shuttle from GitHub
         timeout-minutes: 5
@@ -113,6 +113,6 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12.8"
+          python-version: "3.12"
       - name: Check source freshness
         run: python scripts/refresh_catalog.py --check-health

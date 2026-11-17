@@ -24,7 +24,7 @@ Maintain Explorer code, tests, snapshots, and citation/release metadata here. Th
 
 For local startup, see [Run locally and contribute](README.md#run-locally-and-contribute). Serving the app requires only a static HTTP server; Node.js and the Python development dependencies are for tests and maintenance.
 
-Use a Python environment with the [development dependencies](requirements-dev.txt), and a Node.js version supporting the built-in test runner. The snapshot workflow currently uses Python 3.12.8.
+Use a Python environment with the [development dependencies](requirements-dev.txt), and a Node.js version supporting the built-in test runner. The snapshot workflow uses a Python 3.12 patch release supported by the GitHub-hosted runner.
 
 ```bash
 python3 -m venv .venv
