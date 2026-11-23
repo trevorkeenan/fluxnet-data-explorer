@@ -76,6 +76,7 @@ CA-CQ1,CRO,ameriflux_site_search
 CA-CQ2,WET,ameriflux_site_search
 CA-CQ3,WET,ameriflux_site_search
 CA-CQ4,CRO,ameriflux_site_search
+CA-CQA,WET,ameriflux_site_search
 CA-CRB,CRO,ameriflux_site_search
 CA-DB2,WET,ameriflux_site_search
 CA-DBB,WET,ameriflux_site_search
@@ -646,6 +647,7 @@ US-NC2,ENF,ameriflux_site_search
 US-NC3,ENF,ameriflux_site_search
 US-NC4,WET,ameriflux_site_search
 US-NC5,ENF,ameriflux_site_search
+US-NC6,MF,ameriflux_site_search
 US-NE1,CRO,ameriflux_site_search
 US-NE2,CRO,ameriflux_site_search
 US-NE3,CRO,ameriflux_site_search
